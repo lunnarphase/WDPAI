@@ -7,44 +7,33 @@ class UsersRepository extends Repository {
     public function getUsers(): ?array 
     {
         $query = $this->database->connect()->prepare(
-            "
-            SELECT * FROM users;
-            "
+            "SELECT * FROM users"
         );
         $query->execute();
 
-        $users = $query->fetchAll(PDO::FETCH_ASSOC);
-        return $users;
+        return $query->fetchAll(PDO::FETCH_ASSOC);
     }
 
-  public function getUserByEmail(string $email) {
+    public function getUserByEmail(string $email) {
         $query = $this->database->connect()->prepare(
-            "
-            SELECT * FROM users WHERE email = :email
-            "
+            "SELECT * FROM users WHERE email = :email"
         );
-        $query->bindParam(':email', $email);
+        $query->bindParam(':email', $email, PDO::PARAM_STR);
         $query->execute();
 
         $user = $query->fetch(PDO::FETCH_ASSOC);
-        return $user;
+        return $user ?: null;
     }
 
-    public function createUser(
-        string $email,
-        string $hashedPassword,
-        string $username
-    ) {
+    public function createUser(string $email, string $hashedPassword, string $username) {
         $query = $this->database->connect()->prepare(
-            "
-            INSERT INTO users (firstname, lastname, email, password, bio)
-            VALUES (?, ?, ?, ?, ?);
-            "
+            "INSERT INTO users (username, email, password) VALUES (?, ?, ?)"
         );
+        
         $query->execute([
-            $username
-            $hashedPassword,
-            $email
+            $username,
+            $email,
+            $hashedPassword
         ]);
     }
 }
