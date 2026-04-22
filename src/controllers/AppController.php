@@ -20,9 +20,6 @@ class AppController {
                  
         if(file_exists($templatePath)){
             extract($variables);
-            // ["tab_name" => $title]
-
-            // $tab_name = $title
 
             ob_start();
             include $templatePath;
@@ -41,7 +38,6 @@ class AppController {
             session_start();
         }
 
-        // Sprawdzamy, czy w sesji istnieje ID użytkownika
         if (empty($_SESSION['user_id'])) {
             $url = "http://$_SERVER[HTTP_HOST]";
             header("Location: {$url}/login");

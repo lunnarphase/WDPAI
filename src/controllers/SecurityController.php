@@ -24,15 +24,17 @@ class SecurityController extends AppController {
             return $this->render('login', ['messages' => 'Nie znaleziono użytkownika']);
         }
 
-        if (!password_verify($password, $user['password'])) {
+
+        if (!password_verify($password, $user->getPassword())) {
             return $this->render('login', ['messages' => 'Błędne hasło']);
         }
 
-        // Tworzymy sesję użytkownika
         session_regenerate_id(true); 
-        $_SESSION['user_id'] = $user['id'];
-        $_SESSION['user_email'] = $user['email'];
-        $_SESSION['user_name'] = $user['username'];
+
+        $_SESSION['user_id'] = $user->getId();
+        $_SESSION['user_email'] = $user->getEmail();
+        $_SESSION['user_name'] = $user->getUsername();
+        $_SESSION['user_role'] = $user->getRole(); 
         $_SESSION['is_logged_in'] = true;
 
         $url = "http://$_SERVER[HTTP_HOST]";
@@ -45,10 +47,8 @@ class SecurityController extends AppController {
             session_start();
         }
         
-        // Czyścimy tablicę sesji
         $_SESSION = [];
         
-        // Niszczymy ciasteczko sesyjne przeglądarki
         if (ini_get("session.use_cookies")) {
             $params = session_get_cookie_params();
             setcookie(session_name(), '', time() - 42000,
@@ -57,7 +57,6 @@ class SecurityController extends AppController {
             );
         }
         
-        // Niszczymy sesję na serwerze
         session_destroy();
         
         $url = "http://$_SERVER[HTTP_HOST]";
@@ -87,7 +86,6 @@ class SecurityController extends AppController {
                 return $this->render("register", ["messages" => "Użytkownik z podanym adresem e-mail już istnieje"]);
             }
 
-            // Tworzenie użytkownika i hashowanie hasła
             $hashedPassword = password_hash($password, PASSWORD_BCRYPT);
             $userRepository->createUser($email, $hashedPassword, $username);
 
