@@ -5,10 +5,10 @@ require_once 'AppController.php';
 class DashboardController extends AppController {
 
     public function index() {
-        // TODO pobieranie danych z bazy
-        // wstawianie zmiennych na widok
-        $title = "INDEX";
+        // Wymagamy zalogowania!
+        $this->requireLogin();
 
-        return $this->render("index", ["title" => $title]);
+        $title = "DASHBOARD - MediSchedule";
+        return $this->render("dashboard", ["title" => $title]);
     }
 }

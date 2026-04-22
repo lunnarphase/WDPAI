@@ -28,6 +28,10 @@ class Routing {
             "controller" => "SecurityController",
             "action" => "register"
         ],
+        "logout" => [
+            "controller" => "SecurityController",
+            "action" => "logout"
+        ],
     ];
 
     public static function run(string $path) {
@@ -37,6 +41,7 @@ class Routing {
             case '':
             case 'login':
             case 'register':
+            case 'logout':
                 $controller = Routing::$routes[$path]["controller"];
                 $action = Routing::$routes[$path]["action"];
 
