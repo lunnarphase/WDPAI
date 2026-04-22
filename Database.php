@@ -1,44 +1,36 @@
 <?php
-// .env 
 require_once __DIR__ . '/config.php';
 
-// singleton 
 class Database {
     private $username;
     private $password;
     private $host;
     private $database;
-    // private $conn;
+    private $connection; // Tutaj będziemy trzymać aktywne połączenie
 
-    public function __construct()
-    {
+    public function __construct() {
         $this->username = USERNAME;
         $this->password = PASSWORD;
         $this->host = HOST;
         $this->database = DATABASE;
     }
 
-    public function connect()
-    {
+    public function connect() {
+        if ($this->connection) {
+            return $this->connection;
+        }
+
         try {
-            $conn = new PDO(
+            $this->connection = new PDO(
                 "pgsql:host=$this->host;port=5432;dbname=$this->database",
                 $this->username,
                 $this->password,
-                ["sslmode"  => "prefer"]
+                ["sslmode" => "prefer"]
             );
-
-            // set the PDO error mode to exception
-            $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-            return $conn;
-        }
-        catch(PDOException $e) {
-            // change to error page e.g. 404 not found etc.
+            $this->connection->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            return $this->connection;
+        } catch(PDOException $e) {
             die("Connection failed: " . $e->getMessage());
         }
-    }
-
-    public function disconnect() {
-        // $this->conn = null;
     }
 }

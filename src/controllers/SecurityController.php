@@ -6,6 +6,16 @@ require_once __DIR__ . '/../repositories/UsersRepository.php';
 class SecurityController extends AppController {
 
     public function login() {
+        // 1. Zabezpieczenie ścieżki: Jeśli jesteśmy zalogowani, wracamy do panelu!
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        if (isset($_SESSION['user_id'])) {
+            $url = "http://$_SERVER[HTTP_HOST]";
+            header("Location: {$url}/dashboard");
+            exit();
+        }
+
         if (!$this->isPost()) {
             return $this->render('login');
         }
@@ -14,27 +24,35 @@ class SecurityController extends AppController {
         $password = $_POST["password"] ?? '';
 
         if (empty($email) || empty($password)) {
-            return $this->render('login', ['messages' => 'Wypełnij wszystkie pola']);
+            return $this->render('login', ['messages' => ['Wypełnij wszystkie pola']]);
         }
 
         $userRepository = new UsersRepository();
         $user = $userRepository->getUserByEmail($email);
 
         if (!$user) {
-            return $this->render('login', ['messages' => 'Nie znaleziono użytkownika']);
+            return $this->render('login', ['messages' => ['Nie znaleziono użytkownika']]);
         }
-
 
         if (!password_verify($password, $user->getPassword())) {
-            return $this->render('login', ['messages' => 'Błędne hasło']);
+            return $this->render('login', ['messages' => ['Błędne hasło']]);
         }
 
-        session_regenerate_id(true); 
+        // 2. Obsługa opcji "Zapamiętaj mnie"
+        if (isset($_POST['remember'])) {
+            // Zapisz ciasteczko z mailem na 30 dni (86400 sekund = 1 dzień)
+            setcookie('remember_email', $user->getEmail(), time() + (86400 * 30), "/");
+        } else {
+            // Jeśli odznaczono opcję, usuwamy ciasteczko (czas w przeszłości)
+            setcookie('remember_email', '', time() - 3600, "/");
+        }
 
+        // Tworzymy sesję
+        session_regenerate_id(true); 
         $_SESSION['user_id'] = $user->getId();
         $_SESSION['user_email'] = $user->getEmail();
         $_SESSION['user_name'] = $user->getUsername();
-        $_SESSION['user_role'] = $user->getRole(); 
+        $_SESSION['user_role'] = $user->getRole();
         $_SESSION['is_logged_in'] = true;
 
         $url = "http://$_SERVER[HTTP_HOST]";
@@ -65,35 +83,47 @@ class SecurityController extends AppController {
     }
 
     public function register() {
-        $userRepository = new UsersRepository();
-
-        if ($this->isPost()) {
-            $email = trim($_POST['email'] ?? '');
-            $password = $_POST['password'] ?? '';
-            $password2 = $_POST['password2'] ?? '';
-            $username = trim($_POST['username'] ?? '');
-
-            if (empty($email) || empty($password) || empty($username)) {
-                return $this->render('register', ['messages' => 'Wypełnij wszystkie pola']);
-            }
-
-            if ($password !== $password2) {
-                return $this->render('register', ['messages' => 'Podane hasła nie są identyczne']);
-            }
-
-            $user = $userRepository->getUserByEmail($email);
-            if ($user) {
-                return $this->render("register", ["messages" => "Użytkownik z podanym adresem e-mail już istnieje"]);
-            }
-
-            $hashedPassword = password_hash($password, PASSWORD_BCRYPT);
-            $userRepository->createUser($email, $hashedPassword, $username);
-
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        if (isset($_SESSION['user_id'])) {
             $url = "http://$_SERVER[HTTP_HOST]";
-            header("Location: {$url}/login");
-            return;
+            header("Location: {$url}/dashboard");
+            exit();
         }
 
-        return $this->render("register");
+        if (!$this->isPost()) {
+            return $this->render('register');
+        }
+
+        $email = $_POST['email'];
+        $password = $_POST['password'];
+        $confirmedPassword = $_POST['password_confirm'];
+        $name = $_POST['name'];
+        $surname = $_POST['surname'];
+        $pesel = $_POST['pesel'];
+
+        if ($password !== $confirmedPassword) {
+            return $this->render('register', ['messages' => ['Hasła nie są identyczne!']]);
+        }
+
+        // Proste generowanie username z imienia i nazwiska
+        $username = strtolower($name . $surname);
+
+        $userRepository = new UsersRepository();
+        
+        try {
+            $userRepository->createUser(
+                $email, 
+                password_hash($password, PASSWORD_BCRYPT), 
+                $username, 
+                $name, 
+                $surname, 
+                $pesel
+            );
+            return $this->render('login', ['messages' => ['Konto założone! Możesz się zalogować.'], 'is_success' => true]);
+        } catch (Exception $e) {
+            return $this->render('register', ['messages' => ['Błąd rejestracji. PESEL lub Email może już istnieć.']]);
+        }
     }
 }

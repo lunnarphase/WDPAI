@@ -31,12 +31,34 @@ class UsersRepository extends Repository {
         );
     }
 
-    public function createUser(string $email, string $hashedPassword, string $username): void {
-        // Zamiast tekstu 'patient', wstawiamy id_role = 3 (bo 3 to 'patient' w naszej tabeli roles)
-        $query = $this->database->connect()->prepare(
-            "INSERT INTO users (email, password, username, id_role) VALUES (?, ?, ?, 3)"
-        );
+    public function createUser(string $email, string $password, string $username, string $name, string $surname, string $pesel): void 
+    {
+        $db = $this->database->connect();
         
-        $query->execute([$email, $hashedPassword, $username]);
+        try {
+            $db->beginTransaction(); // START TRANSAKCJI
+
+            // 1. Wstawiamy do tabeli USERS
+            $stmt = $db->prepare('
+                INSERT INTO users (email, password, username, id_role)
+                VALUES (?, ?, ?, 3) RETURNING id
+            ');
+            $stmt->execute([$email, $password, $username]);
+            
+            // Pobieramy wygenerowane ID użytkownika
+            $userId = $stmt->fetch(PDO::FETCH_ASSOC)['id'];
+
+            // 2. Wstawiamy do tabeli PATIENTS (korzystając z pobranego ID)
+            $stmt = $db->prepare('
+                INSERT INTO patients (id_user, pesel)
+                VALUES (?, ?)
+            ');
+            $stmt->execute([$userId, $pesel]);
+
+            $db->commit(); // ZATWIERDZENIE - wszystko OK
+        } catch (Exception $e) {
+            $db->rollBack(); // WYCOFANIE - jeśli coś poszło nie tak
+            throw $e;
+        }
     }
 }

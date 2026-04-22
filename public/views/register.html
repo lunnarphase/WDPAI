@@ -1,25 +1,92 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <?php include __DIR__ . '/partials/head.html'; ?>
-  </head>
-  <body>
-        <form method="POST" action="/register">
-      <h1>REGISTER FORM</h1>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediSchedule - Rejestracja</title>
+    <link rel="stylesheet" href="/public/styles/main.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
 
-      <?php if(isset($messages)): ?>
+    <div class="login-wrapper" style="max-width: 550px;">
+        
+        <div class="branding-section">
+            <div class="logo-square">
+                <i class="fa-solid fa-briefcase-medical"></i>
+            </div>
+            <h1>MediSchedule</h1>
+            <p class="app-subtitle">Dołącz do nowoczesnej opieki medycznej</p>
+        </div>
 
-      <p class="messages">
-        <?= $messages ?>
-      </p>
+        <div class="login-card">
+            <h2>Załóż konto</h2>
+            <p style="text-align: center; color: var(--text-muted); font-size: 0.9rem; margin-top: -1rem; margin-bottom: 2rem;">
+                Wypełnij poniższe dane, aby rozpocząć.
+            </p>
+            
+            <?php if(isset($messages)) { ?>
+                <div class="error-messages">
+                    <?php foreach($messages as $message) { echo $message; } ?>
+                </div>
+            <?php } ?>
 
-      <?php endif; ?>
-      <input name="email" type="email" placeholder="Twój email" required />
-      <input name="username" type="text" placeholder="Nazwa użytkownika" required />
-      <input name="password" type="password" placeholder="Twoje hasło" required />
-      <input name="password2" type="password" placeholder="Powtórz hasło" required />
+            <form action="/register" method="POST">
+                
+                <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label for="name">Imię</label>
+                        <input name="name" id="name" type="text" placeholder="Jan" required>
+                    </div>
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label for="surname">Nazwisko</label>
+                        <input name="surname" id="surname" type="text" placeholder="Kowalski" required>
+                    </div>
+                </div>
 
-      <button type="submit">REGISTER</button>
-    </form>
-  </body>
+                <div class="form-group">
+                    <label for="pesel">PESEL</label>
+                    <input name="pesel" id="pesel" type="text" placeholder="00000000000" pattern="\d{11}" title="Wymagane 11 cyfr" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">E-mail</label>
+                    <input name="email" id="email" type="email" placeholder="przyklad@domena.pl" required>
+                </div>
+                
+                <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label for="password">Hasło</label>
+                        <input name="password" id="password" type="password" placeholder="........" required>
+                    </div>
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label for="password_confirm">Powtórz hasło</label>
+                        <input name="password_confirm" id="password_confirm" type="password" placeholder="........" required>
+                    </div>
+                </div>
+
+                <div class="form-options" style="margin-bottom: 1.5rem;">
+                    <label class="checkbox-container" style="align-items: flex-start;">
+                        <input type="checkbox" name="terms" required style="margin-top: 3px;"> 
+                        <span style="font-size: 0.8rem; line-height: 1.4;">Akceptuję regulamin i politykę prywatności serwisu MediSchedule.</span>
+                    </label>
+                </div>
+
+                <button type="submit" class="btn-login">Załóż konto</button>
+            </form>
+        </div>
+
+        <div class="register-prompt-external">
+            Masz już konto? <a href="/login">Zaloguj się</a>
+        </div>
+
+        <footer class="login-footer">
+            <a href="#">Centrum pomocy</a>
+            <a href="#">Polityka prywatności</a>
+            <a href="#">Regulamin</a>
+        </footer>
+    </div>
+
+</body>
 </html>

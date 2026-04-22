@@ -1,96 +1,225 @@
-body {
-  margin: 0;
+:root {
+    --primary-color: #125B46; /* Butelkowa zieleń */
+    --primary-hover: #0e4938;
+    --bg-color: #f4f7f6;      
+    --white: #ffffff;
+    --text-main: #111827;
+    --text-muted: #6b7280;
+    --border-color: #d1d5db;
+    --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
 
-h1 {
-  color: purple;
-  font-size: large;
-  font-weight: 700;
-}
-
-nav {
-  background-color: gray;
-}
-
-nav > div.container {
-  color: white;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  min-height: 80px;
-}
-
-nav > div.container > ul {
-  display: flex;
-  flex-direction: row;
-  gap: 1rem;
-  list-style-type: none;
-}
-
-nav > div.container > ul > li > a {
-  text-decoration: none;
-  color: white;
-}
-
-.container {
-  max-width: 1000px;
-  margin: auto;
-}
-
-nav a {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  justify-content: center;
-  align-items: center;
-}
-
-nav a > i {
-  font-size: 1.25rem;
-}
-
-main {
-  background-color: antiquewhite;
-  width: 70%;
-  height: calc(100vh - 6rem);
-}
-
-aside {
-  background-color: aqua;
-  width: 30%;
-}
-
-footer {
-  background-color: aquamarine;
-  width: 100%;
-}
-
-.layout {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-}
-
-.display-mobile {
-  display: none !important;
-}
-@media screen and (max-width: 780px) {
-  aside,
-  main {
-    width: 100%;
-  }
-
-  .display-mobile {
-    display: block !important;
-  }
-
-  nav > div.container > ul {
-    display: none;
-    position: fixed;
-    top: 0;
-    bottom: 0;
-    background-color: aliceblue;
+* {
     margin: 0;
-    width: 80%;
-  }
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Inter', sans-serif;
+}
+
+body {
+    background-color: var(--bg-color);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* --- KONTENER GŁÓWNY --- */
+.login-wrapper {
+    width: 100%;
+    /* ZWIĘKSZONA SZEROKOŚĆ - Lepszy efekt desktopowy */
+    max-width: 460px; 
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* --- BRANDING --- */
+.branding-section {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.logo-square {
+    background-color: var(--primary-color);
+    width: 52px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    margin: 0 auto 1.25rem;
+    color: var(--white);
+    font-size: 1.6rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.branding-section h1 {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-bottom: 0.25rem;
+}
+
+.app-subtitle {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+}
+
+/* --- KARTA LOGOWANIA --- */
+.login-card {
+    background: var(--white);
+    width: 100%;
+    padding: 2.5rem 3rem; /* Zwiększony padding wewnętrzny dla lepszego oddechu */
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+}
+
+.login-card h2 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 2rem;
+    text-align: center;
+    color: var(--text-main);
+}
+
+/* --- FORMULARZ --- */
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+/* NOWE: Układ flex dla etykiety i linku hasła */
+.label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 0.5rem;
+}
+
+.label-row label, .form-group > label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    letter-spacing: 0.05em;
+    margin-bottom: 0; /* Resetowane dla .label-row */
+}
+
+/* Samotny label E-mail potrzebuje marginesu w dół */
+.form-group > label {
+    margin-bottom: 0.5rem; 
+}
+
+.forgot-password {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.8rem;
+    transition: color 0.2s;
+}
+
+.forgot-password:hover {
+    color: var(--primary-hover);
+}
+
+.form-group input {
+    width: 100%;
+    padding: 0.85rem 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: all 0.2s;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(18, 91, 70, 0.1);
+}
+
+.form-options {
+    margin-bottom: 2rem;
+}
+
+.checkbox-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: var(--text-main);
+}
+
+.btn-login {
+    width: 100%;
+    padding: 0.875rem;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-login:hover {
+    background-color: var(--primary-hover);
+}
+
+.error-messages {
+    color: #b91c1c;
+    background: #fef2f2;
+    padding: 0.75rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    font-size: 0.85rem;
+    text-align: center;
+}
+
+/* --- SEKCJA ZEWNĘTRZNA (REJESTRACJA I STOPKA) --- */
+.register-prompt-external {
+    margin-top: 2.5rem;
+    text-align: center;
+    font-size: 0.95rem;
+    color: var(--text-main);
+}
+
+.register-prompt-external a {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.login-footer {
+    margin-top: 2rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    display: flex;
+    gap: 1.5rem;
+    justify-content: center;
+}
+
+.login-footer a {
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.login-footer a:hover {
+    color: var(--text-main);
+}
+
+/* --- KOMUNIKATY SUKCESU --- */
+.success-messages {
+    color: #15803d; /* Ciemna zieleń tekstu */
+    background: #f0fdf4; /* Bardzo jasne, miętowe tło */
+    border: 1px solid #bbf7d0;
+    padding: 0.75rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    font-size: 0.85rem;
+    text-align: center;
 }
