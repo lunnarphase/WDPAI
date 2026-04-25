@@ -8,23 +8,69 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        .booking-container { max-width: 600px; margin: 3rem auto; background: white; padding: 2.5rem; border-radius: 16px; box-shadow: var(--shadow); }
+        .booking-container { width: 100%; max-width: 650px; margin: 3rem auto; background: white; padding: 2.5rem; border-radius: 16px; box-shadow: var(--shadow); }
         .back-link { display: inline-block; margin-bottom: 1.5rem; font-size: 0.9rem; color: var(--text-muted); text-decoration: none; font-weight: 500; }
         .back-link:hover { color: var(--primary-color); }
-        .doctor-summary { display: flex; align-items: center; gap: 1rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); margin-bottom: 1.5rem; }
-        .avatar-placeholder { width: 60px; height: 60px; background: var(--bg-color); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: var(--primary-color); }
-        .date-picker-group, .time-slots-group { margin-bottom: 2rem; }
-        .time-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 0.75rem; margin-top: 1rem; }
-        .time-slot { padding: 0.75rem; text-align: center; border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; transition: all 0.2s; font-weight: 500; color: var(--text-main); }
-        .time-slot:hover { border-color: var(--primary-color); color: var(--primary-color); }
+        
+        .dates-wrapper { display: flex; gap: 0.75rem; overflow-x: auto; padding-bottom: 1rem; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; }
+        .dates-wrapper::-webkit-scrollbar { height: 6px; }
+        .dates-wrapper::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        
+        .date-card { 
+            min-width: 75px; height: 90px; border-radius: 12px; display: flex; flex-direction: column; 
+            align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; 
+            flex-shrink: 0; 
+            background: #d1fae5; border: 1px solid #6ee7b7; color: #064e3b;
+        }
+        .date-card:hover:not(.disabled) { border-color: var(--primary-color); }
+        .date-card.selected { background: var(--primary-color); color: white; border-color: var(--primary-color); box-shadow: 0 4px 10px rgba(18, 91, 70, 0.2); }
+        .date-card.selected .day-name, .date-card.selected .day-num, .date-card.selected .month-name { color: white; }
+        .date-card.disabled { background: #f1f5f9; color: #9ca3af; cursor: not-allowed; opacity: 0.6; border-color: #e2e8f0; }
+        
+        .day-name { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; margin-bottom: 0.25rem; }
+        .day-num { font-size: 1.25rem; font-weight: 700; }
+        .month-name { font-size: 0.7rem; font-weight: 600; }
+
+        .time-slots-group { margin-top: 1.5rem; display: none; border-top: 1px solid var(--border-color); padding-top: 1.5rem;}
+        .time-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 0.75rem; margin-top: 1rem; }
+        .time-slot { padding: 0.75rem; text-align: center; border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; transition: all 0.2s; font-weight: 500; color: var(--text-main); background: white; }
+        .time-slot:hover:not(.booked) { border-color: var(--primary-color); color: var(--primary-color); }
         .time-slot.selected { background: var(--primary-color); color: white; border-color: var(--primary-color); }
         .time-slot.booked { background: #f3f4f6; color: #9ca3af; cursor: not-allowed; text-decoration: line-through; border-color: #e5e7eb; }
+        
+        .btn-submit { width: 100%; padding: 0.85rem; background-color: var(--primary-color); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; margin-top: 2rem; opacity: 0.5; transition: 0.2s;}
+        .btn-submit.active { opacity: 1; box-shadow: 0 4px 6px rgba(18, 91, 70, 0.2); }
+
+        /* --- STERYDY DLA WIDOKU MOBILNEGO --- */
+        @media (max-width: 600px) {
+            body { background-color: white; }
+            .booking-container { margin: 0; border-radius: 0; box-shadow: none; padding: 1.5rem 1rem; min-height: 100vh;}
+            
+            /* Znacznie większe teksty i link powrotny */
+            h2 { font-size: 1.8rem; margin-bottom: 0.5rem; }
+            .back-link { font-size: 1.1rem; margin-bottom: 2rem; padding: 0.5rem 0; display: inline-block; }
+            p { font-size: 1.05rem !important; line-height: 1.5; }
+            
+            /* Kalendarz - Większe karty */
+            .dates-wrapper { gap: 1rem; padding-bottom: 1.5rem; }
+            .date-card { min-width: 85px; height: 105px; border-radius: 14px; }
+            .day-num { font-size: 1.6rem; }
+            .day-name { font-size: 0.85rem; }
+            .month-name { font-size: 0.85rem; }
+
+            /* Godziny - Max 4 w rzędzie i bycze przyciski */
+            .time-grid { grid-template-columns: repeat(4, 1fr); gap: 0.5rem; }
+            .time-slot { padding: 1.1rem 0.25rem; font-size: 1.15rem; font-weight: 600; border-radius: 10px; }
+
+            /* Potężny przycisk akcji na dole */
+            .btn-submit { padding: 1.25rem; font-size: 1.2rem; margin-top: 2.5rem; border-radius: 12px; }
+        }
     </style>
 </head>
 <body style="background-color: var(--bg-color);">
 
     <div class="booking-container">
-        <a href="/find-doctor" class="back-link"><i class="fa-solid fa-arrow-left"></i> Wróć do wyszukiwarki</a>
+        <a href="/dashboard" class="back-link"><i class="fa-solid fa-arrow-left"></i> Wróć do panelu</a>
         
         <?php if(isset($messages)) { ?>
             <div class="error-messages" style="color: #b91c1c; background: #fef2f2; padding: 0.75rem; border-radius: 8px; margin-bottom: 1.5rem; text-align: center; font-size: 0.9rem;">
@@ -32,57 +78,105 @@
             </div>
         <?php } ?>
 
-        <h2>Szczegóły rezerwacji</h2>
-        <p style="color: var(--text-muted); margin-bottom: 2rem; font-size: 0.9rem;">Wybierz dogodny termin i potwierdź wizytę.</p>
+        <h2>Wybierz termin</h2>
+        <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Dostępne terminy na 2 tygodnie do przodu.</p>
 
-        <div class="doctor-summary">
-            <div class="avatar-placeholder">
-                <i class="fa-solid fa-user-doctor"></i>
+        <form id="bookingForm" action="/confirm-appointment" method="POST">
+            <input type="hidden" name="doctor_id" id="doctor_id" value="<?= $doctorId ?>">
+            <input type="hidden" name="appointment_date" id="selected_date" required>
+            <input type="hidden" name="appointment_time" id="selected_time" required>
+
+            <div class="dates-wrapper" id="calendar-container">
+                <p style="color: var(--text-muted); font-size: 0.85rem;">Trwa wczytywanie dostępności lekarza...</p>
             </div>
-            <div>
-                <h3 style="margin-bottom: 0.25rem;">Wybrany Specjalista</h3>
-                <p style="color: var(--text-muted); font-size: 0.9rem;">ID Lekarza z bazy: <?= $doctorId ?? 'Brak' ?></p>
-            </div>
-        </div>
-
-        <form action="/confirm-appointment" method="POST">
-            <input type="hidden" name="doctor_id" value="<?= $doctorId ?? '' ?>">
-
-            <div class="date-picker-group form-group">
-                <label style="font-size: 0.9rem; margin-bottom: 0.5rem; display: block;">Wybierz datę wizyty</label>
-                <input type="date" name="appointment_date" id="appointment_date" required style="width: 100%; padding: 0.85rem; border: 1px solid var(--border-color); border-radius: 8px; font-family: inherit;">
+            
+            <div class="time-slots-group" id="time-section">
+                <label style="font-size: 1rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Wybierz godzinę</label>
+                <div class="time-grid" id="time-container"></div>
             </div>
 
-            <div class="time-slots-group">
-                <label style="font-size: 0.9rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Dostępne godziny</label>
-                <div class="time-grid">
-                    <div class="time-slot" onclick="selectTime(this, '09:00')">09:00</div>
-                    <div class="time-slot" onclick="selectTime(this, '09:30')">09:30</div>
-                    <div class="time-slot booked">10:00</div>
-                    <div class="time-slot" onclick="selectTime(this, '10:30')">10:30</div>
-                    <div class="time-slot" onclick="selectTime(this, '11:00')">11:00</div>
-                    <div class="time-slot" onclick="selectTime(this, '11:30')">11:30</div>
-                </div>
-                <input type="hidden" name="appointment_time" id="selected_time" required>
-            </div>
+            <p style="color: var(--text-muted); margin-top: 2rem;">
+                * Jeśli chcesz umówić wizytę z wyprzedzeniem, zadzwoń: <strong style="color: var(--text-main); display: block; font-size: 1.2rem; margin-top: 0.5rem;">+48 800 123 456</strong>
+            </p>
 
-            <button type="submit" class="btn-login" style="margin-top: 1rem;">Potwierdź rezerwację</button>
+            <button type="submit" class="btn-submit" id="submit-btn" disabled>Potwierdź rezerwację</button>
         </form>
     </div>
 
     <script>
-        // Prosty skrypt do zaznaczania wybranej godziny
-        function selectTime(element, timeValue) {
-            // Usuń klasę 'selected' ze wszystkich kafelków
-            document.querySelectorAll('.time-slot').forEach(slot => {
-                slot.classList.remove('selected');
+        const doctorId = document.getElementById('doctor_id').value;
+        const calendarContainer = document.getElementById('calendar-container');
+        const timeSection = document.getElementById('time-section');
+        const timeContainer = document.getElementById('time-container');
+        const submitBtn = document.getElementById('submit-btn');
+        const inputDate = document.getElementById('selected_date');
+        const inputTime = document.getElementById('selected_time');
+
+        const workingHours = ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00'];
+        const totalSlots = workingHours.length;
+        const daysPl = ['Ndz', 'Pon', 'Wto', 'Śro', 'Czw', 'Pią', 'Sob'];
+        const monthsPl = ['Sty', 'Lut', 'Mar', 'Kwi', 'Maj', 'Cze', 'Lip', 'Sie', 'Wrz', 'Paź', 'Lis', 'Gru'];
+
+        let days = [];
+        let today = new Date();
+        for (let i = 0; i < 14; i++) {
+            let d = new Date(today);
+            d.setDate(d.getDate() + i);
+            let isoDate = d.toISOString().split('T')[0];
+            days.push({ dateObj: d, isoDate: isoDate, dayName: daysPl[d.getDay()], dayNum: d.getDate(), monthName: monthsPl[d.getMonth()] });
+        }
+
+        fetch('/doctor-availability', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ doctor_id: doctorId, start_date: days[0].isoDate, end_date: days[days.length - 1].isoDate })
+        })
+        .then(res => res.json())
+        .then(bookedData => {
+            let bookedMap = {};
+            bookedData.forEach(row => {
+                if(!bookedMap[row.appointment_date]) bookedMap[row.appointment_date] = [];
+                bookedMap[row.appointment_date].push(row.appointment_time);
             });
-            
-            // Dodaj klasę 'selected' do klikniętego
-            element.classList.add('selected');
-            
-            // Ustaw wartość ukrytego inputa
-            document.getElementById('selected_time').value = timeValue;
+
+            calendarContainer.innerHTML = '';
+            days.forEach(day => {
+                const bookedCount = bookedMap[day.isoDate] ? bookedMap[day.isoDate].length : 0;
+                const isFull = bookedCount >= totalSlots; 
+                const isSunday = day.dateObj.getDay() === 0; 
+
+                const card = document.createElement('div');
+                card.className = `date-card ${isFull || isSunday ? 'disabled' : ''}`;
+                card.innerHTML = `<span class="day-name">${day.dayName}</span><span class="day-num">${day.dayNum}</span><span class="month-name">${day.monthName}</span>`;
+
+                if (!isFull && !isSunday) {
+                    card.addEventListener('click', () => selectDate(card, day.isoDate, bookedMap[day.isoDate] || []));
+                }
+                calendarContainer.appendChild(card);
+            });
+        });
+
+        function selectDate(cardElement, isoDate, bookedTimesForDay) {
+            document.querySelectorAll('.date-card').forEach(c => c.classList.remove('selected'));
+            cardElement.classList.add('selected');
+            inputDate.value = isoDate; inputTime.value = '';
+            submitBtn.disabled = true; submitBtn.classList.remove('active');
+            timeSection.style.display = 'block'; timeContainer.innerHTML = '';
+
+            workingHours.forEach(time => {
+                const timeDiv = document.createElement('div');
+                const isBooked = bookedTimesForDay.includes(time + ':00');
+                timeDiv.className = `time-slot ${isBooked ? 'booked' : ''}`;
+                timeDiv.innerText = time;
+                if (!isBooked) { timeDiv.addEventListener('click', () => selectTime(timeDiv, time)); }
+                timeContainer.appendChild(timeDiv);
+            });
+        }
+
+        function selectTime(timeElement, timeString) {
+            document.querySelectorAll('.time-slot').forEach(t => t.classList.remove('selected'));
+            timeElement.classList.add('selected');
+            inputTime.value = timeString;
+            submitBtn.disabled = false; submitBtn.classList.add('active'); 
         }
     </script>
 </body>

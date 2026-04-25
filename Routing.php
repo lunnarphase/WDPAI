@@ -50,6 +50,14 @@ class Routing {
             "controller" => "AppointmentController",
             "action" => "confirm"
         ],
+        "cancel-appointment" => [
+            "controller" => "AppointmentController",
+            "action" => "cancel"
+        ],
+        "doctor-availability" => [
+            "controller" => "AppointmentController",
+            "action" => "getAvailability"
+        ],
     ];
 
     public static function run(string $path) {
@@ -63,6 +71,8 @@ class Routing {
             case 'search':
             case 'book-appointment':
             case 'confirm-appointment':
+            case 'cancel-appointment':
+            case 'doctor-availability':
             case 'logout':
                 $controller = Routing::$routes[$path]["controller"];
                 $action = Routing::$routes[$path]["action"];

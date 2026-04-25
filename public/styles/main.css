@@ -1,3 +1,6 @@
+/* =========================================
+   ZMIENNE GLOBALNE I BAZA
+========================================= */
 :root {
     --primary-color: #125B46; /* Butelkowa zieleń */
     --primary-hover: #0e4938;
@@ -16,18 +19,23 @@
     font-family: 'Inter', sans-serif;
 }
 
+/* =========================================
+   WIDOKI LOGOWANIA I REJESTRACJI
+========================================= */
 body {
     background-color: var(--bg-color);
     min-height: 100vh;
+}
+
+/* Flex do centrowania tylko dla ekranów auth */
+body:not(.dashboard-body) {
     display: flex;
     justify-content: center;
     align-items: center;
 }
 
-/* --- KONTENER GŁÓWNY --- */
 .login-wrapper {
     width: 100%;
-    /* ZWIĘKSZONA SZEROKOŚĆ - Lepszy efekt desktopowy */
     max-width: 460px; 
     padding: 2rem;
     display: flex;
@@ -35,7 +43,6 @@ body {
     align-items: center;
 }
 
-/* --- BRANDING --- */
 .branding-section {
     text-align: center;
     margin-bottom: 2rem;
@@ -67,11 +74,10 @@ body {
     font-size: 0.95rem;
 }
 
-/* --- KARTA LOGOWANIA --- */
 .login-card {
     background: var(--white);
     width: 100%;
-    padding: 2.5rem 3rem; /* Zwiększony padding wewnętrzny dla lepszego oddechu */
+    padding: 2.5rem 3rem;
     border-radius: 16px;
     box-shadow: var(--shadow);
 }
@@ -84,12 +90,10 @@ body {
     color: var(--text-main);
 }
 
-/* --- FORMULARZ --- */
 .form-group {
     margin-bottom: 1.5rem;
 }
 
-/* NOWE: Układ flex dla etykiety i linku hasła */
 .label-row {
     display: flex;
     justify-content: space-between;
@@ -104,10 +108,9 @@ body {
     text-transform: uppercase;
     color: var(--text-muted);
     letter-spacing: 0.05em;
-    margin-bottom: 0; /* Resetowane dla .label-row */
+    margin-bottom: 0;
 }
 
-/* Samotny label E-mail potrzebuje marginesu w dół */
 .form-group > label {
     margin-bottom: 0.5rem; 
 }
@@ -179,7 +182,17 @@ body {
     text-align: center;
 }
 
-/* --- SEKCJA ZEWNĘTRZNA (REJESTRACJA I STOPKA) --- */
+.success-messages {
+    color: #15803d;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    padding: 0.75rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    font-size: 0.85rem;
+    text-align: center;
+}
+
 .register-prompt-external {
     margin-top: 2.5rem;
     text-align: center;
@@ -212,14 +225,531 @@ body {
     color: var(--text-main);
 }
 
-/* --- KOMUNIKATY SUKCESU --- */
-.success-messages {
-    color: #15803d; /* Ciemna zieleń tekstu */
-    background: #f0fdf4; /* Bardzo jasne, miętowe tło */
-    border: 1px solid #bbf7d0;
-    padding: 0.75rem;
-    border-radius: 8px;
-    margin-bottom: 1.5rem;
-    font-size: 0.85rem;
+/* =========================================
+   WIDOK DASHBOARDU (PANEL GŁÓWNY)
+========================================= */
+
+/* --- ZMODYFIKOWANE KLASY --- */
+.dashboard-body {
+    background-color: #f8fafc;
+    display: flex;             /* Zmiana na flex, by stopka trzymała się dołu */
+    flex-direction: column;
+    min-height: 100vh;         /* Minimalna wysokość to całe okno */
+}
+
+
+/* Nawigacja Górna */
+.top-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 2.5rem;
+    background: white;
+    border-bottom: 1px solid var(--border-color);
+    position: sticky;          /* PRZYKLEJENIE DO GÓRY */
+    top: 0;
+    z-index: 1000;             /* Zawsze nad innymi elementami */
+}
+
+.nav-left, .nav-right { 
+    display: flex; 
+    align-items: center; 
+    gap: 2.5rem; /* Równe odstępy */
+}
+
+.logo-text { 
+    font-size: 1.4rem; 
+    font-weight: 700; 
+    color: var(--primary-color); 
+    text-decoration: none !important;
+    display: flex; 
+    align-items: center; 
+    gap: 10px;
+    margin-right: 1.5rem; /* Odstęp logo od linków */
+}
+
+.nav-links { 
+    display: flex; 
+    gap: 2rem; /* Szerokie, czytelne odstępy między przyciskami */
+    align-items: center;
+}
+
+.nav-links a { 
+    color: var(--text-muted); 
+    text-decoration: none;
+    font-weight: 600; 
+    font-size: 0.95rem; 
+    transition: color 0.2s;
+}
+
+.nav-links a:hover {
+    color: var(--text-main);
+}
+
+.nav-links a.active { 
+    color: var(--primary-color); 
+    border-bottom: 2px solid var(--primary-color); 
+    padding-bottom: 0.5rem; 
+}
+
+.nav-right a { 
+    color: var(--text-muted); 
+    font-size: 1.2rem; 
+    text-decoration: none;
+}
+
+.logout-link { 
+    font-size: 0.95rem !important; 
+    display: flex; 
+    align-items: center; 
+    gap: 0.5rem; 
+    font-weight: 600;
+}
+
+/* Kontener główny Dashboardu */
+.dashboard-container { 
+    max-width: 1200px; 
+    width: 100%;
+    margin: 0 auto; 
+    padding: 3rem 2rem; 
+    flex: 1;                  
+}
+
+.dashboard-header { 
+    margin-bottom: 2.5rem; 
+}
+
+.dashboard-header h1 { 
+    font-size: 2.5rem; 
+    color: #1e3a29; 
+    margin-bottom: 0.5rem; 
+}
+
+.dashboard-header p { 
+    color: var(--text-muted); 
+    font-size: 1.1rem; 
+}
+
+.dashboard-grid { 
+    display: grid; 
+    grid-template-columns: 1.4fr 1fr; 
+    gap: 2.5rem; 
+}
+
+/* Pozycjonowanie na Desktopie */
+.appointments-wrapper { grid-column: 1; grid-row: 1; }
+.bottom-tiles { grid-column: 1; grid-row: 2; align-self: start; }
+.right-column { grid-column: 2; grid-row: 1 / span 2; }
+
+/* HAMBURGER MENU STYLES */
+.hamburger-btn { 
+    display: none; background: none; border: none; font-size: 1.5rem; 
+    color: var(--primary-color); cursor: pointer; padding: 0.5rem;
+}
+.mobile-menu { 
+    display: none; flex-direction: column; background: white; 
+    position: absolute; top: 100%; left: 0; width: 100%; 
+    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); 
+    border-top: 1px solid var(--border-color); z-index: 999;
+}
+.mobile-menu a { 
+    padding: 1.25rem 2.5rem; color: var(--text-main); text-decoration: none; 
+    font-weight: 600; border-bottom: 1px solid #f1f5f9; display: flex; 
+    align-items: center; gap: 1rem; 
+}
+.mobile-menu a:hover { background: #f8fafc; color: var(--primary-color); }
+.mobile-menu.active { display: flex; }
+
+/* Lewa Kolumna - Wizyty */
+.section-header { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    margin-bottom: 1.5rem; 
+}
+
+.section-header h2 { 
+    font-size: 1.25rem; 
+    color: var(--text-main); 
+}
+
+.classic-footer {
+    background-color: #1e293b; /* Ciemny, elegancki granat */
+    color: #94a3b8;
+    padding: 2rem;
     text-align: center;
+    font-size: 0.85rem;
+    margin-top: 3rem;
+}
+.classic-footer .footer-content { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+.classic-footer a { color: #38bdf8; text-decoration: none; margin-left: 1rem; }
+.classic-footer a:hover { text-decoration: underline; color: #bae6fd; }
+
+@media (max-width: 900px) {
+    .classic-footer .footer-content { flex-direction: column; gap: 1rem; }
+}
+
+.view-all { 
+    font-size: 0.9rem; 
+    font-weight: 600; 
+    color: #2563eb; 
+    text-decoration: none;
+}
+
+.appointments-list { 
+    display: flex; 
+    flex-direction: column; 
+    gap: 1rem; 
+    margin-bottom: 2.5rem; 
+}
+
+.appointment-card { 
+    background: white; 
+    padding: 1.5rem; 
+    border-radius: 12px; 
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between; 
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02); 
+    border: 1px solid #e2e8f0; 
+}
+
+.app-date { 
+    text-align: center; 
+    border-right: 2px solid #e2e8f0; 
+    padding-right: 1.5rem; 
+    min-width: 80px; 
+}
+
+.app-date .day { 
+    display: block; 
+    font-size: 1.25rem; 
+    font-weight: 700; 
+    color: #2563eb; 
+}
+
+.app-date .month { 
+    display: block; 
+    font-size: 0.85rem; 
+    font-weight: 600; 
+    color: #2563eb; 
+    text-transform: uppercase; 
+}
+
+.app-date .time { 
+    display: block; 
+    font-size: 0.85rem; 
+    color: var(--text-muted); 
+    margin-top: 0.25rem; 
+}
+
+.app-details { 
+    flex: 1; 
+    padding: 0 1.5rem; 
+}
+
+.app-details .spec { 
+    font-size: 0.75rem; 
+    font-weight: 700; 
+    color: #3b82f6; 
+    text-transform: uppercase; 
+    letter-spacing: 0.5px; 
+    margin-bottom: 0.25rem; 
+}
+
+.app-details h3 { 
+    font-size: 1.1rem; 
+    color: var(--text-main); 
+    margin-bottom: 0.25rem; 
+}
+
+.app-details .status { 
+    font-size: 0.85rem; 
+    color: var(--text-muted); 
+    display: flex; 
+    align-items: center; 
+    gap: 0.5rem; 
+}
+
+.status .dot { 
+    width: 8px; 
+    height: 8px; 
+    background-color: #22c55e; 
+    border-radius: 50%; 
+    display: inline-block; 
+}
+
+.app-actions { 
+    display: flex; 
+    gap: 0.5rem; 
+}
+
+.btn-secondary { 
+    background: #f1f5f9; 
+    color: #475569; 
+    padding: 0.6rem 1rem; 
+    border-radius: 6px; 
+    font-weight: 600; 
+    border: none; 
+    cursor: pointer; 
+    font-size: 0.9rem; 
+    transition: background 0.2s;
+}
+
+.btn-secondary:hover {
+    background: #e2e8f0;
+}
+
+.btn-primary-small { 
+    background: #2563eb; 
+    color: white; 
+    padding: 0.6rem 1rem; 
+    border-radius: 6px; 
+    font-weight: 600; 
+    border: none; 
+    cursor: pointer; 
+    font-size: 0.9rem; 
+    transition: background 0.2s;
+}
+
+.btn-primary-small:hover {
+    background: #1d4ed8;
+}
+
+/* Dolne kafelki (Telemedycyna / Wyniki) */
+.bottom-tiles { 
+    display: grid; 
+    grid-template-columns: 1fr 1fr; 
+    gap: 1.5rem; 
+}
+
+.tile { 
+    padding: 1.5rem; 
+    border-radius: 12px; 
+    position: relative; 
+    overflow: hidden; 
+}
+
+.tile h3 { 
+    margin-bottom: 0.5rem; 
+    font-size: 1.1rem; 
+    z-index: 2; 
+    position: relative; 
+}
+
+.tile p { 
+    font-size: 0.85rem; 
+    margin-bottom: 1.5rem; 
+    opacity: 0.9; 
+    z-index: 2; 
+    position: relative; 
+    line-height: 1.5;
+}
+
+.tile button { 
+    padding: 0.6rem 1rem; 
+    border: none; 
+    border-radius: 6px; 
+    font-weight: 600; 
+    cursor: pointer; 
+    z-index: 2; 
+    position: relative; 
+}
+
+.bg-icon { 
+    position: absolute; 
+    right: -10%; 
+    bottom: -10%; 
+    font-size: 6rem; 
+    opacity: 0.1; 
+    z-index: 1; 
+}
+
+.tile-green { background-color: #d1fae5; color: #064e3b; }
+.btn-dark-green { background-color: #065f46; color: white; }
+.tile-blue { background-color: #dbeafe; color: #1e3a8a; }
+.btn-dark-blue { background-color: #1e40af; color: white; }
+
+/* Prawa Kolumna - Widgety */
+.widget { 
+    background: white; 
+    padding: 1.5rem; 
+    border-radius: 12px; 
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02); 
+    border: 1px solid #e2e8f0;
+    margin-bottom: 1.5rem; 
+}
+
+.widget h2, .widget h3 { 
+    margin-bottom: 1.5rem; 
+    font-size: 1.25rem; 
+    color: var(--text-main); 
+}
+
+.widget label { 
+    display: block; 
+    font-size: 0.75rem; 
+    font-weight: 700; 
+    color: var(--text-muted); 
+    text-transform: uppercase; 
+    margin-bottom: 0.5rem; 
+    margin-top: 1rem; 
+}
+
+.input-with-icon { 
+    position: relative; 
+}
+
+.input-with-icon i { 
+    position: absolute; 
+    left: 1rem; 
+    top: 50%; 
+    transform: translateY(-50%); 
+    color: #9ca3af; 
+}
+
+.input-with-icon input, .input-with-icon select { 
+    width: 100%; 
+    padding: 0.85rem 1rem 0.85rem 2.5rem; 
+    border: 1px solid #e2e8f0; 
+    border-radius: 8px; 
+    font-size: 0.95rem; 
+    background-color: #f8fafc; 
+    color: var(--text-main); 
+    font-family: inherit; 
+    transition: border-color 0.2s;
+}
+
+.input-with-icon input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+.contact-box { 
+    display: flex; 
+    align-items: center; 
+    gap: 1rem; 
+    padding: 1rem; 
+    border: 1px solid #e2e8f0; 
+    border-radius: 8px; 
+    background: #f8fafc;
+}
+
+.icon-circle { 
+    width: 40px; 
+    height: 40px; 
+    background-color: #eff6ff; 
+    color: #3b82f6; 
+    border-radius: 50%; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    font-size: 1.2rem; 
+}
+
+.contact-box .label { 
+    font-size: 0.85rem; 
+    color: var(--text-muted); 
+    font-weight: 600; 
+}
+
+.contact-box .number { 
+    font-size: 1.1rem; 
+    font-weight: 700; 
+    color: var(--text-main); 
+}
+
+@media (max-width: 900px) {
+    /* 1. Baza rozmiarów - iPhone 14 */
+    html { font-size: 16px !important; }
+    body { overflow-x: hidden; width: 100%; }
+
+    /* 2. NAWIGACJA I HAMBURGER */
+    .top-nav { 
+        height: 80px !important; 
+        padding: 0 1.2rem !important; 
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        z-index: 3000 !important;
+        position: sticky !important;
+        top: 0;
+        background: white;
+    }
+    
+    .nav-links, .nav-right { display: none !important; }
+
+    .hamburger-btn { 
+        display: block !important; 
+        font-size: 2.2rem !important; 
+        color: #125B46 !important;
+        z-index: 3001 !important;
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 5px;
+    }
+
+    /* 3. KOLEJNOŚĆ SEKCJI (Flexbox Order) */
+    .dashboard-grid { 
+        display: flex !important; 
+        flex-direction: column !important; 
+        gap: 1.5rem !important; 
+    }
+    
+    /* Display contents pozwala dzieciom left-column być rodzeństwem dla right-column */
+    .left-column { display: contents !important; } 
+    
+    .right-column { order: -1 !important; }         /* WYSZUKIWARKA NA SAMEJ GÓRZE */
+    .appointments-wrapper { order: 1 !important; }  /* WIZYTY POD SPODEM */
+    .bottom-tiles { order: 2 !important; }          /* KAFELKI NA DOLE */
+
+    /* 4. WYSZUKIWARKA - SKALOWANIE 0.8x (Korekta rozmiarów) */
+    .widget { padding: 1.5rem !important; }
+    .widget h2 { 
+        font-size: 1.7rem !important; /* Zmniejszone z 2.2rem */
+        margin-bottom: 1rem !important; 
+    }
+    .widget label { 
+        font-size: 1rem !important; /* Zmniejszone z 1.3rem */
+        font-weight: 700 !important;
+        margin-top: 0.8rem !important;
+        display: block;
+    }
+    .input-with-icon input, 
+    .input-with-icon select { 
+        height: 60px !important; 
+        font-size: 1.1rem !important; 
+    }
+    .widget button { 
+        height: 70px !important; 
+        font-size: 1.3rem !important; /* Zmniejszone z 1.6rem */
+        font-weight: 700 !important;
+    }
+
+    /* 5. WIZYTY - SKALOWANIE I UKŁAD */
+    .section-header h2 { font-size: 1.6rem !important; }
+    .view-all { font-size: 1.1rem !important; font-weight: 700 !important; }
+
+    .appointment-card {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        padding: 0.8rem !important;
+        gap: 0.8rem !important;
+    }
+    .app-date {
+        min-width: 80px !important;
+        height: 95px !important;
+        border-right: 2px solid #f1f5f9;
+        padding-right: 0.8rem !important;
+        margin-right: 0 !important;
+        flex-direction: column !important;
+    }
+    .app-date .day { font-size: 1.8rem !important; }
+    .app-details h3 { font-size: 1.2rem !important; }
+
+    /* 6. KAFELKI 50/50 */
+    .bottom-tiles { display: flex !important; flex-direction: row !important; gap: 0.8rem !important; }
+    .tile { flex: 1 !important; min-height: 170px !important; padding: 1rem !important; }
 }
