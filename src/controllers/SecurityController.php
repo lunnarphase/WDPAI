@@ -6,7 +6,7 @@ require_once __DIR__ . '/../repositories/UsersRepository.php';
 class SecurityController extends AppController {
 
     public function login() {
-        // 1. Zabezpieczenie ścieżki: Jeśli jesteśmy zalogowani, wracamy do panelu!
+        // zabezpieczenie ścieżki - jeśli jesteśmy zalogowani, wracamy do panelu
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }
@@ -38,12 +38,12 @@ class SecurityController extends AppController {
             return $this->render('login', ['messages' => ['Błędne hasło']]);
         }
 
-        // 2. Obsługa opcji "Zapamiętaj mnie"
+        // obsługa opcji "Zapamiętaj mnie"
         if (isset($_POST['remember'])) {
-            // Zapisz ciasteczko z mailem na 30 dni (86400 sekund = 1 dzień)
+            // zapis ciasteczka z mailem na 30 dni
             setcookie('remember_email', $user->getEmail(), time() + (86400 * 30), "/");
         } else {
-            // Jeśli odznaczono opcję, usuwamy ciasteczko (czas w przeszłości)
+            // jeśli odznaczono opcję, usuwamy ciasteczko 
             setcookie('remember_email', '', time() - 3600, "/");
         }
 

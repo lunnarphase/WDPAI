@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Znajdź Lekarza - MediSchedule</title>
+    <link rel="stylesheet" href="/public/styles/main.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Szybkie style dla układu wyszukiwarki */
+        .search-container { max-width: 800px; margin: 2rem auto; padding: 2rem; background: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .search-bar { width: 100%; padding: 1rem; border: 2px solid var(--border-color); border-radius: 8px; font-size: 1.1rem; margin-bottom: 2rem; transition: border-color 0.3s; }
+        .search-bar:focus { outline: none; border-color: var(--primary-color); }
+        .doctors-grid { display: grid; gap: 1.5rem; }
+        .doctor-card { border: 1px solid var(--border-color); padding: 1.5rem; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; }
+        .doctor-info h3 { color: var(--primary-color); margin-bottom: 0.5rem; }
+        .doctor-spec { color: var(--text-muted); font-weight: 600; margin-bottom: 0.5rem; }
+        .doctor-rating { color: #f59e0b; margin-bottom: 0.5rem; }
+        .btn-book { background: var(--primary-color); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 600; cursor: pointer; }
+    </style>
+</head>
+<body style="background-color: var(--bg-color);">
+
+    <main style="flex: 1; padding: 2rem;">
+        <div class="search-container">
+            <h1 style="margin-bottom: 1rem;">Znajdź specjalistę</h1>
+            
+            <input type="text" class="search-bar" placeholder="Wpisz nazwisko lekarza lub specjalizację (np. Kardiolog)...">
+            
+            <div class="doctors-grid">
+                </div>
+        </div>
+    </main>
+
+    <template id="doctor-template">
+        <div class="doctor-card">
+            <div class="doctor-info">
+                <h3 class="name">dr Imię Nazwisko</h3>
+                <p class="doctor-spec spec">Specjalizacja</p>
+                <div class="doctor-rating">
+                    <i class="fa-solid fa-star"></i> <span class="rating">5.0</span>
+                </div>
+                <p style="font-size: 0.9rem; color: var(--text-muted);"><i class="fa-solid fa-wallet"></i> Koszt wizyty: <span class="price">150</span> PLN</p>
+            </div>
+            <button class="btn-book">Umów wizytę</button>
+        </div>
+    </template>
+
+    <script>
+        const searchInput = document.querySelector('.search-bar');
+        const doctorContainer = document.querySelector('.doctors-grid');
+        const template = document.querySelector('#doctor-template');
+
+        // Nasłuchiwanie na wciśnięcie klawisza
+        searchInput.addEventListener("keyup", function (event) {
+            // Reagujemy tylko po wciśnięciu Enter
+            if (event.key === "Enter") {
+                event.preventDefault();
+                const data = { search: this.value };
+
+                // Wysłanie zapytania asynchronicznego
+                fetch("/search", {
+                    method: "POST",
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                })
+                .then(response => response.json())
+                .then(doctors => {
+                    // Czyszczenie poprzednich wyników
+                    doctorContainer.innerHTML = "";
+                    
+                    // Jeśli brak wyników
+                    if (doctors.length === 0) {
+                        doctorContainer.innerHTML = "<p>Nie znaleziono lekarzy spełniających podane kryteria.</p>";
+                        return;
+                    }
+
+                    // Budowanie kart lekarzy (Klonowanie z szablonu)
+                    doctors.forEach(doctor => {
+                        const clone = template.content.cloneNode(true);
+                        clone.querySelector('.name').textContent = "dr " + doctor.name;
+                        clone.querySelector('.spec').textContent = doctor.specializations || "Brak specjalizacji";
+                        clone.querySelector('.rating').textContent = parseFloat(doctor.avg_rating).toFixed(1);
+                        clone.querySelector('.price').textContent = doctor.price;
+    
+                        clone.querySelector('.btn-book').addEventListener('click', () => {
+                            window.location.href = `/book-appointment?id=${doctor.doctor_id}`;
+                        });
+
+
+                        doctorContainer.appendChild(clone);
+                    });
+                })
+                .catch(error => console.error('Błąd Fetch API:', error));
+            }
+        });
+    </script>
+</body>
+</html>

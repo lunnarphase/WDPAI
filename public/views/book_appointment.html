@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Umów Wizytę - MediSchedule</title>
+    <link rel="stylesheet" href="/public/styles/main.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .booking-container { max-width: 600px; margin: 3rem auto; background: white; padding: 2.5rem; border-radius: 16px; box-shadow: var(--shadow); }
+        .back-link { display: inline-block; margin-bottom: 1.5rem; font-size: 0.9rem; color: var(--text-muted); text-decoration: none; font-weight: 500; }
+        .back-link:hover { color: var(--primary-color); }
+        .doctor-summary { display: flex; align-items: center; gap: 1rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); margin-bottom: 1.5rem; }
+        .avatar-placeholder { width: 60px; height: 60px; background: var(--bg-color); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: var(--primary-color); }
+        .date-picker-group, .time-slots-group { margin-bottom: 2rem; }
+        .time-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 0.75rem; margin-top: 1rem; }
+        .time-slot { padding: 0.75rem; text-align: center; border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; transition: all 0.2s; font-weight: 500; color: var(--text-main); }
+        .time-slot:hover { border-color: var(--primary-color); color: var(--primary-color); }
+        .time-slot.selected { background: var(--primary-color); color: white; border-color: var(--primary-color); }
+        .time-slot.booked { background: #f3f4f6; color: #9ca3af; cursor: not-allowed; text-decoration: line-through; border-color: #e5e7eb; }
+    </style>
+</head>
+<body style="background-color: var(--bg-color);">
+
+    <div class="booking-container">
+        <a href="/find-doctor" class="back-link"><i class="fa-solid fa-arrow-left"></i> Wróć do wyszukiwarki</a>
+        
+        <?php if(isset($messages)) { ?>
+            <div class="error-messages" style="color: #b91c1c; background: #fef2f2; padding: 0.75rem; border-radius: 8px; margin-bottom: 1.5rem; text-align: center; font-size: 0.9rem;">
+                <?php foreach($messages as $message) { echo $message; } ?>
+            </div>
+        <?php } ?>
+
+        <h2>Szczegóły rezerwacji</h2>
+        <p style="color: var(--text-muted); margin-bottom: 2rem; font-size: 0.9rem;">Wybierz dogodny termin i potwierdź wizytę.</p>
+
+        <div class="doctor-summary">
+            <div class="avatar-placeholder">
+                <i class="fa-solid fa-user-doctor"></i>
+            </div>
+            <div>
+                <h3 style="margin-bottom: 0.25rem;">Wybrany Specjalista</h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem;">ID Lekarza z bazy: <?= $doctorId ?? 'Brak' ?></p>
+            </div>
+        </div>
+
+        <form action="/confirm-appointment" method="POST">
+            <input type="hidden" name="doctor_id" value="<?= $doctorId ?? '' ?>">
+
+            <div class="date-picker-group form-group">
+                <label style="font-size: 0.9rem; margin-bottom: 0.5rem; display: block;">Wybierz datę wizyty</label>
+                <input type="date" name="appointment_date" id="appointment_date" required style="width: 100%; padding: 0.85rem; border: 1px solid var(--border-color); border-radius: 8px; font-family: inherit;">
+            </div>
+
+            <div class="time-slots-group">
+                <label style="font-size: 0.9rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Dostępne godziny</label>
+                <div class="time-grid">
+                    <div class="time-slot" onclick="selectTime(this, '09:00')">09:00</div>
+                    <div class="time-slot" onclick="selectTime(this, '09:30')">09:30</div>
+                    <div class="time-slot booked">10:00</div>
+                    <div class="time-slot" onclick="selectTime(this, '10:30')">10:30</div>
+                    <div class="time-slot" onclick="selectTime(this, '11:00')">11:00</div>
+                    <div class="time-slot" onclick="selectTime(this, '11:30')">11:30</div>
+                </div>
+                <input type="hidden" name="appointment_time" id="selected_time" required>
+            </div>
+
+            <button type="submit" class="btn-login" style="margin-top: 1rem;">Potwierdź rezerwację</button>
+        </form>
+    </div>
+
+    <script>
+        // Prosty skrypt do zaznaczania wybranej godziny
+        function selectTime(element, timeValue) {
+            // Usuń klasę 'selected' ze wszystkich kafelków
+            document.querySelectorAll('.time-slot').forEach(slot => {
+                slot.classList.remove('selected');
+            });
+            
+            // Dodaj klasę 'selected' do klikniętego
+            element.classList.add('selected');
+            
+            // Ustaw wartość ukrytego inputa
+            document.getElementById('selected_time').value = timeValue;
+        }
+    </script>
+</body>
+</html>
