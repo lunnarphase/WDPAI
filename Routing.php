@@ -4,13 +4,8 @@ require_once 'src/controllers/SecurityController.php';
 require_once 'src/controllers/DashboardController.php';
 require_once 'src/controllers/DoctorController.php';
 require_once 'src/controllers/AppointmentController.php';
+require_once 'src/controllers/AdminController.php';
 
-// TODO musimy zapewnic, ze utworzony 
-// obiekt kontrollera ma tylko jedna instancję - SINGLETON
-
-// TODO 2 /dashboard -- wszystkei dnae
-// /dashboard/12234 -- wyciagnie nam jakis elemtn o wskaznaym ID 12234
-// REGEX
 class Routing {
 
     public static $routes = [
@@ -21,6 +16,10 @@ class Routing {
         "dashboard" => [
             "controller" => "DashboardController",
             "action" => "index"
+        ],
+        "admin-dashboard" => [
+            "controller" => "AdminController",
+            "action" => "adminDashboard"
         ],
         "" => [
             "controller" => "SecurityController",
@@ -58,12 +57,20 @@ class Routing {
             "controller" => "AppointmentController",
             "action" => "getAvailability"
         ],
+        "admin-update-appointment" => [
+            "controller" => "AdminController",
+            "action" => "adminUpdateAppointment"
+        ],
+        "admin-delete-appointment" => [
+            "controller" => "AdminController",
+            "action" => "adminDeleteAppointment"
+        ],
     ];
 
     public static function run(string $path) {
-        // TODO sprawdzać za pomoca array_key_exists
         switch($path) {
             case 'dashboard':
+            case 'admin-dashboard': 
             case '':
             case 'login':
             case 'register':
@@ -73,6 +80,8 @@ class Routing {
             case 'confirm-appointment':
             case 'cancel-appointment':
             case 'doctor-availability':
+            case 'admin-update-appointment':
+            case 'admin-delete-appointment':
             case 'logout':
                 $controller = Routing::$routes[$path]["controller"];
                 $action = Routing::$routes[$path]["action"];

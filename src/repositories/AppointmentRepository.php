@@ -20,7 +20,6 @@ class AppointmentRepository extends Repository {
 
             $patientId = $patient['id'];
 
-            // SPRAWDZANIE KOLIZJI (zapobiega podwójnym rezerwacjom)
             $checkStmt = $db->prepare('SELECT id FROM appointments WHERE id_doctor = ? AND appointment_date = ? AND appointment_time = ? AND status != \'cancelled\'');
             $checkStmt->execute([$doctorId, $date, $time]);
             if ($checkStmt->fetch()) {
@@ -70,7 +69,6 @@ class AppointmentRepository extends Repository {
 
     public function cancelAppointment(int $appointmentId, int $userId, string $reason, string $comment) {
         $db = $this->database->connect();
-        // Zabezpieczenie: Sprawdzamy czy to pacjent przypisany do konta usera anuluje
         $stmt = $db->prepare('
             UPDATE appointments 
             SET status = \'cancelled\', cancel_reason = :reason, cancel_comment = :comment
@@ -84,7 +82,6 @@ class AppointmentRepository extends Repository {
         ]);
     }
 
-    // Metoda dla kalendarza - pobiera zajęte godziny w zadanym przedziale dat
     public function getBookedSlots(int $doctorId, string $startDate, string $endDate): array {
         $db = $this->database->connect();
         $stmt = $db->prepare("
@@ -101,5 +98,59 @@ class AppointmentRepository extends Repository {
             ':end_date' => $endDate
         ]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+   public function getAllAppointmentsAdmin(): array {
+        $db = $this->database->connect();
+        $stmt = $db->prepare('
+            SELECT 
+                a.id,
+                a.id_patient,
+                a.id_doctor,
+                a.appointment_date, 
+                a.appointment_time, 
+                a.status,
+                pu.username as patient_name,
+                du.username as doctor_name
+            FROM appointments a
+            JOIN patients p ON a.id_patient = p.id
+            JOIN users pu ON p.id_user = pu.id
+            JOIN doctors d ON a.id_doctor = d.id
+            JOIN users du ON d.id_user = du.id
+            ORDER BY a.appointment_date DESC, a.appointment_time DESC
+        ');
+        $stmt->execute();
+        
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function updateAppointmentAdmin(int $id, int $patientId, int $doctorId, string $date, string $time, string $status) {
+        $db = $this->database->connect();
+        $stmt = $db->prepare('
+            UPDATE appointments 
+            SET id_patient = ?, id_doctor = ?, appointment_date = ?, appointment_time = ?, status = ?
+            WHERE id = ?
+        ');
+        $stmt->execute([$patientId, $doctorId, $date, $time, $status, $id]);
+    }
+
+    public function deleteAppointmentAdmin(int $id) {
+        $db = $this->database->connect();
+        $stmt = $db->prepare('DELETE FROM appointments WHERE id = ?');
+        $stmt->execute([$id]);
+    }
+
+    public function getTodaysAppointmentsCount(): int {
+        $db = $this->database->connect();
+        $stmt = $db->prepare("
+            SELECT COUNT(*) as count 
+            FROM appointments 
+            WHERE appointment_date = CURRENT_DATE 
+              AND status != 'cancelled'
+        ");
+        $stmt->execute();
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        return $result ? (int)$result['count'] : 0;
     }
 }

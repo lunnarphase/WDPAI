@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Administratora - MediSchedule</title>
+    <link rel="stylesheet" href="/public/styles/main.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .admin-action-btn { border: none; padding: 8px 12px; border-radius: 8px; cursor: pointer; transition: 0.2s; font-size: 1rem; margin-left: 5px; }
+        .btn-edit { background-color: #eff6ff; color: #2563eb; font-weight: 600;}
+        .btn-edit:hover { background-color: #dbeafe; }
+        .btn-delete { background-color: #fef2f2; color: #dc2626; padding: 10px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; transition: 0.2s;}
+        .btn-delete:hover { background-color: #fee2e2; }
+        .logout-link-admin { color: #64748b; text-decoration: none; font-weight: 600; display: flex; align-items: center; gap: 8px; transition: color 0.2s; }
+        .logout-link-admin:hover { color: #0f172a; }
+        
+        /* OVERLAY I LUKSUSOWE TŁO DLA MODALI */
+        .admin-modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(4px); z-index: 4000; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.3s; }
+        .admin-modal-overlay.active { display: flex; opacity: 1; }
+        
+        /* ZABEZPIECZENIE BIAŁEGO TŁA MODALU */
+        .admin-modal-content { 
+            background: white; 
+            border-radius: 16px; 
+            width: 100%; 
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); 
+            transform: translateY(-20px); 
+            transition: transform 0.3s ease-out; 
+            position: relative;
+        }
+        .admin-modal-overlay.active .admin-modal-content { transform: translateY(0); }
+
+        .form-group { margin-bottom: 1rem; text-align: left; }
+        .form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: #64748b; margin-bottom: 0.4rem; text-transform: uppercase; }
+        .form-group select, .form-group input { width: 100%; padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; font-size: 0.95rem; }
+    </style>
+</head>
+<body class="dashboard-body" style="background-color: #f8fafc;">
+
+    <nav class="top-nav">
+        <div class="nav-left">
+            <a href="/admin-dashboard" class="logo-text">
+                <i class="fa-solid fa-briefcase-medical"></i> MediSchedule <span style="font-size: 0.8rem; color: #64748b; margin-left: 10px; text-transform: uppercase;">Admin</span>
+            </a>
+            <div class="nav-links">
+                <a href="#" class="active" onclick="switchTab('wizyty')">Wizyty</a>
+                <a href="#" onclick="switchTab('uzytkownicy')">Użytkownicy</a>
+            </div>
+        </div>
+        <div class="nav-right">
+            <a href="/logout" class="logout-link-admin"><i class="fa-solid fa-arrow-right-from-bracket"></i> Wyloguj</a>
+        </div>
+    </nav>
+
+    <main class="dashboard-container" style="max-width: 1200px; margin: 0 auto; padding-top: 2rem;">
+        
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+            <header class="dashboard-header" style="margin-bottom: 0;">
+                <h1 style="color: #064e3b; font-size: 2.2rem;">Przegląd Systemu</h1>
+                <p>Monitorowanie wydajności kliniki i przepływu pacjentów.</p>
+            </header>
+
+            <div style="display: flex; gap: 1rem;">
+                <div style="background: white; padding: 1rem 2rem; border-radius: 12px; border: 1px solid #e2e8f0; text-align: center; border-bottom: 4px solid #2563eb; min-width: 150px;">
+                    <p style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Aktywni Użytkownicy</p>
+                    <span style="font-size: 2rem; font-weight: 800; color: #2563eb;"><?= $usersCount ?? 0 ?></span>
+                </div>
+                <div style="background: white; padding: 1rem 2rem; border-radius: 12px; border: 1px solid #e2e8f0; text-align: center; border-bottom: 4px solid #16a34a; min-width: 150px;">
+                    <p style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Wizyty Dzisiaj</p>
+                    <span style="font-size: 2rem; font-weight: 800; color: #16a34a;"><?= $todayCount ?? 0 ?></span>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-wizyty" style="background: white; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; margin-bottom: 2rem;">
+            <div style="padding: 1.5rem; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+                <h2 style="margin: 0; display: flex; align-items: center; gap: 10px; font-size: 1.3rem;">
+                    <span style="display: inline-block; width: 6px; height: 24px; background-color: #125B46; border-radius: 4px;"></span>
+                    Zarządzanie wizytami
+                </h2>
+                <div style="display: flex; gap: 0.5rem;">
+                    <select id="appointmentFilter" onchange="filterAppointments()" style="padding: 0.4rem; border-radius: 6px; border: 1px solid #cbd5e1; outline: none; font-weight: 600; color: #475569;">
+                        <option value="active" selected>Tylko aktywne</option>
+                        <option value="all">Wszystkie</option>
+                        <option value="cancelled">Anulowane</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; text-align: left; min-width: 800px;">
+                    <thead style="background-color: #f8fafc; font-size: 0.85rem; color: #64748b; text-transform: uppercase;">
+                        <tr>
+                            <th style="padding: 1.2rem 1.5rem; border-bottom: 2px solid #e2e8f0;">Pacjent</th>
+                            <th style="padding: 1.2rem 1.5rem; border-bottom: 2px solid #e2e8f0;">Lekarz</th>
+                            <th style="padding: 1.2rem 1.5rem; border-bottom: 2px solid #e2e8f0;">Data i Godzina</th>
+                            <th style="padding: 1.2rem 1.5rem; border-bottom: 2px solid #e2e8f0;">Status</th>
+                            <th style="padding: 1.2rem 1.5rem; text-align: right; border-bottom: 2px solid #e2e8f0;">Akcje</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (empty($appointments)): ?>
+                            <tr>
+                                <td colspan="5" style="text-align: center; padding: 3rem; color: #64748b;">Brak wizyt w systemie.</td>
+                            </tr>
+                        <?php else: ?>
+                            <?php foreach ($appointments as $app): ?>
+                                <tr class="app-row" data-status="<?= $app['status'] ?>" style="border-bottom: 1px solid #e2e8f0; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
+                                    <td style="padding: 1.25rem 1.5rem; font-weight: 600; color: #0f172a;"><?= htmlspecialchars($app['patient_name']) ?></td>
+                                    <td style="padding: 1.25rem 1.5rem; color: #475569;">dr <?= htmlspecialchars($app['doctor_name']) ?></td>
+                                    <td style="padding: 1.25rem 1.5rem;">
+                                        <strong style="display: block; color: #0f172a;"><?= date('d M Y', strtotime($app['appointment_date'])) ?></strong>
+                                        <span style="font-size: 0.85rem; color: #64748b;"><?= date('H:i', strtotime($app['appointment_time'])) ?></span>
+                                    </td>
+                                    <td style="padding: 1.25rem 1.5rem;">
+                                        <?php if($app['status'] === 'cancelled'): ?>
+                                            <span style="background: #fee2e2; color: #991b1b; padding: 0.35rem 0.75rem; border-radius: 20px; font-size: 0.8rem; font-weight: 600;">Anulowana</span>
+                                        <?php else: ?>
+                                            <span style="background: #bbf7d0; color: #166534; padding: 0.35rem 0.75rem; border-radius: 20px; font-size: 0.8rem; font-weight: 600;">Zarezerwowana</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td style="padding: 1.25rem 1.5rem; text-align: right;">
+                                        <button class="admin-action-btn btn-edit" onclick="openAdminEditModal(<?= $app['id'] ?>, <?= $app['id_patient'] ?>, <?= $app['id_doctor'] ?>, '<?= $app['appointment_date'] ?>', '<?= date('H:i', strtotime($app['appointment_time'])) ?>', '<?= $app['status'] ?>')" title="Zarządzaj wizytą"><i class="fa-solid fa-pen-to-square"></i> Edytuj</button>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="tab-uzytkownicy" style="display: none; background: white; border-radius: 16px; border: 1px solid #e2e8f0; padding: 2rem;">
+            <h2 style="margin-top: 0; color: #0f172a;">Zarządzanie Użytkownikami</h2>
+            <p style="color: #64748b;">Widok bazy użytkowników pojawi się tutaj w kolejnym etapie.</p>
+        </div>
+
+    </main>
+
+    <div id="adminEditModal" class="admin-modal-overlay">
+        <div class="admin-modal-content" style="max-width: 500px; padding: 2rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h3 style="margin: 0; font-size: 1.4rem; color: #0f172a;">Zarządzaj wizytą</h3>
+                <button onclick="closeAdminEditModal()" style="background:none; border:none; font-size: 1.5rem; cursor:pointer; color: #64748b; transition: 0.2s;" onmouseover="this.style.color='#0f172a'" onmouseout="this.style.color='#64748b'">&times;</button>
+            </div>
+            
+            <form id="adminEditForm" method="POST" action="/admin-update-appointment">
+                <input type="hidden" name="appointment_id" id="modal_app_id">
+                
+                <div class="form-group">
+                    <label>Pacjent</label>
+                    <select name="patient_id" id="modal_patient_id" required>
+                        <?php foreach($patients as $patient): ?>
+                            <option value="<?= $patient['patient_id'] ?>"><?= htmlspecialchars($patient['username']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Lekarz Specjalista</label>
+                    <select name="doctor_id" id="modal_doctor_id" required>
+                        <?php foreach($doctors as $doctor): ?>
+                            <option value="<?= $doctor['doctor_id'] ?>">dr <?= htmlspecialchars($doctor['username']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div style="display: flex; gap: 1rem;">
+                    <div class="form-group" style="flex: 1;">
+                        <label>Data</label>
+                        <input type="date" name="appointment_date" id="modal_date" required>
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>Godzina</label>
+                        <input type="time" name="appointment_time" id="modal_time" required>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 2rem;">
+                    <label>Status wizyty</label>
+                    <select name="status" id="modal_status" required>
+                        <option value="confirmed">Zarezerwowana (Aktywna)</option>
+                        <option value="cancelled">Anulowana</option>
+                    </select>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; border-top: 1px solid #e2e8f0; padding-top: 1.5rem;">
+                    <button type="button" class="btn-delete" onclick="openConfirmModal()"><i class="fa-solid fa-trash"></i> Usuń trwale</button>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button type="button" class="btn-secondary" onclick="closeAdminEditModal()">Anuluj</button>
+                        <button type="submit" class="btn-primary-small">Zapisz zmiany</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="customConfirmModal" class="admin-modal-overlay" style="z-index: 5000;">
+        <div class="admin-modal-content" style="max-width: 400px; padding: 2rem; text-align: center;">
+            <div style="width: 65px; height: 65px; border-radius: 50%; background: #fee2e2; color: #dc2626; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; margin: 0 auto 1.5rem auto;">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h3 style="margin: 0 0 1rem 0; font-size: 1.4rem; color: #0f172a;">Usunąć wizytę?</h3>
+            <p style="color: #64748b; font-size: 0.95rem; margin-bottom: 1.5rem; line-height: 1.5;">
+                Ta akcja jest <strong>nieodwracalna</strong>. Wizyta zostanie całkowicie wymazana z bazy danych.<br><br>Zamiast usuwać, możesz zmienić jej status na "Anulowana".
+            </p>
+            <div style="display: flex; gap: 1rem;">
+                <button type="button" class="btn-secondary" style="flex: 1;" onclick="closeConfirmModal()">Wróć</button>
+                <button type="button" class="btn-primary-small" style="flex: 1; background-color: #dc2626; border: none;" onclick="executeDelete()">Tak, usuń</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(tabName) {
+            document.querySelectorAll('.nav-links a').forEach(link => link.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById('tab-wizyty').style.display = 'none';
+            document.getElementById('tab-uzytkownicy').style.display = 'none';
+            document.getElementById('tab-' + tabName).style.display = 'block';
+        }
+
+        function filterAppointments() {
+            const filter = document.getElementById('appointmentFilter').value;
+            const rows = document.querySelectorAll('.app-row');
+            
+            rows.forEach(row => {
+                const status = row.getAttribute('data-status');
+                if (filter === 'all') {
+                    row.style.display = '';
+                } else if (filter === 'active' && status !== 'cancelled') {
+                    row.style.display = '';
+                } else if (filter === 'cancelled' && status === 'cancelled') {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+        document.addEventListener('DOMContentLoaded', filterAppointments);
+
+        function openAdminEditModal(id, patientId, doctorId, date, time, status) {
+            document.getElementById('modal_app_id').value = id;
+            document.getElementById('modal_patient_id').value = patientId;
+            document.getElementById('modal_doctor_id').value = doctorId;
+            document.getElementById('modal_date').value = date;
+            document.getElementById('modal_time').value = time;
+            document.getElementById('modal_status').value = status;
+            
+            document.getElementById('adminEditModal').classList.add('active');
+        }
+
+        function closeAdminEditModal() {
+            document.getElementById('adminEditModal').classList.remove('active');
+        }
+
+        // LOGIKA NOWEGO MODALA USUNIĘCIA
+        function openConfirmModal() {
+            // Ukrywamy modal edycji (opcjonalnie, wygląda czyściej)
+            document.getElementById('adminEditModal').classList.remove('active');
+            document.getElementById('customConfirmModal').classList.add('active');
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('customConfirmModal').classList.remove('active');
+            // Wracamy do modala edycji w razie gdyby admin się rozmyślił
+            document.getElementById('adminEditModal').classList.add('active');
+        }
+
+        function executeDelete() {
+            const form = document.getElementById('adminEditForm');
+            form.action = '/admin-delete-appointment';
+            form.submit();
+        }
+    </script>
+</body>
+</html>

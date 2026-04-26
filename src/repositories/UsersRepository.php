@@ -61,4 +61,27 @@ class UsersRepository extends Repository {
             throw $e;
         }
     }
+
+    public function getUsersCount(): int {
+        $db = $this->database->connect();
+        $stmt = $db->prepare('SELECT COUNT(*) as count FROM users');
+        $stmt->execute();
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        return $result ? (int)$result['count'] : 0;
+    }
+
+    public function getAllPatientsAdmin(): array {
+        $db = $this->database->connect();
+        $stmt = $db->prepare("SELECT p.id as patient_id, u.username FROM patients p JOIN users u ON p.id_user = u.id ORDER BY u.username ASC");
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function getAllDoctorsAdmin(): array {
+        $db = $this->database->connect();
+        $stmt = $db->prepare("SELECT d.id as doctor_id, u.username FROM doctors d JOIN users u ON d.id_user = u.id ORDER BY u.username ASC");
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 }

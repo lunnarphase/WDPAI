@@ -10,9 +10,15 @@ class SecurityController extends AppController {
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }
+        
         if (isset($_SESSION['user_id'])) {
             $url = "http://$_SERVER[HTTP_HOST]";
-            header("Location: {$url}/dashboard");
+            // Jeśli ktoś jest już zalogowany, kierujemy go na podstawie roli (zabezpieczenie)
+            if (isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'admin') {
+                header("Location: {$url}/admin-dashboard");
+            } else {
+                header("Location: {$url}/dashboard");
+            }
             exit();
         }
 
@@ -55,9 +61,21 @@ class SecurityController extends AppController {
         $_SESSION['user_role'] = $user->getRole();
         $_SESSION['is_logged_in'] = true;
 
-        $url = "http://$_SERVER[HTTP_HOST]";
-        header("Location: {$url}/dashboard");
-        exit();
+        // Przekierowanie na podstawie ról (TUTAJ BYŁ BRAKUJĄCY NAWIAS)
+        if ($user->getRole() === 'admin') {
+            $url = "http://$_SERVER[HTTP_HOST]/admin-dashboard";
+            header("Location: {$url}");
+            exit();
+        } elseif ($user->getRole() === 'doctor') {
+            $url = "http://$_SERVER[HTTP_HOST]/doctor-dashboard";
+            header("Location: {$url}");
+            exit();
+        } else {
+            // Domyślnie pacjent
+            $url = "http://$_SERVER[HTTP_HOST]/dashboard";
+            header("Location: {$url}");
+            exit();        
+        } // <-- TEGO NAWIASU BRAKOWAŁO
     }
 
     public function logout() {
