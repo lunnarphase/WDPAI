@@ -93,13 +93,11 @@ class AdminController extends AppController {
             $role = $_POST['user_role'];
             $repo = new UsersRepository();
 
-            // BLOKADA 1: Próba usunięcia samego siebie
             if ($id === $_SESSION['user_id']) {
                 header("Location: http://$_SERVER[HTTP_HOST]/admin-dashboard?error=self_delete");
                 exit();
             }
 
-            // BLOKADA 2: Ostatni administrator w systemie
             if ($role === 'admin' && $repo->getAdminCount() <= 1) {
                 header("Location: http://$_SERVER[HTTP_HOST]/admin-dashboard?error=last_admin");
                 exit();

@@ -6,7 +6,7 @@ class Database {
     private $password;
     private $host;
     private $database;
-    private $connection; // Tutaj będziemy trzymać aktywne połączenie
+    private $connection;
 
     public function __construct() {
         $this->username = USERNAME;

@@ -43,21 +43,22 @@ class AppointmentRepository extends Repository {
     public function getUpcomingAppointmentsForPatient(int $userId): array {
         $db = $this->database->connect();
         $stmt = $db->prepare('
-            SELECT 
+            SELECT
                 a.id as appointment_id,
-                a.appointment_date, 
-                a.appointment_time, 
+                a.appointment_date,
+                a.appointment_time,
                 a.status,
+                a.recommendations,
                 u.username as doctor_name,
-                (SELECT STRING_AGG(s.name, \', \') 
-                 FROM doctors_specializations ds 
-                 JOIN specializations s ON ds.id_specialization = s.id 
+                (SELECT STRING_AGG(s.name, \', \')
+                 FROM doctors_specializations ds
+                 JOIN specializations s ON ds.id_specialization = s.id
                  WHERE ds.id_doctor = d.id) as specializations
             FROM appointments a
             JOIN doctors d ON a.id_doctor = d.id
             JOIN users u ON d.id_user = u.id
             JOIN patients p ON a.id_patient = p.id
-            WHERE p.id_user = :user_id 
+            WHERE p.id_user = :user_id
             ORDER BY a.id DESC
         ');
         
@@ -152,5 +153,134 @@ class AppointmentRepository extends Repository {
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
         
         return $result ? (int)$result['count'] : 0;
+    }
+
+    public function getDoctorAppointments(int $userId): array {
+        $db = $this->database->connect();
+        $stmt = $db->prepare('
+            SELECT 
+                a.id,
+                a.appointment_date, 
+                a.appointment_time, 
+                a.status,
+                a.recommendations,
+                pu.username as patient_name,
+                p.pesel as patient_pesel
+            FROM appointments a
+            JOIN patients p ON a.id_patient = p.id
+            JOIN users pu ON p.id_user = pu.id
+            JOIN doctors d ON a.id_doctor = d.id
+            WHERE d.id_user = :user_id
+            ORDER BY a.appointment_date DESC, a.appointment_time DESC
+        ');
+        $stmt->bindParam(':user_id', $userId, PDO::PARAM_INT);
+        $stmt->execute();
+        
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function getDoctorStats(int $userId): array {
+        $db = $this->database->connect();
+        
+        $stmtToday = $db->prepare("
+            SELECT COUNT(*) FROM appointments a
+            JOIN doctors d ON a.id_doctor = d.id
+            WHERE d.id_user = ? AND a.appointment_date = CURRENT_DATE AND a.status != 'cancelled'
+        ");
+        $stmtToday->execute([$userId]);
+        $todayCount = $stmtToday->fetchColumn();
+
+        $stmtUpcoming = $db->prepare("
+            SELECT COUNT(*) FROM appointments a
+            JOIN doctors d ON a.id_doctor = d.id
+            WHERE d.id_user = ? AND a.appointment_date >= CURRENT_DATE AND a.status = 'confirmed'
+        ");
+        $stmtUpcoming->execute([$userId]);
+        $upcomingCount = $stmtUpcoming->fetchColumn();
+
+        return [
+            'today' => (int)$todayCount,
+            'upcoming' => (int)$upcomingCount
+        ];
+    }
+
+    public function updateAppointmentStatusByDoctor(int $appointmentId, int $userId, string $status, ?string $recommendations) {
+        $db = $this->database->connect();
+        
+        try {
+            $db->beginTransaction();
+
+            $stmt = $db->prepare('
+                UPDATE appointments 
+                SET status = ?, recommendations = ? 
+                WHERE id = ? AND id_doctor = (SELECT id FROM doctors WHERE id_user = ?)
+            ');
+            $stmt->execute([$status, $recommendations, $appointmentId, $userId]);
+
+            if ($status === 'completed') {
+                $stmt2 = $db->prepare('SELECT p.id_user FROM appointments a JOIN patients p ON a.id_patient = p.id WHERE a.id = ?');
+                $stmt2->execute([$appointmentId]);
+                $patientUserId = $stmt2->fetchColumn();
+
+                if ($patientUserId) {
+                    $msg = "Masz nowe zalecenia od lekarza po zakończonej wizycie. Sprawdź swój profil!";
+                    $stmt3 = $db->prepare('INSERT INTO notifications (id_user, message) VALUES (?, ?)');
+                    $stmt3->execute([$patientUserId, $msg]);
+                }
+            }
+
+            $db->commit();
+        } catch (Exception $e) {
+            $db->rollBack();
+            throw $e;
+        }
+    }
+
+    public function getTakenSlots(int $doctorId, string $date): array {
+        $db = $this->database->connect();
+        $stmt = $db->prepare('
+            SELECT appointment_time 
+            FROM appointments 
+            WHERE id_doctor = :doctor_id AND appointment_date = :date AND status != :status
+        ');
+        $cancelledStatus = 'cancelled';
+        $stmt->bindParam(':doctor_id', $doctorId, PDO::PARAM_INT);
+        $stmt->bindParam(':date', $date, PDO::PARAM_STR);
+        $stmt->bindParam(':status', $cancelledStatus, PDO::PARAM_STR);
+        $stmt->execute();
+
+        return $stmt->fetchAll(PDO::FETCH_COLUMN);
+    }
+
+    public function getAppointmentsInRange(int $doctorId, string $startDate, string $endDate): array {
+        $db = $this->database->connect();
+        $stmt = $db->prepare('
+            SELECT appointment_date, appointment_time
+            FROM appointments
+            WHERE id_doctor = :doctor_id
+              AND appointment_date BETWEEN :start AND :end
+              AND status != \'cancelled\'
+        ');
+        $stmt->bindParam(':doctor_id', $doctorId, PDO::PARAM_INT);
+        $stmt->bindParam(':start', $startDate, PDO::PARAM_STR);
+        $stmt->bindParam(':end', $endDate, PDO::PARAM_STR);
+        $stmt->execute();
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function getUserNotifications(int $userId): array {
+        $db = $this->database->connect();
+        $stmt = $db->prepare('
+            SELECT id, message, created_at
+            FROM notifications
+            WHERE id_user = :user_id
+            ORDER BY created_at DESC
+            LIMIT 50
+        ');
+        $stmt->bindParam(':user_id', $userId, PDO::PARAM_INT);
+        $stmt->execute();
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 }

@@ -55,7 +55,7 @@
       </button>
 
       <div class="nav-right">
-          <a href="#" class="icon-btn"><i class="fa-regular fa-bell"></i></a>
+          <a href="#" onclick="openNotificationsModal()" class="icon-btn"><i class="fa-regular fa-bell"></i></a>
           <a href="#" class="icon-btn"><i class="fa-regular fa-user"></i></a>
           <a href="/logout" class="logout-link"><i class="fa-solid fa-arrow-right-from-bracket"></i> Wyloguj</a>
       </div>
@@ -74,7 +74,7 @@
         </header>
 
         <?php if(isset($messages) && !empty($messages)): ?>
-            <div class="success-messages" style="margin-bottom: 2rem; border-left: 4px solid #15803d;">
+            <div class="success-messages" style="margin-bottom: 2rem; border-left: 4px solid #15803d; background: #f0fdf4; padding: 1rem; border-radius: 8px; color: #15803d; font-weight: 600;">
                 <?php foreach($messages as $message) { echo $message; } ?>
             </div>
         <?php endif; ?>
@@ -93,13 +93,24 @@
                             <a href="#" onclick="document.getElementById('live-doctor-search').focus()" class="btn-primary-small" style="display:inline-block; text-decoration: none;">Umów wizytę</a>
                         </div>
                     <?php else: ?>
-                        <?php 
+                        <?php
                         $counter = 0;
-                        foreach ($processedAppointments as $app): 
-                            if ($counter >= 3) break; 
-                            $statusText = $app['is_cancelled'] ? 'Anulowana' : 'Potwierdzona';
-                            $dotColor = $app['is_cancelled'] ? '#ef4444' : '#22c55e';
-                            $opacity = $app['is_cancelled'] ? 'opacity: 0.6;' : ''; 
+                        foreach ($processedAppointments as $app):
+                            if ($counter >= 3) break;
+
+                            // Mapowanie statusu
+                            $statusMap = [
+                                'confirmed' => ['text' => 'Potwierdzona', 'color' => '#22c55e'],
+                                'completed' => ['text' => 'Zakończona', 'color' => '#3b82f6'],
+                                'noshow' => ['text' => 'Nieobecność klienta', 'color' => '#eab308'],
+                                'cancelled' => ['text' => 'Anulowana', 'color' => '#ef4444'],
+                            ];
+
+                            $status = $app['status'] ?? 'confirmed';
+                            $statusInfo = $statusMap[$status] ?? ['text' => ucfirst($status), 'color' => '#6b7280'];
+                            $statusText = $statusInfo['text'];
+                            $dotColor = $statusInfo['color'];
+                            $opacity = ($status === 'cancelled') ? 'opacity: 0.6;' : '';
                         ?>
                             <div class="appointment-card" style="<?= $opacity ?>">
                                 <div class="app-date">
@@ -111,9 +122,14 @@
                                     <p class="spec"><?= htmlspecialchars($app['specializations']) ?></p>
                                     <h3>dr <?= htmlspecialchars($app['doctor_name']) ?></h3>
                                     <p class="status"><span class="dot" style="background-color: <?= $dotColor ?>;"></span> <?= $statusText ?></p>
+                                    <?php if (!empty($app['recommendations'])): ?>
+                                        <div style="margin-top: 0.75rem; padding: 0.75rem; background: #f3f4f6; border-radius: 6px; font-size: 0.9rem; color: #374151;">
+                                            <strong>Zalecenia:</strong><br><?= htmlspecialchars($app['recommendations']) ?>
+                                        </div>
+                                    <?php endif; ?>
                                 </div>
                                 <div class="app-actions">
-                                    <?php if(!$app['is_cancelled']): ?>
+                                    <?php if($status !== 'cancelled'): ?>
                                         <button class="btn-secondary" onclick="openCancelModal(<?= $app['appointment_id'] ?>)">Anuluj</button>
                                     <?php endif; ?>
                                 </div>
@@ -132,10 +148,11 @@
                 <div class="widget quick-search-widget" style="position: relative; overflow: visible; z-index: 50;">
                     <h2>Znajdź lekarza</h2>
                     <label>Szukaj po nazwisku</label>
-                    <div class="input-with-icon" style="margin-bottom: 1rem;"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="live-doctor-search" placeholder="Np. Jan Kowalski..." autocomplete="off"></div>
+                    <div class="input-with-icon" style="margin-bottom: 1rem;"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="live-doctor-search" placeholder="Np. Kowalski..." autocomplete="off"></div>
                     <label>Specjalizacja</label>
-                    <div class="input-with-icon" style="margin-bottom: 1.5rem;"><i class="fa-solid fa-briefcase-medical"></i><select id="live-spec-search"><option value="">Wszystkie specjalizacje</option><option value="kardiolog">Kardiolog</option><option value="pediatra">Pediatra</option><option value="chirurg">Chirurg</option></select></div>
+                    <div class="input-with-icon" style="margin-bottom: 1.5rem;"><i class="fa-solid fa-briefcase-medical"></i><select id="live-spec-search"><option value="all">Wszystkie specjalizacje</option><option value="kardiolog">Kardiolog</option><option value="pediatra">Pediatra</option><option value="chirurg">Chirurg</option></select></div>
                     <button type="button" onclick="document.getElementById('live-doctor-search').focus()" style="width: 100%; background-color: #125B46; color: white; border: none; padding: 0.85rem; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer;">Szukaj terminu</button>
+                    
                     <div id="live-search-results" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); z-index: 100; max-height: 380px; overflow-y: auto; margin-top: 0.5rem; padding: 0.5rem;"></div>
                 </div>
             </div>
@@ -191,17 +208,72 @@
         </div>
     </div>
 
-    <script>      
+    <div id="notificationsModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="history-header">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="font-size: 1.25rem; color: #111827; margin: 0;">Powiadomienia</h3>
+                    <button onclick="closeNotificationsModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280; line-height: 1;">&times;</button>
+                </div>
+            </div>
+            <div id="notifications-list" class="history-body" style="max-height: 500px;">
+            </div>
+        </div>
+    </div>
+
+    <script>
         const allAppointments = <?= json_encode($processedAppointments) ?>;
+        const allNotifications = <?= json_encode($notifications ?? []) ?>;
         const historyModal = document.getElementById('historyModal');
+        const notificationsModal = document.getElementById('notificationsModal');
         const modalSearchInput = document.getElementById('modal-search');
         const modalSpecSelect = document.getElementById('modal-spec');
         const modalListContainer = document.getElementById('modal-appointments-list');
 
-        function openHistoryModal() { historyModal.classList.add('active'); renderHistoryModal(); }
+        function openHistoryModal() {
+            historyModal.classList.add('active');
+            // Fetchujemy świeże dane przed renderowaniem
+            fetch('/api-get-appointments')
+                .then(res => res.json())
+                .then(freshAppointments => {
+                    allAppointments = freshAppointments;
+                    renderHistoryModal();
+                })
+                .catch(err => {
+                    console.error('Błąd przy pobieraniu wizyt:', err);
+                    renderHistoryModal(); // Renderuj stare dane jeśli fetch nie zadziałał
+                });
+        }
         function closeHistoryModal() { historyModal.classList.remove('active'); }
 
-        function renderHistoryModal() {
+        function openNotificationsModal() {
+            notificationsModal.classList.add('active');
+            renderNotificationsModal();
+        }
+
+        function closeNotificationsModal() { notificationsModal.classList.remove('active'); }
+
+        function renderNotificationsModal() {
+            const notificationsList = document.getElementById('notifications-list');
+            notificationsList.innerHTML = '';
+
+            if (!allNotifications || allNotifications.length === 0) {
+                notificationsList.innerHTML = '<p style="text-align:center; color: var(--text-muted); padding: 2rem;">Brak powiadomień</p>';
+                return;
+            }
+
+            allNotifications.forEach(notification => {
+                const notifDiv = document.createElement('div');
+                notifDiv.style.cssText = 'padding: 1rem; border-bottom: 1px solid #e2e8f0; background: white;';
+                notifDiv.innerHTML = `
+                    <p style="margin: 0; color: #111827; font-size: 0.95rem;">${notification.message}</p>
+                    <p style="margin: 0.5rem 0 0 0; color: #9ca3af; font-size: 0.8rem;">${new Date(notification.created_at).toLocaleString('pl-PL')}</p>
+                `;
+                notificationsList.appendChild(notifDiv);
+            });
+        }
+
+        notificationsModal.addEventListener('click', function(e) { if (e.target === notificationsModal) closeNotificationsModal(); });
             const query = modalSearchInput.value.toLowerCase().trim();
             const spec = modalSpecSelect.value.toLowerCase();
             modalListContainer.innerHTML = '';
@@ -217,17 +289,28 @@
             }
 
             filteredData.forEach(app => {
-                const statusText = app.is_cancelled ? 'Anulowana' : 'Potwierdzona';
-                const dotColor = app.is_cancelled ? '#ef4444' : '#22c55e';
-                const opacity = app.is_cancelled ? 'opacity: 0.6;' : '';
+                const statusMap = {
+                    'confirmed': { text: 'Potwierdzona', color: '#22c55e' },
+                    'completed': { text: 'Zakończona', color: '#3b82f6' },
+                    'noshow': { text: 'Nieobecność klienta', color: '#eab308' },
+                    'cancelled': { text: 'Anulowana', color: '#ef4444' }
+                };
+
+                const status = app.status || 'confirmed';
+                const statusInfo = statusMap[status] || { text: status.charAt(0).toUpperCase() + status.slice(1), color: '#6b7280' };
+                const statusText = statusInfo.text;
+                const dotColor = statusInfo.color;
+                const opacity = (status === 'cancelled') ? 'opacity: 0.6;' : '';
                 const card = document.createElement('div');
-                card.className = 'appointment-card'; 
+                card.className = 'appointment-card';
                 card.style.cssText = `margin-bottom: 1rem; ${opacity}`;
-                const actionBtn = !app.is_cancelled ? `<button class="btn-secondary" onclick="openCancelModal(${app.appointment_id}); closeHistoryModal();">Anuluj</button>` : ``;
+                const actionBtn = (status !== 'cancelled') ? `<button class="btn-secondary" onclick="openCancelModal(${app.appointment_id}); closeHistoryModal();">Anuluj</button>` : ``;
 
                 card.innerHTML = `
                     <div class="app-date"><span class="day">${app.day}</span><span class="month">${app.month}</span><span class="time">${app.time_formatted}</span></div>
-                    <div class="app-details"><p class="spec">${app.specializations || 'Brak specjalizacji'}</p><h3>dr ${app.doctor_name}</h3><p class="status"><span class="dot" style="background-color: ${dotColor};"></span> ${statusText}</p></div>
+                    <div class="app-details"><p class="spec">${app.specializations || 'Brak specjalizacji'}</p><h3>dr ${app.doctor_name}</h3><p class="status"><span class="dot" style="background-color: ${dotColor};"></span> ${statusText}</p>
+                    ${app.recommendations ? `<div style="margin-top: 0.75rem; padding: 0.75rem; background: #f3f4f6; border-radius: 6px; font-size: 0.9rem; color: #374151;"><strong>Zalecenia:</strong><br>${app.recommendations}</div>` : ''}
+                    </div>
                     <div class="app-actions">${actionBtn}</div>
                 `;
                 modalListContainer.appendChild(card);
@@ -258,39 +341,72 @@
         function closeCancelModal() { cancelModal.classList.remove('active'); }
         cancelModal.addEventListener('click', function(e) { if (e.target === cancelModal) closeCancelModal(); });
 
+        // --- ZAKTUALIZOWANA WYSZUKIWARKA LIVE AJAX ---
         const searchInput = document.getElementById('live-doctor-search');
         const specSelect = document.getElementById('live-spec-search');
         const resultsContainer = document.getElementById('live-search-results');
 
         function performLiveSearch() {
-            const query = searchInput.value.trim(); const spec = specSelect.value.toLowerCase();
-            if(query.length === 0 && spec === '') { resultsContainer.style.display = 'none'; return; }
+            const query = searchInput.value.trim(); 
+            const spec = specSelect.value;
+            
+            // Pokaż cokolwiek, tylko jak ktoś coś wpisze albo wybierze spec
+            if(query.length === 0 && (spec === '' || spec === 'all')) { 
+                resultsContainer.style.display = 'none'; 
+                return; 
+            }
 
-            fetch('/search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ search: query }) })
-            .then(response => response.json())
+            // Uderzamy do naszego nowego API
+            fetch(`/api-search-doctors?q=${encodeURIComponent(query)}&spec=${encodeURIComponent(spec)}`)
+            .then(response => {
+                if(!response.ok) throw new Error("Błąd sieci");
+                return response.json();
+            })
             .then(doctors => {
-                let filteredDoctors = doctors;
-                if(spec !== '') filteredDoctors = doctors.filter(doctor => doctor.specializations && doctor.specializations.toLowerCase().includes(spec));
-                resultsContainer.innerHTML = ''; resultsContainer.style.display = 'block'; 
-                if(filteredDoctors.length === 0) { resultsContainer.innerHTML = '<div style="padding: 1rem; text-align: center; color: var(--text-muted); font-size: 0.9rem;">Brak wolnych terminów.</div>'; return; }
+                resultsContainer.innerHTML = ''; 
+                resultsContainer.style.display = 'block'; 
+                
+                if(doctors.length === 0) { 
+                    resultsContainer.innerHTML = '<div style="padding: 1rem; text-align: center; color: var(--text-muted); font-size: 0.9rem;">Brak lekarzy dla tych kryteriów.</div>'; 
+                    return; 
+                }
 
-                filteredDoctors.forEach(doctor => {
+                doctors.forEach(doctor => {
                     const card = document.createElement('div');
                     card.style.cssText = 'padding: 0.85rem; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s; border-radius: 8px;';
-                    card.onmouseover = () => card.style.background = '#f8fafc'; card.onmouseout = () => card.style.background = 'transparent';
-                    const rating = parseFloat(doctor.avg_rating) > 0 ? parseFloat(doctor.avg_rating).toFixed(1) : 'Nowy';
-                    const stars = parseFloat(doctor.avg_rating) > 0 ? '<i class="fa-solid fa-star" style="color: #f59e0b;"></i>' : '';
+                    card.onmouseover = () => card.style.background = '#f8fafc'; 
+                    card.onmouseout = () => card.style.background = 'transparent';
+                    
+                    const specName = doctor.specialization ? doctor.specialization.charAt(0).toUpperCase() + doctor.specialization.slice(1) : 'Lekarz ogólny';
+
+                    // Generujemy HTML pojedynczego lekarza
                     card.innerHTML = `
-                        <div><h4 style="margin: 0; color: var(--text-main); font-size: 1rem;">dr ${doctor.name}</h4><p style="margin: 0.25rem 0; font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">${doctor.specializations || 'Lekarz ogólny'}</p><div style="font-size: 0.85rem; color: var(--text-main); margin-bottom: 0.35rem;">${stars} <span style="font-weight: 600;">${rating}</span></div></div>
-                        <a href="/book-appointment?id=${doctor.doctor_id}" style="background-color: var(--primary-color); color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; font-size: 0.85rem; font-weight: 600;">Umów</a>
-                    `;
+                        <div>
+                            <h4 style="margin: 0; color: #0f172a; font-size: 1rem;">dr ${doctor.name}</h4>
+                            <p style="margin: 0.25rem 0; font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase;">${specName}</p>
+                        </div>
+                    <a href="/find-doctor?id=${doctor.doctor_id}" style="background-color: #125B46; color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; font-size: 0.85rem; font-weight: 600;">Umów</a>                    `;
                     resultsContainer.appendChild(card);
                 });
+            })
+            .catch(err => {
+                console.error(err);
+                resultsContainer.innerHTML = '<div style="padding: 1rem; text-align: center; color: red; font-size: 0.9rem;">Błąd połączenia.</div>';
+                resultsContainer.style.display = 'block';
             });
         }
-        searchInput.addEventListener('input', performLiveSearch); searchInput.addEventListener('focus', performLiveSearch);
-        specSelect.addEventListener('change', performLiveSearch); specSelect.addEventListener('focus', performLiveSearch);
-        document.addEventListener('click', function(e) { if (!e.target.closest('.quick-search-widget')) resultsContainer.style.display = 'none'; });
+        
+        searchInput.addEventListener('input', performLiveSearch); 
+        searchInput.addEventListener('focus', performLiveSearch);
+        specSelect.addEventListener('change', performLiveSearch); 
+        specSelect.addEventListener('focus', performLiveSearch);
+        
+        // Zamykanie wyników po kliknięciu gdziekolwiek indziej
+        document.addEventListener('click', function(e) { 
+            if (!e.target.closest('.quick-search-widget')) {
+                resultsContainer.style.display = 'none'; 
+            }
+        });
     </script>
 </body>
 </html>

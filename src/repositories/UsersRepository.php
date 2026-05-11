@@ -6,7 +6,6 @@ require_once __DIR__ . '/../models/User.php';
 class UsersRepository extends Repository {
 
     public function getUserByEmail(string $email): ?User {
-        // Używamy JOIN, aby pobrać nazwę roli z tabeli 'roles'
         $query = $this->database->connect()->prepare(
             "SELECT u.id, u.email, u.password, u.username, r.name as role 
              FROM users u 
@@ -36,28 +35,25 @@ class UsersRepository extends Repository {
         $db = $this->database->connect();
         
         try {
-            $db->beginTransaction(); // START TRANSAKCJI
+            $db->beginTransaction();
 
-            // 1. Wstawiamy do tabeli USERS
             $stmt = $db->prepare('
                 INSERT INTO users (email, password, username, id_role)
                 VALUES (?, ?, ?, 3) RETURNING id
             ');
             $stmt->execute([$email, $password, $username]);
-            
-            // Pobieramy wygenerowane ID użytkownika
+
             $userId = $stmt->fetch(PDO::FETCH_ASSOC)['id'];
 
-            // 2. Wstawiamy do tabeli PATIENTS (korzystając z pobranego ID)
             $stmt = $db->prepare('
                 INSERT INTO patients (id_user, pesel)
                 VALUES (?, ?)
             ');
             $stmt->execute([$userId, $pesel]);
 
-            $db->commit(); // ZATWIERDZENIE - wszystko OK
+            $db->commit();
         } catch (Exception $e) {
-            $db->rollBack(); // WYCOFANIE - jeśli coś poszło nie tak
+            $db->rollBack();
             throw $e;
         }
     }
@@ -135,8 +131,6 @@ class UsersRepository extends Repository {
         }
     }
 
-    // --- METODY DO USUWANIA UŻYTKOWNIKÓW ---
-    
     public function getAdminCount(): int {
         $db = $this->database->connect();
         $stmt = $db->prepare("SELECT COUNT(*) FROM users u JOIN roles r ON u.id_role = r.id WHERE r.name = 'admin'");
@@ -169,5 +163,33 @@ class UsersRepository extends Repository {
             $db->rollBack();
             throw $e;
         }
+    }
+
+    public function searchDoctors(string $keyword, string $specialization): array {
+        $db = $this->database->connect();
+        
+        $sql = "
+            SELECT d.id as doctor_id, u.username as name, s.name as specialization
+            FROM doctors d
+            JOIN users u ON d.id_user = u.id
+            LEFT JOIN doctors_specializations ds ON d.id = ds.id_doctor
+            LEFT JOIN specializations s ON ds.id_specialization = s.id
+            WHERE u.username ILIKE :keyword
+        ";
+
+        if ($specialization !== 'all') {
+            $sql .= " AND s.name = :specialization";
+        }
+
+        $stmt = $db->prepare($sql);
+        $searchKeyword = '%' . $keyword . '%';
+        $stmt->bindParam(':keyword', $searchKeyword, PDO::PARAM_STR);
+        
+        if ($specialization !== 'all') {
+            $stmt->bindParam(':specialization', $specialization, PDO::PARAM_STR);
+        }
+
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 }

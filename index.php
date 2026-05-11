@@ -1,5 +1,5 @@
 <?php
-session_start(); // Inicjalizacja sesji
+session_start();
 
 require_once __DIR__ . "/Routing.php";
 

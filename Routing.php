@@ -73,6 +73,26 @@ class Routing {
             "controller" => "AdminController",
             "action" => "adminDeleteUser"
         ],
+        "doctor-dashboard" => [
+            "controller" => "DoctorController",
+            "action" => "doctorDashboard"
+        ],
+        "doctor-update-status" => [
+            "controller" => "DoctorController",
+            "action" => "doctorUpdateStatus"
+        ],
+        "api-search-doctors" => [
+            "controller" => "DashboardController",
+            "action" => "apiSearchDoctors"
+        ],
+        "api-get-appointments" => [
+            "controller" => "DashboardController",
+            "action" => "apiGetAppointments"
+        ],
+        "api-get-slots" => [
+            "controller" => "DoctorController",
+            "action" => "apiGetSlots"
+        ],
     ];
 
     public static function run(string $path) {
@@ -92,6 +112,11 @@ class Routing {
             case 'admin-delete-appointment':
             case 'admin-update-user':
             case 'admin-delete-user':
+            case 'doctor-dashboard':
+            case 'doctor-update-status':
+            case 'api-search-doctors':
+            case 'api-get-appointments':
+            case 'api-get-slots':
             case 'logout':
                 $controller = Routing::$routes[$path]["controller"];
                 $action = Routing::$routes[$path]["action"];
