@@ -84,4 +84,90 @@ class UsersRepository extends Repository {
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+
+    public function getAllUsersWithRoles(): array {
+        $db = $this->database->connect();
+        $stmt = $db->prepare('
+            SELECT u.id, u.email, u.username, r.name as role,
+                   p.pesel,
+                   (SELECT s.name 
+                    FROM doctors_specializations ds 
+                    JOIN specializations s ON ds.id_specialization = s.id 
+                    WHERE ds.id_doctor = d.id LIMIT 1) as specialization
+            FROM users u 
+            JOIN roles r ON u.id_role = r.id 
+            LEFT JOIN patients p ON p.id_user = u.id
+            LEFT JOIN doctors d ON d.id_user = u.id
+            ORDER BY u.id DESC
+        ');
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function updateUserAdmin(int $id, string $username, string $email, string $password, string $role, string $pesel) {
+        $db = $this->database->connect();
+        
+        try {
+            $db->beginTransaction();
+
+            $stmt = $db->prepare("SELECT id FROM roles WHERE name = ?");
+            $stmt->execute([$role]);
+            $roleId = $stmt->fetchColumn();
+
+            if (!empty($password)) {
+                $hashedPassword = password_hash($password, PASSWORD_BCRYPT);
+                $stmt = $db->prepare('UPDATE users SET username = ?, email = ?, password = ?, id_role = ? WHERE id = ?');
+                $stmt->execute([$username, $email, $hashedPassword, $roleId, $id]);
+            } else {
+                $stmt = $db->prepare('UPDATE users SET username = ?, email = ?, id_role = ? WHERE id = ?');
+                $stmt->execute([$username, $email, $roleId, $id]);
+            }
+
+            if ($role === 'patient' && !empty($pesel)) {
+                $stmt = $db->prepare('UPDATE patients SET pesel = ? WHERE id_user = ?');
+                $stmt->execute([$pesel, $id]);
+            }
+
+            $db->commit();
+        } catch (Exception $e) {
+            $db->rollBack();
+            throw $e;
+        }
+    }
+
+    // --- METODY DO USUWANIA UŻYTKOWNIKÓW ---
+    
+    public function getAdminCount(): int {
+        $db = $this->database->connect();
+        $stmt = $db->prepare("SELECT COUNT(*) FROM users u JOIN roles r ON u.id_role = r.id WHERE r.name = 'admin'");
+        $stmt->execute();
+        return (int)$stmt->fetchColumn();
+    }
+
+    public function deleteUserAdmin(int $id): void {
+        $db = $this->database->connect();
+        try {
+            $db->beginTransaction();
+            
+            $stmt1 = $db->prepare('DELETE FROM appointments WHERE id_patient IN (SELECT id FROM patients WHERE id_user = ?) OR id_doctor IN (SELECT id FROM doctors WHERE id_user = ?)');
+            $stmt1->execute([$id, $id]);
+
+            $stmt2 = $db->prepare('DELETE FROM doctors_specializations WHERE id_doctor IN (SELECT id FROM doctors WHERE id_user = ?)');
+            $stmt2->execute([$id]);
+
+            $stmt3 = $db->prepare('DELETE FROM patients WHERE id_user = ?');
+            $stmt3->execute([$id]);
+
+            $stmt4 = $db->prepare('DELETE FROM doctors WHERE id_user = ?');
+            $stmt4->execute([$id]);
+
+            $stmt5 = $db->prepare('DELETE FROM users WHERE id = ?');
+            $stmt5->execute([$id]);
+
+            $db->commit();
+        } catch (Exception $e) {
+            $db->rollBack();
+            throw $e;
+        }
+    }
 }

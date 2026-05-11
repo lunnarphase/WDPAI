@@ -16,20 +16,10 @@
         .logout-link-admin { color: #64748b; text-decoration: none; font-weight: 600; display: flex; align-items: center; gap: 8px; transition: color 0.2s; }
         .logout-link-admin:hover { color: #0f172a; }
         
-        /* OVERLAY I LUKSUSOWE TŁO DLA MODALI */
         .admin-modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(4px); z-index: 4000; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.3s; }
         .admin-modal-overlay.active { display: flex; opacity: 1; }
         
-        /* ZABEZPIECZENIE BIAŁEGO TŁA MODALU */
-        .admin-modal-content { 
-            background: white; 
-            border-radius: 16px; 
-            width: 100%; 
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); 
-            transform: translateY(-20px); 
-            transition: transform 0.3s ease-out; 
-            position: relative;
-        }
+        .admin-modal-content { background: white; border-radius: 16px; width: 100%; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); transform: translateY(-20px); transition: transform 0.3s ease-out; position: relative; }
         .admin-modal-overlay.active .admin-modal-content { transform: translateY(0); }
 
         .form-group { margin-bottom: 1rem; text-align: left; }
@@ -55,7 +45,19 @@
     </nav>
 
     <main class="dashboard-container" style="max-width: 1200px; margin: 0 auto; padding-top: 2rem;">
-        
+        <?php if(isset($_GET['error'])): ?>
+            <?php if($_GET['error'] === 'last_admin'): ?>
+                <div style="background-color: #fee2e2; color: #991b1b; padding: 1rem 1.5rem; border-radius: 8px; margin-bottom: 2rem; border: 1px solid #f87171; font-weight: 600; display: flex; align-items: center; gap: 10px;">
+                    <i class="fa-solid fa-shield-halved" style="font-size: 1.2rem;"></i> ZABEZPIECZENIE: Nie możesz usunąć ostatniego administratora w systemie!
+                </div>
+            <?php elseif($_GET['error'] === 'self_delete'): ?>
+                <div style="background-color: #fef08a; color: #854d0e; padding: 1rem 1.5rem; border-radius: 8px; margin-bottom: 2rem; border: 1px solid #facc15; font-weight: 600; display: flex; align-items: center; gap: 10px;">
+                    <i class="fa-solid fa-triangle-exclamation" style="font-size: 1.2rem;"></i> ZABEZPIECZENIE: Nie możesz usunąć własnego konta podczas trwania sesji!
+                </div>
+            <?php endif; ?>
+        <?php endif; ?>
+
+
         <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
             <header class="dashboard-header" style="margin-bottom: 0;">
                 <h1 style="color: #064e3b; font-size: 2.2rem;">Przegląd Systemu</h1>
@@ -102,9 +104,7 @@
                     </thead>
                     <tbody>
                         <?php if (empty($appointments)): ?>
-                            <tr>
-                                <td colspan="5" style="text-align: center; padding: 3rem; color: #64748b;">Brak wizyt w systemie.</td>
-                            </tr>
+                            <tr><td colspan="5" style="text-align: center; padding: 3rem; color: #64748b;">Brak wizyt w systemie.</td></tr>
                         <?php else: ?>
                             <?php foreach ($appointments as $app): ?>
                                 <tr class="app-row" data-status="<?= $app['status'] ?>" style="border-bottom: 1px solid #e2e8f0; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
@@ -132,9 +132,71 @@
             </div>
         </div>
 
-        <div id="tab-uzytkownicy" style="display: none; background: white; border-radius: 16px; border: 1px solid #e2e8f0; padding: 2rem;">
-            <h2 style="margin-top: 0; color: #0f172a;">Zarządzanie Użytkownikami</h2>
-            <p style="color: #64748b;">Widok bazy użytkowników pojawi się tutaj w kolejnym etapie.</p>
+        <div id="tab-uzytkownicy" style="display: none; background: white; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; margin-bottom: 2rem;">
+            <div style="padding: 1.5rem; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                <h2 style="margin: 0; display: flex; align-items: center; gap: 10px; font-size: 1.3rem;">
+                    <span style="display: inline-block; width: 6px; height: 24px; background-color: #2563eb; border-radius: 4px;"></span>
+                    Baza użytkowników systemu
+                </h2>
+                
+                <div style="display: flex; gap: 0.8rem; align-items: center;">
+                    <div style="position: relative;">
+                        <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
+                        <input type="text" id="userSearchInput" onkeyup="filterUsers()" placeholder="Szukaj (nazwa, e-mail)..." style="padding: 0.5rem 0.5rem 0.5rem 2.2rem; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; font-size: 0.9rem; min-width: 250px;">
+                    </div>
+                    <select id="userRoleFilter" onchange="filterUsers()" style="padding: 0.5rem; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; font-weight: 600; color: #475569; font-size: 0.9rem;">
+                        <option value="all" selected>Wszystkie role</option>
+                        <option value="patient">Tylko Pacjenci</option>
+                        <option value="doctor">Tylko Lekarze</option>
+                        <option value="admin">Tylko Admini</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; text-align: left; min-width: 800px;">
+                    <thead style="background-color: #f8fafc; font-size: 0.85rem; color: #64748b; text-transform: uppercase;">
+                        <tr>
+                            <th style="padding: 1.2rem 1.5rem; border-bottom: 2px solid #e2e8f0;">ID</th>
+                            <th style="padding: 1.2rem 1.5rem; border-bottom: 2px solid #e2e8f0;">Użytkownik</th>
+                            <th style="padding: 1.2rem 1.5rem; border-bottom: 2px solid #e2e8f0;">Adres Email</th>
+                            <th style="padding: 1.2rem 1.5rem; border-bottom: 2px solid #e2e8f0;">Rola</th>
+                            <th style="padding: 1.2rem 1.5rem; text-align: right; border-bottom: 2px solid #e2e8f0;">Zarządzaj</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if(!empty($users)): ?>
+                            <?php foreach ($users as $u): ?>
+                                <?php 
+                                    $roleRaw = $u['role'];
+                                    $rolePl = 'Pacjent';
+                                    $color = '#64748b'; 
+                                    $bg = '#f1f5f9';
+                                    
+                                    if($roleRaw === 'admin') { $rolePl = 'Admin'; $color = '#991b1b'; $bg = '#fee2e2'; }
+                                    if($roleRaw === 'doctor') { $rolePl = 'Lekarz'; $color = '#166534'; $bg = '#bbf7d0'; }
+                                ?>
+                                <tr class="user-row" data-role="<?= $roleRaw ?>" style="border-bottom: 1px solid #e2e8f0; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
+                                    <td style="padding: 1.25rem 1.5rem; color: #64748b; font-family: monospace;">#<?= $u['id'] ?></td>
+                                    <td class="searchable-name" style="padding: 1.25rem 1.5rem; font-weight: 600; color: #0f172a;"><?= htmlspecialchars($u['username']) ?></td>
+                                    <td class="searchable-email" style="padding: 1.25rem 1.5rem; color: #475569;"><?= htmlspecialchars($u['email']) ?></td>
+                                    <td style="padding: 1.25rem 1.5rem;">
+                                        <span style="background: <?= $bg ?>; color: <?= $color ?>; padding: 0.35rem 0.75rem; border-radius: 20px; font-size: 0.8rem; font-weight: 700; text-transform: uppercase;">
+                                            <?= $rolePl ?>
+                                        </span>
+                                    </td>
+                                    <td style="padding: 1.25rem 1.5rem; text-align: right;">
+                                        <button class="admin-action-btn btn-edit" onclick="openUserEditModal(<?= $u['id'] ?>, '<?= htmlspecialchars($u['username'], ENT_QUOTES) ?>', '<?= htmlspecialchars($u['email'], ENT_QUOTES) ?>', '<?= $roleRaw ?>', '<?= $u['pesel'] ?? '' ?>', '<?= $u['specialization'] ?? '' ?>')" title="Edytuj profil"><i class="fa-solid fa-pen-to-square"></i> Edytuj</button>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+                <div id="noUsersMessage" style="display: none; text-align: center; padding: 3rem; color: #64748b;">
+                    Brak wyników wyszukiwania.
+                </div>
+            </div>
         </div>
 
     </main>
@@ -203,9 +265,7 @@
                 <i class="fa-solid fa-triangle-exclamation"></i>
             </div>
             <h3 style="margin: 0 0 1rem 0; font-size: 1.4rem; color: #0f172a;">Usunąć wizytę?</h3>
-            <p style="color: #64748b; font-size: 0.95rem; margin-bottom: 1.5rem; line-height: 1.5;">
-                Ta akcja jest <strong>nieodwracalna</strong>. Wizyta zostanie całkowicie wymazana z bazy danych.<br><br>Zamiast usuwać, możesz zmienić jej status na "Anulowana".
-            </p>
+            <p style="color: #64748b; font-size: 0.95rem; margin-bottom: 1.5rem; line-height: 1.5;">Ta akcja jest <strong>nieodwracalna</strong>. Wizyta zostanie całkowicie wymazana z bazy danych.</p>
             <div style="display: flex; gap: 1rem;">
                 <button type="button" class="btn-secondary" style="flex: 1;" onclick="closeConfirmModal()">Wróć</button>
                 <button type="button" class="btn-primary-small" style="flex: 1; background-color: #dc2626; border: none;" onclick="executeDelete()">Tak, usuń</button>
@@ -213,7 +273,86 @@
         </div>
     </div>
 
+    <div id="userEditModal" class="admin-modal-overlay">
+        <div class="admin-modal-content" style="max-width: 500px; padding: 2rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h3 style="margin: 0; font-size: 1.4rem; color: #0f172a;">Edytuj użytkownika</h3>
+                <button onclick="closeUserEditModal()" style="background:none; border:none; font-size: 1.5rem; cursor:pointer; color: #64748b; transition: 0.2s;" onmouseover="this.style.color='#0f172a'" onmouseout="this.style.color='#64748b'">&times;</button>
+            </div>
+            
+            <form id="userEditForm" method="POST" action="/admin-update-user">
+                <input type="hidden" name="user_id" id="modal_user_id">
+                
+                <div class="form-group">
+                    <label>Nazwa użytkownika</label>
+                    <input type="text" name="username" id="modal_username" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Adres Email</label>
+                    <input type="email" name="email" id="modal_user_email" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Nowe Hasło <span style="text-transform: none; font-weight: 400; font-size: 0.75rem;">(zostaw puste, aby nie zmieniać)</span></label>
+                    <input type="password" name="password" id="modal_password" placeholder="Wpisz nowe hasło...">
+                </div>
+
+                <div class="form-group" style="margin-bottom: 1.5rem;">
+                    <label>Rola w systemie</label>
+                    <select name="role" id="modal_user_role" required onchange="toggleRoleFields()">
+                        <option value="patient">Pacjent</option>
+                        <option value="doctor">Lekarz</option>
+                        <option value="admin">Administrator</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="pesel_group" style="display: none;">
+                    <label>Numer PESEL</label>
+                    <input type="text" name="pesel" id="modal_pesel" maxlength="11" placeholder="Np. 90010112345">
+                </div>
+
+                <div class="form-group" id="spec_group" style="display: none;">
+                    <label>Specjalizacja</label>
+                    <select name="specialization" id="modal_specialization">
+                        <option value="kardiolog">Kardiolog</option>
+                        <option value="pediatra">Pediatra</option>
+                        <option value="chirurg">Chirurg</option>
+                    </select>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; border-top: 1px solid #e2e8f0; padding-top: 1.5rem; margin-top: 1rem;">
+                    <button type="button" class="btn-delete" onclick="openUserDeleteConfirmModal()"><i class="fa-solid fa-trash"></i> Usuń trwale</button>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button type="button" class="btn-secondary" onclick="closeUserEditModal()">Anuluj</button>
+                        <button type="submit" class="btn-primary-small">Zapisz zmiany</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="userConfirmDeleteModal" class="admin-modal-overlay" style="z-index: 5000;">
+        <div class="admin-modal-content" style="max-width: 400px; padding: 2rem; text-align: center;">
+            <div style="width: 65px; height: 65px; border-radius: 50%; background: #fee2e2; color: #dc2626; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; margin: 0 auto 1.5rem auto;">
+                <i class="fa-solid fa-user-xmark"></i>
+            </div>
+            <h3 style="margin: 0 0 1rem 0; font-size: 1.4rem; color: #0f172a;">Usunąć użytkownika?</h3>
+            <p style="color: #64748b; font-size: 0.95rem; margin-bottom: 1.5rem; line-height: 1.5;">Ta akcja jest <strong>nieodwracalna</strong>. Użytkownik i wszystkie jego wizyty zostaną wymazane z systemu.</p>
+            
+            <form method="POST" action="/admin-delete-user">
+                <input type="hidden" name="user_id" id="delete_modal_user_id">
+                <input type="hidden" name="user_role" id="delete_modal_user_role">
+                <div style="display: flex; gap: 1rem;">
+                    <button type="button" class="btn-secondary" style="flex: 1;" onclick="closeUserDeleteConfirmModal()">Wróć</button>
+                    <button type="submit" class="btn-primary-small" style="flex: 1; background-color: #dc2626; border: none;">Tak, usuń</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
+        // -- WIZYTY I ZAKŁADKI --
         function switchTab(tabName) {
             document.querySelectorAll('.nav-links a').forEach(link => link.classList.remove('active'));
             event.target.classList.add('active');
@@ -224,15 +363,9 @@
 
         function filterAppointments() {
             const filter = document.getElementById('appointmentFilter').value;
-            const rows = document.querySelectorAll('.app-row');
-            
-            rows.forEach(row => {
+            document.querySelectorAll('.app-row').forEach(row => {
                 const status = row.getAttribute('data-status');
-                if (filter === 'all') {
-                    row.style.display = '';
-                } else if (filter === 'active' && status !== 'cancelled') {
-                    row.style.display = '';
-                } else if (filter === 'cancelled' && status === 'cancelled') {
+                if (filter === 'all' || (filter === 'active' && status !== 'cancelled') || (filter === 'cancelled' && status === 'cancelled')) {
                     row.style.display = '';
                 } else {
                     row.style.display = 'none';
@@ -248,31 +381,78 @@
             document.getElementById('modal_date').value = date;
             document.getElementById('modal_time').value = time;
             document.getElementById('modal_status').value = status;
+            document.getElementById('adminEditModal').classList.add('active');
+        }
+        function closeAdminEditModal() { document.getElementById('adminEditModal').classList.remove('active'); }
+        function openConfirmModal() { document.getElementById('adminEditModal').classList.remove('active'); document.getElementById('customConfirmModal').classList.add('active'); }
+        function closeConfirmModal() { document.getElementById('customConfirmModal').classList.remove('active'); document.getElementById('adminEditModal').classList.add('active'); }
+        function executeDelete() { const form = document.getElementById('adminEditForm'); form.action = '/admin-delete-appointment'; form.submit(); }
+
+        // -- UŻYTKOWNICY --
+        function filterUsers() {
+            const searchQuery = document.getElementById('userSearchInput').value.toLowerCase();
+            const roleFilter = document.getElementById('userRoleFilter').value;
+            const rows = document.querySelectorAll('.user-row');
+            let visibleCount = 0;
+
+            rows.forEach(row => {
+                const role = row.getAttribute('data-role');
+                const username = row.querySelector('.searchable-name').textContent.toLowerCase();
+                const email = row.querySelector('.searchable-email').textContent.toLowerCase();
+
+                const matchesSearch = username.includes(searchQuery) || email.includes(searchQuery);
+                const matchesRole = roleFilter === 'all' || role === roleFilter;
+
+                if (matchesSearch && matchesRole) { row.style.display = ''; visibleCount++; } 
+                else { row.style.display = 'none'; }
+            });
+
+            const noResultsMsg = document.getElementById('noUsersMessage');
+            if(noResultsMsg) noResultsMsg.style.display = visibleCount === 0 ? 'block' : 'none';
+        }
+
+        function openUserEditModal(id, username, email, role, pesel, spec) {
+            document.getElementById('modal_user_id').value = id;
+            document.getElementById('modal_username').value = username;
+            document.getElementById('modal_user_email').value = email;
+            document.getElementById('modal_user_role').value = role;
+            document.getElementById('modal_password').value = ''; 
+
+            document.getElementById('modal_pesel').value = pesel || '';
             
-            document.getElementById('adminEditModal').classList.add('active');
+            if(spec) {
+                const specSelect = document.getElementById('modal_specialization');
+                for(let i=0; i<specSelect.options.length; i++) {
+                    if(specSelect.options[i].text.toLowerCase() === spec.toLowerCase() || specSelect.options[i].value.toLowerCase() === spec.toLowerCase()) {
+                        specSelect.selectedIndex = i; break;
+                    }
+                }
+            }
+
+            toggleRoleFields();
+            document.getElementById('userEditModal').classList.add('active');
         }
 
-        function closeAdminEditModal() {
-            document.getElementById('adminEditModal').classList.remove('active');
+        function closeUserEditModal() { document.getElementById('userEditModal').classList.remove('active'); }
+
+        function toggleRoleFields() {
+            const role = document.getElementById('modal_user_role').value;
+            document.getElementById('pesel_group').style.display = role === 'patient' ? 'block' : 'none';
+            document.getElementById('spec_group').style.display = role === 'doctor' ? 'block' : 'none';
         }
 
-        // LOGIKA NOWEGO MODALA USUNIĘCIA
-        function openConfirmModal() {
-            // Ukrywamy modal edycji (opcjonalnie, wygląda czyściej)
-            document.getElementById('adminEditModal').classList.remove('active');
-            document.getElementById('customConfirmModal').classList.add('active');
+        // -- DODANE FUNKCJE USUWANIA UŻYTKOWNIKA --
+        function openUserDeleteConfirmModal() {
+            document.getElementById('delete_modal_user_id').value = document.getElementById('modal_user_id').value;
+            document.getElementById('delete_modal_user_role').value = document.getElementById('modal_user_role').value;
+            
+            document.getElementById('userEditModal').classList.remove('active');
+            document.getElementById('userConfirmDeleteModal').classList.add('active');
         }
 
-        function closeConfirmModal() {
-            document.getElementById('customConfirmModal').classList.remove('active');
-            // Wracamy do modala edycji w razie gdyby admin się rozmyślił
-            document.getElementById('adminEditModal').classList.add('active');
-        }
-
-        function executeDelete() {
-            const form = document.getElementById('adminEditForm');
-            form.action = '/admin-delete-appointment';
-            form.submit();
+        function closeUserDeleteConfirmModal() {
+            document.getElementById('userConfirmDeleteModal').classList.remove('active');
+            document.getElementById('userEditModal').classList.add('active');
         }
     </script>
 </body>

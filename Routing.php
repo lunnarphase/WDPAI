@@ -65,6 +65,14 @@ class Routing {
             "controller" => "AdminController",
             "action" => "adminDeleteAppointment"
         ],
+        "admin-update-user" => [
+            "controller" => "AdminController",
+            "action" => "adminUpdateUser"
+        ],
+        "admin-delete-user" => [
+            "controller" => "AdminController",
+            "action" => "adminDeleteUser"
+        ],
     ];
 
     public static function run(string $path) {
@@ -82,6 +90,8 @@ class Routing {
             case 'doctor-availability':
             case 'admin-update-appointment':
             case 'admin-delete-appointment':
+            case 'admin-update-user':
+            case 'admin-delete-user':
             case 'logout':
                 $controller = Routing::$routes[$path]["controller"];
                 $action = Routing::$routes[$path]["action"];

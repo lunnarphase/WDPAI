@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Lekarza - MediSchedule</title>
+    <link rel="stylesheet" href="/public/styles/main.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .doctor-action-btn { background-color: #eff6ff; color: #2563eb; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; transition: 0.2s; font-size: 0.95rem; font-weight: 600; }
+        .doctor-action-btn:hover { background-color: #dbeafe; }
+        
+        .logout-link { color: #64748b; text-decoration: none; font-weight: 600; display: flex; align-items: center; gap: 8px; transition: color 0.2s; }
+        .logout-link:hover { color: #0f172a; }
+
+        /* Style statusów */
+        .status-badge { padding: 0.35rem 0.75rem; border-radius: 20px; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; }
+        .status-confirmed { background: #bbf7d0; color: #166534; }
+        .status-completed { background: #e2e8f0; color: #475569; }
+        .status-noshow { background: #fef08a; color: #854d0e; }
+        .status-cancelled { background: #fee2e2; color: #991b1b; }
+
+        /* Modal Lekarza */
+        .doctor-modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(4px); z-index: 4000; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.3s; }
+        .doctor-modal-overlay.active { display: flex; opacity: 1; }
+        .doctor-modal-content { background: white; border-radius: 16px; width: 100%; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); transform: translateY(-20px); transition: transform 0.3s ease-out; position: relative; }
+        .doctor-modal-overlay.active .doctor-modal-content { transform: translateY(0); }
+        
+        .form-group { margin-bottom: 1.2rem; text-align: left; }
+        .form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: #64748b; margin-bottom: 0.4rem; text-transform: uppercase; }
+        .form-group select, .form-group input { width: 100%; padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; font-size: 0.95rem; }
+        .readonly-field { background-color: #f8fafc; color: #475569; font-weight: 500; cursor: not-allowed; }
+    </style>
+</head>
+<body class="dashboard-body" style="background-color: #f8fafc;">
+
+    <nav class="top-nav">
+        <div class="nav-left">
+            <a href="/doctor-dashboard" class="logo-text">
+                <i class="fa-solid fa-stethoscope" style="color: #2563eb;"></i> MediSchedule <span style="font-size: 0.8rem; color: #64748b; margin-left: 10px; text-transform: uppercase;">Lekarz</span>
+            </a>
+            <div class="nav-links">
+                <a href="#" class="active">Mój Harmonogram</a>
+            </div>
+        </div>
+        <div class="nav-right">
+            <a href="/logout" class="logout-link"><i class="fa-solid fa-arrow-right-from-bracket"></i> Wyloguj</a>
+        </div>
+    </nav>
+
+    <main class="dashboard-container" style="max-width: 1100px; margin: 0 auto; padding-top: 2rem;">
+        
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+            <header class="dashboard-header" style="margin-bottom: 0;">
+                <h1 style="color: #0f172a; font-size: 2.2rem;">Witaj, dr <?= htmlspecialchars($_SESSION['user_name'] ?? 'Lekarzu') ?></h1>
+                <p>Oto Twój harmonogram wizyt i lista pacjentów.</p>
+            </header>
+
+            <div style="display: flex; gap: 1rem;">
+                <div style="background: white; padding: 1rem 2rem; border-radius: 12px; border: 1px solid #e2e8f0; text-align: center; border-bottom: 4px solid #2563eb; min-width: 130px;">
+                    <p style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Wizyty Dzisiaj</p>
+                    <span style="font-size: 2rem; font-weight: 800; color: #2563eb;"><?= $todayCount ?? 0 ?></span>
+                </div>
+                <div style="background: white; padding: 1rem 2rem; border-radius: 12px; border: 1px solid #e2e8f0; text-align: center; border-bottom: 4px solid #16a34a; min-width: 130px;">
+                    <p style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Nadchodzące</p>
+                    <span style="font-size: 2rem; font-weight: 800; color: #16a34a;"><?= $upcomingCount ?? 0 ?></span>
+                </div>
+            </div>
+        </div>
+
+        <div style="background: white; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; margin-bottom: 2rem;">
+            <div style="padding: 1.5rem; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                <h2 style="margin: 0; display: flex; align-items: center; gap: 10px; font-size: 1.3rem;">
+                    <span style="display: inline-block; width: 6px; height: 24px; background-color: #2563eb; border-radius: 4px;"></span>
+                    Twoi Pacjenci
+                </h2>
+                
+                <select id="scheduleFilter" onchange="filterSchedule()" style="padding: 0.5rem; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; font-weight: 600; color: #475569; font-size: 0.9rem;">
+                    <option value="today" selected>Wizyty na dzisiaj</option>
+                    <option value="upcoming">Wszystkie nadchodzące</option>
+                    <option value="all">Historia wizyt</option>
+                </select>
+            </div>
+
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; text-align: left; min-width: 800px;">
+                    <thead style="background-color: #f8fafc; font-size: 0.85rem; color: #64748b; text-transform: uppercase;">
+                        <tr>
+                            <th style="padding: 1.2rem 1.5rem; border-bottom: 2px solid #e2e8f0;">Data i Godzina</th>
+                            <th style="padding: 1.2rem 1.5rem; border-bottom: 2px solid #e2e8f0;">Pacjent</th>
+                            <th style="padding: 1.2rem 1.5rem; border-bottom: 2px solid #e2e8f0;">PESEL</th>
+                            <th style="padding: 1.2rem 1.5rem; border-bottom: 2px solid #e2e8f0;">Status</th>
+                            <th style="padding: 1.2rem 1.5rem; text-align: right; border-bottom: 2px solid #e2e8f0;">Zarządzaj</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (empty($appointments)): ?>
+                            <tr>
+                                <td colspan="5" style="text-align: center; padding: 3rem; color: #64748b;">Brak wizyt w harmonogramie.</td>
+                            </tr>
+                        <?php else: ?>
+                            <?php foreach ($appointments as $app): ?>
+                                <?php 
+                                    $statusClass = 'status-confirmed';
+                                    $statusText = 'Zarezerwowana';
+                                    if($app['status'] === 'completed') { $statusClass = 'status-completed'; $statusText = 'Zakończona'; }
+                                    if($app['status'] === 'noshow') { $statusClass = 'status-noshow'; $statusText = 'Nieobecność'; }
+                                    if($app['status'] === 'cancelled') { $statusClass = 'status-cancelled'; $statusText = 'Anulowana'; }
+                                    
+                                    // Prosta flaga dla JS - czy wizyta jest dzisiaj?
+                                    $isToday = (date('Y-m-d', strtotime($app['appointment_date'])) === date('Y-m-d')) ? 'true' : 'false';
+                                ?>
+                                <tr class="schedule-row" data-today="<?= $isToday ?>" data-status="<?= $app['status'] ?>" style="border-bottom: 1px solid #e2e8f0; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
+                                    <td style="padding: 1.25rem 1.5rem;">
+                                        <strong style="display: block; color: #0f172a; font-size: 1.1rem;"><?= date('H:i', strtotime($app['appointment_time'])) ?></strong>
+                                        <span style="font-size: 0.85rem; color: #64748b;"><?= date('d M Y', strtotime($app['appointment_date'])) ?></span>
+                                    </td>
+                                    <td style="padding: 1.25rem 1.5rem; font-weight: 600; color: #0f172a; font-size: 1.05rem;">
+                                        <?= htmlspecialchars($app['patient_name']) ?>
+                                    </td>
+                                    <td style="padding: 1.25rem 1.5rem; color: #475569; font-family: monospace; font-size: 1rem;">
+                                        <?= htmlspecialchars($app['patient_pesel']) ?>
+                                    </td>
+                                    <td style="padding: 1.25rem 1.5rem;">
+                                        <span class="status-badge <?= $statusClass ?>"><?= $statusText ?></span>
+                                    </td>
+                                    <td style="padding: 1.25rem 1.5rem; text-align: right;">
+                                        <button class="doctor-action-btn" onclick="openStatusModal(<?= $app['id'] ?>, '<?= htmlspecialchars($app['patient_name'], ENT_QUOTES) ?>', '<?= date('H:i, d.m.Y', strtotime($app['appointment_date'].' '.$app['appointment_time'])) ?>', '<?= $app['status'] ?>')" title="Aktualizuj przebieg wizyty"><i class="fa-solid fa-clipboard-list"></i> Obsłuż</button>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <div id="statusModal" class="doctor-modal-overlay">
+        <div class="doctor-modal-content" style="max-width: 450px; padding: 2rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h3 style="margin: 0; font-size: 1.4rem; color: #0f172a;">Obsługa wizyty</h3>
+                <button onclick="closeStatusModal()" style="background:none; border:none; font-size: 1.5rem; cursor:pointer; color: #64748b; transition: 0.2s;" onmouseover="this.style.color='#0f172a'" onmouseout="this.style.color='#64748b'">&times;</button>
+            </div>
+            
+            <form id="statusForm" method="POST" action="/doctor-update-status">
+                <input type="hidden" name="appointment_id" id="modal_app_id">
+                
+                <div class="form-group">
+                    <label>Pacjent</label>
+                    <input type="text" id="modal_patient_name" class="readonly-field" readonly>
+                </div>
+
+                <div class="form-group">
+                    <label>Termin</label>
+                    <input type="text" id="modal_app_time" class="readonly-field" readonly>
+                </div>
+
+                <div class="form-group" style="margin-top: 1.5rem; margin-bottom: 2rem;">
+                    <label style="color: #2563eb;">Zaktualizuj status</label>
+                    <select name="status" id="modal_status" required style="border-color: #2563eb; border-width: 2px;">
+                        <option value="confirmed">Oczekuje w kolejce (Zarezerwowana)</option>
+                        <option value="completed">Wizyta Zakończona</option>
+                        <option value="noshow">Pacjent się nie stawił</option>
+                        <option value="cancelled">Odwołaj wizytę</option>
+                    </select>
+                </div>
+                
+                <div style="display: flex; justify-content: flex-end; gap: 0.5rem; border-top: 1px solid #e2e8f0; padding-top: 1.5rem;">
+                    <button type="button" class="btn-secondary" onclick="closeStatusModal()">Anuluj</button>
+                    <button type="submit" class="btn-primary-small">Zapisz status</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Logika modalu statusu
+        function openStatusModal(id, patientName, time, status) {
+            document.getElementById('modal_app_id').value = id;
+            document.getElementById('modal_patient_name').value = patientName;
+            document.getElementById('modal_app_time').value = time;
+            document.getElementById('modal_status').value = status;
+            
+            document.getElementById('statusModal').classList.add('active');
+        }
+
+        function closeStatusModal() {
+            document.getElementById('statusModal').classList.remove('active');
+        }
+
+        // Proste filtrowanie harmonogramu
+        function filterSchedule() {
+            const filter = document.getElementById('scheduleFilter').value;
+            const rows = document.querySelectorAll('.schedule-row');
+            
+            rows.forEach(row => {
+                const isToday = row.getAttribute('data-today') === 'true';
+                const status = row.getAttribute('data-status');
+                
+                if (filter === 'today') {
+                    row.style.display = (isToday && status !== 'completed' && status !== 'cancelled' && status !== 'noshow') ? '' : 'none';
+                } else if (filter === 'upcoming') {
+                    row.style.display = (status === 'confirmed') ? '' : 'none';
+                } else {
+                    row.style.display = ''; // Wszystkie (historia)
+                }
+            });
+        }
+        
+        // Odpal filtr przy załadowaniu strony
+        document.addEventListener('DOMContentLoaded', filterSchedule);
+    </script>
+</body>
+</html>

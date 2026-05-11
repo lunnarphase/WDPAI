@@ -21,7 +21,8 @@ class AdminController extends AppController {
             'todayCount' => $appointmentRepo->getTodaysAppointmentsCount(),
             'usersCount' => $userRepo->getUsersCount(),
             'patients' => $userRepo->getAllPatientsAdmin(),
-            'doctors' => $userRepo->getAllDoctorsAdmin()
+            'doctors' => $userRepo->getAllDoctorsAdmin(),
+            'users' => $userRepo->getAllUsersWithRoles()
         ]);
     }
 
@@ -57,5 +58,57 @@ class AdminController extends AppController {
             $repo->deleteAppointmentAdmin($id);
         }
         header("Location: http://$_SERVER[HTTP_HOST]/admin-dashboard"); exit();
+    }
+
+    public function adminUpdateUser() {
+        if (session_status() === PHP_SESSION_NONE) session_start();
+        if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'admin') {
+            header("Location: http://$_SERVER[HTTP_HOST]/dashboard"); exit();
+        }
+
+        if ($this->isPost()) {
+            $id = (int)$_POST['user_id'];
+            $username = $_POST['username'];
+            $email = $_POST['email'];
+            $password = $_POST['password'] ?? ''; 
+            $role = $_POST['role'];
+            $pesel = $_POST['pesel'] ?? '';
+            
+            $repo = new UsersRepository();
+            $repo->updateUserAdmin($id, $username, $email, $password, $role, $pesel);
+        }
+        
+        header("Location: http://$_SERVER[HTTP_HOST]/admin-dashboard"); 
+        exit();
+    }
+
+    public function adminDeleteUser() {
+        if (session_status() === PHP_SESSION_NONE) session_start();
+        if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'admin') {
+            header("Location: http://$_SERVER[HTTP_HOST]/dashboard"); exit();
+        }
+
+        if ($this->isPost()) {
+            $id = (int)$_POST['user_id'];
+            $role = $_POST['user_role'];
+            $repo = new UsersRepository();
+
+            // BLOKADA 1: Próba usunięcia samego siebie
+            if ($id === $_SESSION['user_id']) {
+                header("Location: http://$_SERVER[HTTP_HOST]/admin-dashboard?error=self_delete");
+                exit();
+            }
+
+            // BLOKADA 2: Ostatni administrator w systemie
+            if ($role === 'admin' && $repo->getAdminCount() <= 1) {
+                header("Location: http://$_SERVER[HTTP_HOST]/admin-dashboard?error=last_admin");
+                exit();
+            }
+
+            $repo->deleteUserAdmin($id);
+        }
+        
+        header("Location: http://$_SERVER[HTTP_HOST]/admin-dashboard"); 
+        exit();
     }
 }
