@@ -15,6 +15,24 @@ class DashboardController extends AppController {
         $this->userRepo = $userRepo ?: new UsersRepository();
     }
 
+    public function myAppointments() {
+        $this->requireLogin();
+
+        $appointments = $this->appointmentRepo->getUpcomingAppointmentsForPatient($_SESSION['user_id']);
+        $notifications = $this->appointmentRepo->getUserNotifications($_SESSION['user_id']);
+
+        $messages = [];
+        if (isset($_GET['cancelled']) && $_GET['cancelled'] === 'success') {
+            $messages[] = 'Wizyta została pomyślnie anulowana.';
+        }
+
+        return $this->render('my_appointments', [
+            'appointments' => $appointments,
+            'notifications' => $notifications,
+            'messages' => $messages
+        ]);
+    }
+
     public function index() {
         $this->requireLogin();
 
@@ -70,6 +88,57 @@ class DashboardController extends AppController {
         }
 
         echo json_encode($processedAppointments);
+        exit();
+    }
+
+    public function apiMarkNotificationsRead() {
+        $this->requireLogin();
+        $this->appointmentRepo->markNotificationsAsRead($_SESSION['user_id']);
+        echo json_encode(['status' => 'ok']);
+        exit();
+    }
+
+    public function apiClearNotifications() {
+        $this->requireLogin();
+        $this->appointmentRepo->clearNotifications($_SESSION['user_id']);
+        echo json_encode(['status' => 'ok']);
+        exit();
+    }
+
+    public function apiGetProfile() {
+        $this->requireLogin();
+        header('Content-Type: application/json');
+        $data = $this->userRepo->getUserProfileData($_SESSION['user_id']);
+        echo json_encode($data ?: ['error' => 'Not found']);
+        exit();
+    }
+
+    public function apiUpdateProfile() {
+        $this->requireLogin();
+        header('Content-Type: application/json');
+        
+        $input = json_decode(file_get_contents('php://input'), true);
+        if (!$input) {
+            echo json_encode(['success' => false, 'message' => 'Błędne dane']);
+            exit();
+        }
+
+        $email = trim($input['email'] ?? '');
+        $username = trim($input['username'] ?? '');
+        $password = !empty($input['password']) ? trim($input['password']) : null;
+
+        if (empty($email) || empty($username)) {
+            echo json_encode(['success' => false, 'message' => 'Wypełnij wymagane pola (email, nazwa)']);
+            exit();
+        }
+
+        $result = $this->userRepo->updateUserProfileData($_SESSION['user_id'], $email, $username, $password);
+        if ($result) {
+            $_SESSION['user_name'] = $username;
+            echo json_encode(['success' => true]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Błąd aktualizacji lub email jest zajęty']);
+        }
         exit();
     }
 }

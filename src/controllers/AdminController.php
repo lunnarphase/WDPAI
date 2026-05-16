@@ -114,4 +114,31 @@ class AdminController extends AppController {
         header("Location: http://$_SERVER[HTTP_HOST]/admin-dashboard"); 
         exit();
     }
+
+    public function adminAddUser() {
+        $this->requireAdmin();
+
+        if ($this->isPost()) {
+            if (empty($_POST['username']) || empty($_POST['email']) || empty($_POST['password']) || empty($_POST['role'])) {
+                $this->badRequest();
+            }
+            if ($_POST['role'] === 'patient' && empty($_POST['pesel'])) {
+                $this->badRequest();
+            }
+            
+            $username = trim($_POST['username']);
+            $email = trim($_POST['email']);
+            $password = $_POST['password'];
+            $role = $_POST['role'];
+            $pesel = $_POST['pesel'] ?? '';
+            $status = $this->userRepo->addUserAdmin($email, $password, $username, $role, $pesel);
+
+            if (!$status) {
+                // Should optimally return error view
+            }
+        }
+        
+        header("Location: http://$_SERVER[HTTP_HOST]/admin-dashboard"); 
+        exit();
+    }
 }

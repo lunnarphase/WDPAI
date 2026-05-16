@@ -58,8 +58,10 @@ class DoctorController extends AppController {
         $doctorId = $_GET['id'] ?? $_GET['doctor_id'] ?? null;
 
         if (!$doctorId) {
-            header("Location: http://$_SERVER[HTTP_HOST]/dashboard");
-            exit();
+            $notifications = $this->appointmentRepo->getUserNotifications($_SESSION['user_id'] ?? 0);
+            return $this->render('find_doctor', [
+                'notifications' => $notifications
+            ]);
         }
 
         return $this->render('book_appointment', [

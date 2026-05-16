@@ -272,7 +272,7 @@ class AppointmentRepository extends Repository {
     public function getUserNotifications(int $userId): array {
         $db = $this->database->connect();
         $stmt = $db->prepare('
-            SELECT id, message, created_at
+            SELECT id, message, is_read, created_at
             FROM notifications
             WHERE id_user = :user_id
             ORDER BY created_at DESC
@@ -282,5 +282,19 @@ class AppointmentRepository extends Repository {
         $stmt->execute();
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function markNotificationsAsRead(int $userId): void {
+        $db = $this->database->connect();
+        $stmt = $db->prepare('UPDATE notifications SET is_read = TRUE WHERE id_user = :user_id');
+        $stmt->bindParam(':user_id', $userId, PDO::PARAM_INT);
+        $stmt->execute();
+    }
+
+    public function clearNotifications(int $userId): void {
+        $db = $this->database->connect();
+        $stmt = $db->prepare('DELETE FROM notifications WHERE id_user = :user_id');
+        $stmt->bindParam(':user_id', $userId, PDO::PARAM_INT);
+        $stmt->execute();
     }
 }

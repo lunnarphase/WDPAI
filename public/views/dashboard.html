@@ -45,7 +45,8 @@
           </a>
           <div class="nav-links">
               <a href="/dashboard" class="active">Strona główna</a>
-              <a href="#" onclick="openHistoryModal()">Moje Wizyty</a> 
+              <a href="/my-appointments">Moje Wizyty</a>
+              <a href="#" onclick="navToSpecialists()">Nasi specjaliści</a>
               <a href="#">O nas</a>
           </div>
       </div>
@@ -55,14 +56,26 @@
       </button>
 
       <div class="nav-right">
-          <a href="#" onclick="openNotificationsModal()" class="icon-btn"><i class="fa-regular fa-bell"></i></a>
-          <a href="#" class="icon-btn"><i class="fa-regular fa-user"></i></a>
+          <a href="#" onclick="openNotificationsModal()" class="icon-btn" style="position: relative;">
+              <i class="fa-regular fa-bell"></i>
+              <?php
+                  $hasUnread = false;
+                  if (!empty($notifications)) {
+                      foreach ($notifications as $n) {
+                          if (!$n['is_read']) { $hasUnread = true; break; }
+                      }
+                  }
+              ?>
+              <span id="notif-dot" style="display: <?= $hasUnread ? 'block' : 'none' ?>; position: absolute; top: 0; right: 0; width: 10px; height: 10px; background-color: #ef4444; border-radius: 50%; border: 2px solid white;"></span>
+          </a>
+          <a href="#" onclick="openProfileModal()" class="icon-btn"><i class="fa-regular fa-user"></i></a>
           <a href="/logout" class="logout-link"><i class="fa-solid fa-arrow-right-from-bracket"></i> Wyloguj</a>
       </div>
 
       <div class="mobile-menu" id="mobileMenu">
           <a href="/dashboard">Strona główna</a>
-          <a href="#" onclick="openHistoryModal(); toggleMobileMenu();">Moje Wizyty</a>
+          <a href="/my-appointments">Moje Wizyty</a>
+          <a href="#" onclick="navToSpecialists(); toggleMobileMenu();">Nasi specjaliści</a>
           <a href="/logout">Wyloguj się</a>
       </div>
     </nav>
@@ -90,7 +103,6 @@
                     <?php if (empty($processedAppointments)): ?>
                         <div class="empty-state" style="background: white; padding: 2rem; border-radius: 12px; border: 1px solid #e2e8f0; text-align: center;">
                             <p style="color: var(--text-muted); margin-bottom: 1rem;">Nie masz aktualnie zaplanowanych wizyt.</p>
-                            <a href="#" onclick="document.getElementById('live-doctor-search').focus()" class="btn-primary-small" style="display:inline-block; text-decoration: none;">Umów wizytę</a>
                         </div>
                     <?php else: ?>
                         <?php
@@ -119,7 +131,7 @@
                                     <span class="time"><?= $app['time_formatted'] ?></span>
                                 </div>
                                 <div class="app-details">
-                                    <p class="spec"><?= htmlspecialchars($app['specializations']) ?></p>
+                                    <p class="spec"><?= htmlspecialchars($app['specializations'] ?? '') ?></p>
                                     <h3>dr <?= htmlspecialchars($app['doctor_name']) ?></h3>
                                     <p class="status"><span class="dot" style="background-color: <?= $dotColor ?>;"></span> <?= $statusText ?></p>
                                     <?php if (!empty($app['recommendations'])): ?>
@@ -129,18 +141,13 @@
                                     <?php endif; ?>
                                 </div>
                                 <div class="app-actions">
-                                    <?php if($status !== 'cancelled'): ?>
+                                    <?php if($status !== 'cancelled' && $status !== 'completed'): ?>
                                         <button class="btn-secondary" onclick="openCancelModal(<?= $app['appointment_id'] ?>)">Anuluj</button>
                                     <?php endif; ?>
                                 </div>
                             </div>
                         <?php $counter++; endforeach; ?>
                     <?php endif; ?>
-                </div>
-
-                <div class="bottom-tiles">
-                    <div class="tile tile-green"><h3>Telemedycyna</h3><p>Konsultacje online.</p><button class="btn-dark-green">Połącz</button><i class="fa-solid fa-video bg-icon"></i></div>
-                    <div class="tile tile-blue"><h3>Wyniki</h3><p>Gotowe wyniki.</p><button class="btn-dark-blue">Pobierz PDF</button><i class="fa-solid fa-file-medical bg-icon"></i></div>
                 </div>
             </div>
 
@@ -150,8 +157,8 @@
                     <label>Szukaj po nazwisku</label>
                     <div class="input-with-icon" style="margin-bottom: 1rem;"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="live-doctor-search" placeholder="Np. Kowalski..." autocomplete="off"></div>
                     <label>Specjalizacja</label>
-                    <div class="input-with-icon" style="margin-bottom: 1.5rem;"><i class="fa-solid fa-briefcase-medical"></i><select id="live-spec-search"><option value="all">Wszystkie specjalizacje</option><option value="kardiolog">Kardiolog</option><option value="pediatra">Pediatra</option><option value="chirurg">Chirurg</option></select></div>
-                    <button type="button" onclick="document.getElementById('live-doctor-search').focus()" style="width: 100%; background-color: #125B46; color: white; border: none; padding: 0.85rem; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer;">Szukaj terminu</button>
+                    <div class="input-with-icon" style="margin-bottom: 1.5rem;"><i class="fa-solid fa-briefcase-medical"></i><select id="live-spec-search"><option value="all">Wszystkie specjalizacje</option><option value="Kardiologia">Kardiologia</option><option value="Pediatria">Pediatria</option><option value="Neurologia">Neurologia</option></select></div>
+                    <button type="button" onclick="goToFullSearch()" style="width: 100%; background-color: #125B46; color: white; border: none; padding: 0.85rem; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer;">Szukaj terminu</button>
                     
                     <div id="live-search-results" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); z-index: 100; max-height: 380px; overflow-y: auto; margin-top: 0.5rem; padding: 0.5rem;"></div>
                 </div>
@@ -171,6 +178,36 @@
             </div>
         </div>
     </footer>
+
+    <div id="profileModal" class="modal-overlay">
+        <div class="modal-content" style="padding: 2.5rem; max-width: 450px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h3 style="font-size: 1.25rem; color: #111827; margin: 0;">Mój Profil</h3>
+                <button onclick="closeProfileModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280; line-height: 1;">&times;</button>
+            </div>
+            <div id="profile-message" style="display:none; padding: 0.75rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.9rem;"></div>
+            <form id="profileForm" onsubmit="handleProfileUpdate(event)">
+                <div style="margin-bottom: 1.25rem;">
+                    <label style="display:block; font-size: 0.8rem; font-weight: 600; color: #4b5563; text-transform: uppercase; margin-bottom: 0.5rem;">Nazwa użytkownika</label>
+                    <input type="text" id="profile-username" required style="width: 100%; padding: 0.85rem; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box;">
+                </div>
+                <div style="margin-bottom: 1.25rem;">
+                    <label style="display:block; font-size: 0.8rem; font-weight: 600; color: #4b5563; text-transform: uppercase; margin-bottom: 0.5rem;">Email</label>
+                    <input type="email" id="profile-email" required style="width: 100%; padding: 0.85rem; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box;">
+                </div>
+                <div style="margin-bottom: 1.25rem;">
+                    <label style="display:block; font-size: 0.8rem; font-weight: 600; color: #4b5563; text-transform: uppercase; margin-bottom: 0.5rem;">Nowe Hasło (zostaw puste aby nie zmieniać)</label>
+                    <input type="password" id="profile-password" style="width: 100%; padding: 0.85rem; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box;">
+                </div>
+                <div id="profile-pesel-container" style="margin-bottom: 1.25rem; display:none;">
+                    <label style="display:block; font-size: 0.8rem; font-weight: 600; color: #4b5563; text-transform: uppercase; margin-bottom: 0.5rem;">PESEL</label>
+                    <input type="text" id="profile-pesel" disabled style="width: 100%; padding: 0.85rem; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box; background-color: #f3f4f6; color: #9ca3af;">
+                    <p style="font-size: 0.75rem; color: #6b7280; margin-top: 0.5rem;">*Aby zmienić swój nr PESEL skontaktuj się z naszym wsparciem +48 123 456 789.</p>
+                </div>
+                <button type="submit" style="background-color: #125B46; color: white; border: none; padding: 0.85rem; border-radius: 8px; width: 100%; font-weight: 600; cursor: pointer;">Zapisz zmiany</button>
+            </form>
+        </div>
+    </div>
 
     <div id="historyModal" class="modal-overlay">
         <div class="modal-content">
@@ -213,7 +250,10 @@
             <div class="history-header">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <h3 style="font-size: 1.25rem; color: #111827; margin: 0;">Powiadomienia</h3>
-                    <button onclick="closeNotificationsModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280; line-height: 1;">&times;</button>
+                    <div style="display: flex; gap: 1rem; align-items: center;">
+                        <button onclick="clearAllNotifications()" style="background: none; border: none; font-size: 0.9rem; cursor: pointer; color: #ef4444; font-weight: 600;">Wyczyść wszystko</button>
+                        <button onclick="closeNotificationsModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280; line-height: 1;">&times;</button>
+                    </div>
                 </div>
             </div>
             <div id="notifications-list" class="history-body" style="max-height: 500px;">
@@ -224,6 +264,72 @@
     <script>
         const allAppointments = <?= json_encode($processedAppointments) ?>;
         const allNotifications = <?= json_encode($notifications ?? []) ?>;
+        function navToSpecialists() {
+            const searchInput = document.getElementById('live-doctor-search');
+            const specSelect = document.getElementById('live-spec-search');
+            const q = searchInput ? searchInput.value.trim() : '';
+            const spec = specSelect ? specSelect.value : 'all';
+            window.location.href = `/find-doctor?q=${encodeURIComponent(q)}&spec=${encodeURIComponent(spec)}`;
+        }
+
+        const profileModal = document.getElementById('profileModal');
+
+        function openProfileModal() {
+            profileModal.classList.add('active');
+            fetch('/api-get-profile')
+                .then(res => res.json())
+                .then(data => {
+                    if (data && !data.error) {
+                        document.getElementById('profile-username').value = data.username || '';
+                        document.getElementById('profile-email').value = data.email || '';
+                        document.getElementById('profile-password').value = '';
+                        if (data.pesel) {
+                            document.getElementById('profile-pesel-container').style.display = 'block';
+                            document.getElementById('profile-pesel').value = data.pesel;
+                        } else {
+                            document.getElementById('profile-pesel-container').style.display = 'none';
+                        }
+                    }
+                })
+                .catch(err => console.error("Error fetching profile:", err));
+        }
+
+        function closeProfileModal() {
+            profileModal.classList.remove('active');
+            document.getElementById('profile-message').style.display = 'none';
+        }
+
+        profileModal.addEventListener('click', function(e) { if (e.target === profileModal) closeProfileModal(); });
+
+        function handleProfileUpdate(e) {
+            e.preventDefault();
+            const username = document.getElementById('profile-username').value;
+            const email = document.getElementById('profile-email').value;
+            const password = document.getElementById('profile-password').value;
+
+            fetch('/api-update-profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, email, password })
+            })
+            .then(res => res.json())
+            .then(data => {
+                const msgBox = document.getElementById('profile-message');
+                msgBox.style.display = 'block';
+                if (data.success) {
+                    msgBox.style.backgroundColor = '#d1fae5';
+                    msgBox.style.color = '#065f46';
+                    msgBox.textContent = 'Zapisano zmiany pomyślnie.';
+                    setTimeout(closeProfileModal, 1500);
+                } else {
+                    msgBox.style.backgroundColor = '#fee2e2';
+                    msgBox.style.color = '#991b1b';
+                    msgBox.textContent = data.message || 'Wystąpił błąd.';
+                }
+            })
+            .catch(err => console.error("Error updating profile:", err));
+        }
+
         const historyModal = document.getElementById('historyModal');
         const notificationsModal = document.getElementById('notificationsModal');
         const modalSearchInput = document.getElementById('modal-search');
@@ -249,9 +355,27 @@
         function openNotificationsModal() {
             notificationsModal.classList.add('active');
             renderNotificationsModal();
+            // Oznacz jako przeczytane
+            fetch('/api-mark-notifications-read', { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                const dot = document.getElementById('notif-dot');
+                if (dot) dot.style.display = 'none';
+            })
+            .catch(err => console.error("Error marking notifs read:", err));
         }
 
         function closeNotificationsModal() { notificationsModal.classList.remove('active'); }
+        
+        function clearAllNotifications() {
+            fetch('/api-clear-notifications', { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                while(allNotifications.length > 0) { allNotifications.pop(); }
+                renderNotificationsModal();
+            })
+            .catch(err => console.error("Error clearing notifs:", err));
+        }
 
         function renderNotificationsModal() {
             const notificationsList = document.getElementById('notifications-list');
@@ -274,6 +398,8 @@
         }
 
         notificationsModal.addEventListener('click', function(e) { if (e.target === notificationsModal) closeNotificationsModal(); });
+
+        function renderHistoryModal() {
             const query = modalSearchInput.value.toLowerCase().trim();
             const spec = modalSpecSelect.value.toLowerCase();
             modalListContainer.innerHTML = '';
@@ -304,7 +430,7 @@
                 const card = document.createElement('div');
                 card.className = 'appointment-card';
                 card.style.cssText = `margin-bottom: 1rem; ${opacity}`;
-                const actionBtn = (status !== 'cancelled') ? `<button class="btn-secondary" onclick="openCancelModal(${app.appointment_id}); closeHistoryModal();">Anuluj</button>` : ``;
+                const actionBtn = (status !== 'cancelled' && status !== 'completed') ? `<button class="btn-secondary" onclick="openCancelModal(${app.appointment_id}); closeHistoryModal();">Anuluj</button>` : ``;
 
                 card.innerHTML = `
                     <div class="app-date"><span class="day">${app.day}</span><span class="month">${app.month}</span><span class="time">${app.time_formatted}</span></div>
@@ -371,25 +497,35 @@
                     return; 
                 }
 
-                doctors.forEach(doctor => {
-                    const card = document.createElement('div');
-                    card.style.cssText = 'padding: 0.85rem; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s; border-radius: 8px;';
-                    card.onmouseover = () => card.style.background = '#f8fafc'; 
-                    card.onmouseout = () => card.style.background = 'transparent';
-                    
-                    const specName = doctor.specialization ? doctor.specialization.charAt(0).toUpperCase() + doctor.specialization.slice(1) : 'Lekarz ogólny';
+                    // TODO: sortowanie po ocenie
+                    const topDoctors = doctors.slice(0, 3);
 
-                    // Generujemy HTML pojedynczego lekarza
-                    card.innerHTML = `
-                        <div>
-                            <h4 style="margin: 0; color: #0f172a; font-size: 1rem;">dr ${doctor.name}</h4>
-                            <p style="margin: 0.25rem 0; font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase;">${specName}</p>
-                        </div>
-                    <a href="/find-doctor?id=${doctor.doctor_id}" style="background-color: #125B46; color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; font-size: 0.85rem; font-weight: 600;">Umów</a>                    `;
-                    resultsContainer.appendChild(card);
-                });
-            })
-            .catch(err => {
+                    topDoctors.forEach(doctor => {
+                        const card = document.createElement('div');
+                        card.style.cssText = 'padding: 0.85rem; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s; border-radius: 8px;';
+                        card.onmouseover = () => card.style.background = '#f8fafc'; 
+                        card.onmouseout = () => card.style.background = 'transparent';
+                        
+                        const specName = doctor.specialization ? doctor.specialization.charAt(0).toUpperCase() + doctor.specialization.slice(1) : 'Lekarz ogólny';
+
+                        // Generujemy HTML pojedynczego lekarza
+                        card.innerHTML = `
+                            <div>
+                                <h4 style="margin: 0; color: #0f172a; font-size: 1rem;">dr ${doctor.name}</h4>
+                                <p style="margin: 0.25rem 0; font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase;">${specName}</p>
+                            </div>
+                        <a href="/find-doctor?id=${doctor.doctor_id}" style="background-color: #125B46; color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; font-size: 0.85rem; font-weight: 600;">Umów</a>                    `;
+                        resultsContainer.appendChild(card);
+                    });
+
+                    if (doctors.length > 3) {
+                        const info = document.createElement('div');
+                        info.style.cssText = 'padding: 0.5rem; text-align: center; color: #64748b; font-size: 0.8rem;';
+                        info.textContent = `I ${doctors.length - 3} innych... Szukaj terminu aby zobaczyć wszystkich!`;
+                        resultsContainer.appendChild(info);
+                    }
+                })
+                .catch(err => {
                 console.error(err);
                 resultsContainer.innerHTML = '<div style="padding: 1rem; text-align: center; color: red; font-size: 0.9rem;">Błąd połączenia.</div>';
                 resultsContainer.style.display = 'block';
@@ -407,6 +543,12 @@
                 resultsContainer.style.display = 'none'; 
             }
         });
+
+        function goToFullSearch() {
+            const query = searchInput.value.trim();
+            const spec = specSelect.value;
+            window.location.href = `/find-doctor?q=${encodeURIComponent(query)}&spec=${encodeURIComponent(spec)}`;
+        }
     </script>
 </body>
 </html>

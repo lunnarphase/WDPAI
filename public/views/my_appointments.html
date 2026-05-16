@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moje Wizyty - MediSchedule</title>
+    <link rel="stylesheet" href="/public/styles/main.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(17, 24, 39, 0.7); backdrop-filter: blur(4px); z-index: 2000; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.3s; }
+        .modal-overlay.active { display: flex; opacity: 1; }
+        .modal-content { background: white; border-radius: 16px; width: 100%; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); transform: translateY(-20px); transition: transform 0.3s; }
+        .modal-overlay.active .modal-content { transform: translateY(0); }
+        .cancel-btn-confirm { background: #dc2626; color: white; padding: 0.75rem 1rem; border-radius: 8px; border: none; font-weight: 600; width: 100%; cursor: pointer; margin-top: 1rem; }
+        .cancel-btn-back { background: transparent; color: #4b5563; padding: 0.75rem 1rem; border: none; font-weight: 600; width: 100%; cursor: pointer; margin-top: 0.5rem; }
+        .filters-bar { background: white; border: 1px solid var(--border-color); border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 2rem; display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
+        .empty-state { text-align: center; padding: 4rem 2rem; background: white; border-radius: 12px; border: 1px solid var(--border-color); }
+        .empty-state i { font-size: 3rem; color: #d1d5db; margin-bottom: 1rem; }
+        .empty-state p { color: var(--text-muted); font-size: 1.1rem; }
+    </style>
+</head>
+<body class="dashboard-body">
+
+    <?php
+        $miesiace = ['Jan'=>'Sty', 'Feb'=>'Lut', 'Mar'=>'Mar', 'Apr'=>'Kwi', 'May'=>'Maj', 'Jun'=>'Cze', 'Jul'=>'Lip', 'Aug'=>'Sie', 'Sep'=>'Wrz', 'Oct'=>'Paź', 'Nov'=>'Lis', 'Dec'=>'Gru'];
+        $processedAppointments = [];
+        if (!empty($appointments)) {
+            foreach ($appointments as $app) {
+                $ts = strtotime($app['appointment_date']);
+                $app['day'] = date('d', $ts);
+                $app['month'] = $miesiace[date('M', $ts)];
+                $app['time_formatted'] = date('H:i', strtotime($app['appointment_time']));
+                $app['is_cancelled'] = ($app['status'] === 'cancelled');
+                $processedAppointments[] = $app;
+            }
+        }
+    ?>
+
+    <nav class="top-nav">
+      <div class="nav-left">
+          <a href="/dashboard" class="logo-text">
+              <i class="fa-solid fa-briefcase-medical"></i> MediSchedule
+          </a>
+          <div class="nav-links">
+              <a href="/dashboard">Strona główna</a>
+              <a href="/my-appointments" class="active">Moje Wizyty</a>
+              <a href="/find-doctor?q=&spec=all">Nasi specjaliści</a>
+              <a href="#">O nas</a>
+          </div>
+      </div>
+
+      <button class="hamburger-btn" onclick="toggleMobileMenu()">
+          <i class="fa-solid fa-bars"></i>
+      </button>
+
+      <div class="nav-right">
+          <a href="#" onclick="openNotificationsModal()" class="icon-btn" style="position: relative;">
+              <i class="fa-regular fa-bell"></i>
+              <?php
+                  $hasUnread = false;
+                  if (!empty($notifications)) {
+                      foreach ($notifications as $n) {
+                          if (!$n['is_read']) { $hasUnread = true; break; }
+                      }
+                  }
+              ?>
+              <span id="notif-dot" style="display: <?= $hasUnread ? 'block' : 'none' ?>; position: absolute; top: 0; right: 0; width: 10px; height: 10px; background-color: #ef4444; border-radius: 50%; border: 2px solid white;"></span>
+          </a>
+          <a href="#" onclick="openProfileModal()" class="icon-btn"><i class="fa-regular fa-user"></i></a>
+          <a href="/logout" class="logout-link"><i class="fa-solid fa-arrow-right-from-bracket"></i> Wyloguj</a>
+      </div>
+
+      <div class="mobile-menu" id="mobileMenu">
+          <a href="/dashboard">Strona główna</a>
+          <a href="/my-appointments" class="active">Moje Wizyty</a>
+          <a href="/find-doctor?q=&spec=all">Nasi specjaliści</a>
+          <a href="/logout">Wyloguj się</a>
+      </div>
+    </nav>
+
+    <!-- Profile Modal -->
+    <div id="profileModal" class="modal-overlay">
+        <div class="modal-content" style="padding: 2.5rem; max-width: 450px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h3 style="font-size: 1.25rem; color: #111827; margin: 0;">Mój Profil</h3>
+                <button onclick="closeProfileModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280; line-height: 1;">&times;</button>
+            </div>
+            <div id="profile-message" style="display:none; padding: 0.75rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.9rem;"></div>
+            <form id="profileForm" onsubmit="handleProfileUpdate(event)">
+                <div style="margin-bottom: 1.25rem;">
+                    <label style="display:block; font-size: 0.8rem; font-weight: 600; color: #4b5563; text-transform: uppercase; margin-bottom: 0.5rem;">Nazwa użytkownika</label>
+                    <input type="text" id="profile-username" required style="width: 100%; padding: 0.85rem; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box;">
+                </div>
+                <div style="margin-bottom: 1.25rem;">
+                    <label style="display:block; font-size: 0.8rem; font-weight: 600; color: #4b5563; text-transform: uppercase; margin-bottom: 0.5rem;">Email</label>
+                    <input type="email" id="profile-email" required style="width: 100%; padding: 0.85rem; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box;">
+                </div>
+                <div style="margin-bottom: 1.25rem;">
+                    <label style="display:block; font-size: 0.8rem; font-weight: 600; color: #4b5563; text-transform: uppercase; margin-bottom: 0.5rem;">Nowe Hasło (zostaw puste aby nie zmieniać)</label>
+                    <input type="password" id="profile-password" style="width: 100%; padding: 0.85rem; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box;">
+                </div>
+                <div id="profile-pesel-container" style="margin-bottom: 1.25rem; display:none;">
+                    <label style="display:block; font-size: 0.8rem; font-weight: 600; color: #4b5563; text-transform: uppercase; margin-bottom: 0.5rem;">PESEL</label>
+                    <input type="text" id="profile-pesel" disabled style="width: 100%; padding: 0.85rem; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box; background-color: #f3f4f6; color: #9ca3af;">
+                    <p style="font-size: 0.75rem; color: #6b7280; margin-top: 0.5rem;">*Aby zmienić swój nr PESEL skontaktuj się z naszym wsparciem +48 123 456 789.</p>
+                </div>
+                <button type="submit" style="background-color: #125B46; color: white; border: none; padding: 0.85rem; border-radius: 8px; width: 100%; font-weight: 600; cursor: pointer;">Zapisz zmiany</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Notifications Modal -->
+    <div id="notificationsModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="history-header">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="font-size: 1.25rem; color: #111827; margin: 0;">Powiadomienia</h3>
+                    <div style="display: flex; gap: 1rem; align-items: center;">
+                        <button onclick="clearAllNotifications()" style="background: none; border: none; font-size: 0.9rem; cursor: pointer; color: #ef4444; font-weight: 600;">Wyczyść wszystko</button>
+                        <button onclick="closeNotificationsModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280; line-height: 1;">&times;</button>
+                    </div>
+                </div>
+            </div>
+            <div id="notifications-list" class="history-body" style="max-height: 500px;"></div>
+        </div>
+    </div>
+
+    <!-- Cancel Appointment Modal -->
+    <div id="cancelModal" class="modal-overlay">
+        <div class="modal-content" style="padding: 2.5rem; max-width: 450px;">
+            <div style="margin-bottom: 1.5rem;">
+                <h3 style="font-size: 1.25rem; color: #111827; margin-bottom: 0.5rem;">Anuluj wizytę</h3>
+                <p style="font-size: 0.9rem; color: #6b7280;">Czy na pewno chcesz anulować tę wizytę?</p>
+            </div>
+            <form action="/cancel-appointment" method="POST">
+                <input type="hidden" name="appointment_id" id="modal_appointment_id">
+                <div style="margin-bottom: 1.25rem;">
+                    <label style="font-size: 0.8rem; font-weight: 600; color: #4b5563; text-transform: uppercase; margin-bottom: 0.5rem; display: block;">Powód anulowania</label>
+                    <select name="cancel_reason" required style="width: 100%; padding: 0.85rem; border: 1px solid #d1d5db; border-radius: 8px;">
+                        <option value="Zmiana planów">Zmiana planów</option>
+                        <option value="Brak czasu">Brak czasu</option>
+                        <option value="Zły stan zdrowia">Zły stan zdrowia</option>
+                        <option value="Nie chcę podawać powodu" selected>Nie chcę podawać powodu</option>
+                    </select>
+                </div>
+                <button type="submit" class="cancel-btn-confirm">Tak, odwołaj wizytę</button>
+                <button type="button" class="cancel-btn-back" onclick="closeCancelModal()">Zrezygnuj i wróć</button>
+            </form>
+        </div>
+    </div>
+
+    <main class="dashboard-container">
+        <header class="dashboard-header">
+            <h1>Moje Wizyty</h1>
+            <p>Historia i nadchodzące wizyty medyczne.</p>
+        </header>
+
+        <?php if(isset($messages) && !empty($messages)): ?>
+            <div style="margin-bottom: 2rem; border-left: 4px solid #15803d; background: #f0fdf4; padding: 1rem; border-radius: 8px; color: #15803d; font-weight: 600;">
+                <?php foreach($messages as $message) { echo $message; } ?>
+            </div>
+        <?php endif; ?>
+
+        <div class="filters-bar">
+            <div class="input-with-icon" style="flex: 2; margin-bottom: 0;">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="filter-name" placeholder="Szukaj po nazwisku lekarza..." autocomplete="off">
+            </div>
+            <div class="input-with-icon" style="flex: 1; margin-bottom: 0;">
+                <i class="fa-solid fa-filter"></i>
+                <select id="filter-spec">
+                    <option value="">Wszystkie specjalizacje</option>
+                    <option value="kardiologia">Kardiologia</option>
+                    <option value="pediatria">Pediatria</option>
+                    <option value="neurologia">Neurologia</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="appointments-list" class="appointments-list"></div>
+    </main>
+
+    <script>
+        const allAppointments = <?= json_encode($processedAppointments) ?>;
+        const allNotifications = <?= json_encode($notifications ?? []) ?>;
+
+        const filterName = document.getElementById('filter-name');
+        const filterSpec = document.getElementById('filter-spec');
+        const listContainer = document.getElementById('appointments-list');
+
+        const statusMap = {
+            'confirmed': { text: 'Potwierdzona', color: '#22c55e' },
+            'completed': { text: 'Zakończona', color: '#3b82f6' },
+            'noshow': { text: 'Nieobecność klienta', color: '#eab308' },
+            'cancelled': { text: 'Anulowana', color: '#ef4444' }
+        };
+
+        function renderList() {
+            const query = filterName.value.toLowerCase().trim();
+            const spec = filterSpec.value.toLowerCase();
+            listContainer.innerHTML = '';
+
+            const filtered = allAppointments.filter(app => {
+                const matchesName = app.doctor_name.toLowerCase().includes(query);
+                const matchesSpec = spec === '' || (app.specializations && app.specializations.toLowerCase().includes(spec));
+                return matchesName && matchesSpec;
+            });
+
+            if (filtered.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fa-regular fa-calendar-xmark"></i>
+                        <p>Brak wizyt spełniających podane kryteria.</p>
+                    </div>`;
+                return;
+            }
+
+            filtered.forEach(app => {
+                const status = app.status || 'confirmed';
+                const statusInfo = statusMap[status] || { text: status.charAt(0).toUpperCase() + status.slice(1), color: '#6b7280' };
+                const opacity = (status === 'cancelled') ? 'opacity: 0.6;' : '';
+                const actionBtn = (status !== 'cancelled' && status !== 'completed')
+                    ? `<button class="btn-secondary" onclick="openCancelModal(${app.appointment_id})">Anuluj wizytę</button>`
+                    : '';
+
+                const card = document.createElement('div');
+                card.className = 'appointment-card';
+                card.style.cssText = opacity;
+                card.innerHTML = `
+                    <div class="app-date">
+                        <span class="day">${app.day}</span>
+                        <span class="month">${app.month}</span>
+                        <span class="time">${app.time_formatted}</span>
+                    </div>
+                    <div class="app-details">
+                        <p class="spec">${app.specializations || 'Brak specjalizacji'}</p>
+                        <h3>dr ${app.doctor_name}</h3>
+                        <p class="status">
+                            <span class="dot" style="background-color: ${statusInfo.color};"></span>
+                            ${statusInfo.text}
+                        </p>
+                        ${app.recommendations ? `<div style="margin-top: 0.75rem; padding: 0.75rem; background: #f3f4f6; border-radius: 6px; font-size: 0.9rem; color: #374151;"><strong>Zalecenia:</strong><br>${app.recommendations}</div>` : ''}
+                    </div>
+                    <div class="app-actions">${actionBtn}</div>
+                `;
+                listContainer.appendChild(card);
+            });
+        }
+
+        filterName.addEventListener('input', renderList);
+        filterSpec.addEventListener('change', renderList);
+
+        document.addEventListener('DOMContentLoaded', renderList);
+
+        // Cancel modal
+        const cancelModal = document.getElementById('cancelModal');
+        function openCancelModal(appId) {
+            document.getElementById('modal_appointment_id').value = appId;
+            cancelModal.classList.add('active');
+        }
+        function closeCancelModal() { cancelModal.classList.remove('active'); }
+        cancelModal.addEventListener('click', function(e) { if (e.target === cancelModal) closeCancelModal(); });
+
+        // Notifications modal
+        const notificationsModal = document.getElementById('notificationsModal');
+
+        function openNotificationsModal() {
+            notificationsModal.classList.add('active');
+            renderNotificationsModal();
+            fetch('/api-mark-notifications-read', { method: 'POST' })
+                .then(res => res.json())
+                .then(() => { const dot = document.getElementById('notif-dot'); if (dot) dot.style.display = 'none'; })
+                .catch(err => console.error(err));
+        }
+        function closeNotificationsModal() { notificationsModal.classList.remove('active'); }
+        notificationsModal.addEventListener('click', function(e) { if (e.target === notificationsModal) closeNotificationsModal(); });
+
+        function clearAllNotifications() {
+            fetch('/api-clear-notifications', { method: 'POST' })
+                .then(res => res.json())
+                .then(() => { while(allNotifications.length > 0) allNotifications.pop(); renderNotificationsModal(); })
+                .catch(err => console.error(err));
+        }
+
+        function renderNotificationsModal() {
+            const list = document.getElementById('notifications-list');
+            list.innerHTML = '';
+            if (!allNotifications || allNotifications.length === 0) {
+                list.innerHTML = '<p style="text-align:center; color: var(--text-muted); padding: 2rem;">Brak powiadomień</p>';
+                return;
+            }
+            allNotifications.forEach(n => {
+                const div = document.createElement('div');
+                div.style.cssText = 'padding: 1rem; border-bottom: 1px solid #e2e8f0; background: white;';
+                div.innerHTML = `
+                    <p style="margin: 0; color: #111827; font-size: 0.95rem;">${n.message}</p>
+                    <p style="margin: 0.5rem 0 0 0; color: #9ca3af; font-size: 0.8rem;">${new Date(n.created_at).toLocaleString('pl-PL')}</p>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        // Profile modal
+        const profileModal = document.getElementById('profileModal');
+
+        function openProfileModal() {
+            profileModal.classList.add('active');
+            fetch('/api-get-profile')
+                .then(res => res.json())
+                .then(data => {
+                    if (data && !data.error) {
+                        document.getElementById('profile-username').value = data.username || '';
+                        document.getElementById('profile-email').value = data.email || '';
+                        document.getElementById('profile-password').value = '';
+                        if (data.pesel) {
+                            document.getElementById('profile-pesel-container').style.display = 'block';
+                            document.getElementById('profile-pesel').value = data.pesel;
+                        } else {
+                            document.getElementById('profile-pesel-container').style.display = 'none';
+                        }
+                    }
+                })
+                .catch(err => console.error(err));
+        }
+        function closeProfileModal() {
+            profileModal.classList.remove('active');
+            document.getElementById('profile-message').style.display = 'none';
+        }
+        profileModal.addEventListener('click', function(e) { if (e.target === profileModal) closeProfileModal(); });
+
+        function handleProfileUpdate(e) {
+            e.preventDefault();
+            const username = document.getElementById('profile-username').value;
+            const email = document.getElementById('profile-email').value;
+            const password = document.getElementById('profile-password').value;
+            fetch('/api-update-profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, email, password })
+            })
+            .then(res => res.json())
+            .then(data => {
+                const msgBox = document.getElementById('profile-message');
+                msgBox.style.display = 'block';
+                if (data.success) {
+                    msgBox.style.backgroundColor = '#d1fae5';
+                    msgBox.style.color = '#065f46';
+                    msgBox.textContent = 'Zapisano zmiany pomyślnie.';
+                    setTimeout(closeProfileModal, 1500);
+                } else {
+                    msgBox.style.backgroundColor = '#fee2e2';
+                    msgBox.style.color = '#991b1b';
+                    msgBox.textContent = data.message || 'Wystąpił błąd.';
+                }
+            })
+            .catch(err => console.error(err));
+        }
+
+        // Mobile menu
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobileMenu');
+            menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex';
+        }
+        document.querySelectorAll('.mobile-menu a').forEach(link => {
+            link.addEventListener('click', () => {
+                document.getElementById('mobileMenu').style.display = 'none';
+            });
+        });
+    </script>
+</body>
+</html>

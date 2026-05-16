@@ -13,6 +13,10 @@ class Routing {
             "controller" => "SecurityController",
             "action" => "login"
         ],
+        "my-appointments" => [
+            "controller" => "DashboardController",
+            "action" => "myAppointments"
+        ],
         "dashboard" => [
             "controller" => "DashboardController",
             "action" => "index"
@@ -73,6 +77,10 @@ class Routing {
             "controller" => "AdminController",
             "action" => "adminDeleteUser"
         ],
+        "admin-add-user" => [
+            "controller" => "AdminController",
+            "action" => "adminAddUser"
+        ],
         "doctor-dashboard" => [
             "controller" => "DoctorController",
             "action" => "doctorDashboard"
@@ -91,7 +99,21 @@ class Routing {
         ],
         "api-get-slots" => [
             "controller" => "DoctorController",
-            "action" => "apiGetSlots"
+            "action" => "apiGetSlots"        ],
+        "api-mark-notifications-read" => [
+            "controller" => "DashboardController",
+            "action" => "apiMarkNotificationsRead"
+        ],
+        "api-clear-notifications" => [
+            "controller" => "DashboardController",
+            "action" => "apiClearNotifications"        ],
+        "api-get-profile" => [
+            "controller" => "DashboardController",
+            "action" => "apiGetProfile"
+        ],
+        "api-update-profile" => [
+            "controller" => "DashboardController",
+            "action" => "apiUpdateProfile"
         ],
     ];
 
@@ -106,6 +128,7 @@ class Routing {
             try {
                 $controllerObj->$action($id);
             } catch (\Exception $e) {
+                error_log($e->getMessage());
                 http_response_code(500);
                 include 'public/views/500.html';
             }

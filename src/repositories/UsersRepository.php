@@ -192,4 +192,80 @@ class UsersRepository extends Repository {
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+
+    public function addUserAdmin(string $email, string $password, string $username, string $role, string $pesel): bool {
+        $conn = $this->database->connect();
+        try {
+            $conn->beginTransaction();
+
+            $stmt = $conn->prepare('SELECT id FROM roles WHERE name = :role_name');
+            $stmt->bindParam(':role_name', $role, PDO::PARAM_STR);
+            $stmt->execute();
+            $roleData = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            $roleId = $roleData ? $roleData['id'] : 3;
+
+            $stmt = $conn->prepare('
+                INSERT INTO users (email, password, username, id_role)
+                VALUES (?, ?, ?, ?) RETURNING id
+            ');
+
+            $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+            $stmt->execute([
+                $email,
+                $hashedPassword,
+                $username,
+                $roleId
+            ]);
+            
+            $userId = $stmt->fetchColumn();
+
+            if ($role === 'patient') {
+                $stmt = $conn->prepare('INSERT INTO patients (id_user, pesel) VALUES (?, ?)');
+                $stmt->execute([$userId, $pesel]);
+            } else if ($role === 'doctor') {
+                $bio = "Brak bio";
+                $stmt = $conn->prepare('INSERT INTO doctors (id_user, bio) VALUES (?, ?)');
+                $stmt->execute([$userId, $bio]);
+            }
+
+            $conn->commit();
+            return true;
+
+        } catch (Exception $e) {
+            $conn->rollBack();
+            return false;
+        }
+    }
+
+    public function getUserProfileData(int $userId): ?array {
+        $db = $this->database->connect();
+        $stmt = $db->prepare("
+            SELECT u.email, u.username, r.name as role, p.pesel 
+            FROM users u
+            JOIN roles r ON u.id_role = r.id
+            LEFT JOIN patients p ON u.id = p.id_user
+            WHERE u.id = ?
+        ");
+        $stmt->execute([$userId]);
+        $data = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $data ?: null;
+    }
+
+    public function updateUserProfileData(int $userId, string $email, string $username, ?string $password): bool {
+        $db = $this->database->connect();
+        try {
+            if ($password) {
+                $hash = password_hash($password, PASSWORD_BCRYPT);
+                $stmt = $db->prepare("UPDATE users SET email = ?, username = ?, password = ? WHERE id = ?");
+                $stmt->execute([$email, $username, $hash, $userId]);
+            } else {
+                $stmt = $db->prepare("UPDATE users SET email = ?, username = ? WHERE id = ?");
+                $stmt->execute([$email, $username, $userId]);
+            }
+            return true;
+        } catch (Exception $e) {
+            return false;
+        }
+    }
 }
