@@ -5,6 +5,7 @@ require_once 'src/controllers/DashboardController.php';
 require_once 'src/controllers/DoctorController.php';
 require_once 'src/controllers/AppointmentController.php';
 require_once 'src/controllers/AdminController.php';
+require_once 'src/controllers/ReviewController.php';
 
 class Routing {
 
@@ -114,6 +115,38 @@ class Routing {
         "api-update-profile" => [
             "controller" => "DashboardController",
             "action" => "apiUpdateProfile"
+        ],
+        "submit-review" => [
+            "controller" => "ReviewController",
+            "action" => "submitReview"
+        ],
+        "report-review" => [
+            "controller" => "ReviewController",
+            "action" => "reportReview"
+        ],
+        "api-doctor-profile" => [
+            "controller" => "ReviewController",
+            "action" => "apiGetDoctorProfile"
+        ],
+        "update-doctor-profile" => [
+            "controller" => "DoctorController",
+            "action" => "updateDoctorProfile"
+        ],
+        "admin-delete-review" => [
+            "controller" => "AdminController",
+            "action" => "adminDeleteReview"
+        ],
+        "admin-dismiss-report" => [
+            "controller" => "AdminController",
+            "action" => "adminDismissReport"
+        ],
+        "admin-resolve-report" => [
+            "controller" => "AdminController",
+            "action" => "adminResolveReport"
+        ],
+        "api-get-review-reports" => [
+            "controller" => "AdminController",
+            "action" => "apiGetReviewReports"
         ],
     ];
 

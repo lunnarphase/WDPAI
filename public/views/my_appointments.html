@@ -182,8 +182,16 @@
     </main>
 
     <script>
+        <?php 
+            $reviewedIds = array_map(
+                fn($a) => $a['appointment_id'],
+                array_filter($processedAppointments, fn($a) => $a['review_submitted'] ?? false)
+            );
+        ?>
+
         const allAppointments = <?= json_encode($processedAppointments) ?>;
         const allNotifications = <?= json_encode($notifications ?? []) ?>;
+        const reviewedAppointmentIds = new Set(<?= json_encode(array_values($reviewedIds)) ?>);
 
         const filterName = document.getElementById('filter-name');
         const filterSpec = document.getElementById('filter-spec');
@@ -224,6 +232,14 @@
                     ? `<button class="btn-secondary" onclick="openCancelModal(${app.appointment_id})">Anuluj wizytę</button>`
                     : '';
 
+                const reviewBtn = (status === 'completed' && !reviewedAppointmentIds.has(app.appointment_id))
+                    ? `<button class="btn-secondary" style="margin-top:0.5rem; background:#fefce8; color:#92400e; border-color:#fde68a;" onclick="openReviewModal(${app.appointment_id})"><i class="fa-regular fa-star"></i> Wystaw opinię</button>`
+                    : (status === 'completed' && reviewedAppointmentIds.has(app.appointment_id)
+                        ? `<span style="font-size:0.8rem; color:#64748b;"><i class="fa-solid fa-check" style="color:#16a34a;"></i> Opinia wystawiona</span>`
+                        : '');
+
+                const doctorLinkBtn = `<button class="btn-secondary" style="margin-top:0.5rem; font-size:0.8rem;" onclick="openDoctorProfileModal(${app.doctor_id})"><i class="fa-solid fa-circle-info"></i> Profil lekarza</button>`;
+
                 const card = document.createElement('div');
                 card.className = 'appointment-card';
                 card.style.cssText = opacity;
@@ -242,7 +258,7 @@
                         </p>
                         ${app.recommendations ? `<div style="margin-top: 0.75rem; padding: 0.75rem; background: #f3f4f6; border-radius: 6px; font-size: 0.9rem; color: #374151;"><strong>Zalecenia:</strong><br>${app.recommendations}</div>` : ''}
                     </div>
-                    <div class="app-actions">${actionBtn}</div>
+                    <div class="app-actions" style="display:flex; flex-direction:column; align-items:flex-end; gap:0.25rem;">${actionBtn}${reviewBtn}${doctorLinkBtn}</div>
                 `;
                 listContainer.appendChild(card);
             });
@@ -291,14 +307,37 @@
                 return;
             }
             allNotifications.forEach(n => {
+                const isReviewReq = n.type === 'review_request';
                 const div = document.createElement('div');
-                div.style.cssText = 'padding: 1rem; border-bottom: 1px solid #e2e8f0; background: white;';
+                div.style.cssText = `padding: 1rem; border-bottom: 1px solid #e2e8f0; background: white; ${isReviewReq ? 'cursor:pointer;' : ''}`;
+                if (isReviewReq) {
+                    div.onmouseover = () => div.style.background = '#f0fdf4';
+                    div.onmouseout  = () => div.style.background = 'white';
+                    div.onclick = () => handleNotificationClick(n);
+                }
                 div.innerHTML = `
-                    <p style="margin: 0; color: #111827; font-size: 0.95rem;">${n.message}</p>
-                    <p style="margin: 0.5rem 0 0 0; color: #9ca3af; font-size: 0.8rem;">${new Date(n.created_at).toLocaleString('pl-PL')}</p>
+                    <div style="display:flex; align-items:flex-start; gap:0.75rem;">
+                        ${isReviewReq ? '<i class="fa-solid fa-star" style="color:#f59e0b; margin-top:2px;"></i>' : '<i class="fa-regular fa-bell" style="color:#64748b; margin-top:2px;"></i>'}
+                        <div>
+                            <p style="margin: 0; color: #111827; font-size: 0.95rem;">${n.message}</p>
+                            <p style="margin: 0.5rem 0 0 0; color: #9ca3af; font-size: 0.8rem;">${new Date(n.created_at).toLocaleString('pl-PL')}</p>
+                            ${isReviewReq ? '<p style="margin:0.3rem 0 0; font-size:0.8rem; color:#125B46; font-weight:600;">Kliknij, aby wystawić opinię →</p>' : ''}
+                        </div>
+                    </div>
                 `;
                 list.appendChild(div);
             });
+        }
+
+        function handleNotificationClick(n) {
+            if (n.type === 'review_request' && n.related_id) {
+                closeNotificationsModal();
+                if (reviewedAppointmentIds.has(n.related_id)) {
+                    alert('Opinia dla tej wizyty została już wystawiona.');
+                } else {
+                    openReviewModal(n.related_id);
+                }
+            }
         }
 
         // Profile modal
@@ -367,6 +406,220 @@
                 document.getElementById('mobileMenu').style.display = 'none';
             });
         });
+
+        // --- GWIAZDKI ---
+        function renderStars(avg, count) {
+            avg = parseFloat(avg) || 0; count = parseInt(count) || 0;
+            if (count === 0) return '<span style="color:#94a3b8; font-size:0.85rem;">Brak ocen</span>';
+            const full = Math.floor(avg), half = (avg - full) >= 0.25 ? 1 : 0, empty = 5 - full - half;
+            let html = '';
+            for (let i = 0; i < full; i++)  html += '<i class="fa-solid fa-star" style="color:#f59e0b;"></i>';
+            if (half)                         html += '<i class="fa-solid fa-star-half-stroke" style="color:#f59e0b;"></i>';
+            for (let i = 0; i < empty; i++) html += '<i class="fa-regular fa-star" style="color:#f59e0b;"></i>';
+            const label = count === 1 ? 'ocena' : count < 5 ? 'oceny' : 'ocen';
+            html += ` <span style="color:#475569; font-weight:600; font-size:0.85rem;">${avg.toFixed(1)} (${count} ${label})</span>`;
+            return html;
+        }
+        function renderStarsStatic(rating) {
+            let html = '';
+            for (let i = 1; i <= 5; i++) html += i <= rating ? '<i class="fa-solid fa-star" style="color:#f59e0b; font-size:0.9rem;"></i>' : '<i class="fa-regular fa-star" style="color:#f59e0b; font-size:0.9rem;"></i>';
+            return html;
+        }
+        function escHtml(str) { return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+        // --- MODAL WYSTAWIANIA OPINII ---
+        let selectedRating = 0;
+
+        function openReviewModal(appointmentId) {
+            selectedRating = 0;
+            document.getElementById('review-appointment-id').value = appointmentId;
+            document.getElementById('review-rating').value = 0;
+            document.getElementById('review-comment').value = '';
+            document.getElementById('review-message').style.display = 'none';
+            updateStarUI(0);
+            document.getElementById('reviewModal').classList.add('active');
+        }
+        function closeReviewModal() { document.getElementById('reviewModal').classList.remove('active'); }
+        document.addEventListener('DOMContentLoaded', () => {
+            const _rvm = document.getElementById('reviewModal');
+            if (_rvm) _rvm.addEventListener('click', e => { if (e.target === _rvm) closeReviewModal(); });
+        });
+
+        document.addEventListener('click', e => {
+            if (e.target.classList && e.target.classList.contains('review-star')) {
+                selectedRating = parseInt(e.target.dataset.val);
+                document.getElementById('review-rating').value = selectedRating;
+                updateStarUI(selectedRating);
+            }
+        });
+        document.addEventListener('mouseover', e => { if (e.target.classList && e.target.classList.contains('review-star')) updateStarUI(parseInt(e.target.dataset.val)); });
+        document.addEventListener('mouseout', e => { if (e.target.classList && e.target.classList.contains('review-star')) updateStarUI(selectedRating); });
+        function updateStarUI(val) {
+            document.querySelectorAll('.review-star').forEach(s => {
+                s.className = parseInt(s.dataset.val) <= val ? 'fa-solid fa-star review-star' : 'fa-regular fa-star review-star';
+            });
+        }
+        function submitReview() {
+            const appointmentId = parseInt(document.getElementById('review-appointment-id').value);
+            const rating = parseInt(document.getElementById('review-rating').value);
+            const comment = document.getElementById('review-comment').value.trim();
+            const msgBox = document.getElementById('review-message');
+            if (!rating) { msgBox.style.display='block'; msgBox.style.background='#fee2e2'; msgBox.style.color='#991b1b'; msgBox.textContent='Wybierz ocenę (gwiazdki).'; return; }
+            fetch('/submit-review', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({appointment_id: appointmentId, rating, comment}) })
+                .then(r=>r.json()).then(data => {
+                    if (data.success) {
+                        reviewedAppointmentIds.add(appointmentId);
+                        msgBox.style.display='block'; msgBox.style.background='#d1fae5'; msgBox.style.color='#065f46';
+                        msgBox.textContent='Dziękujemy za opinię!';
+                        setTimeout(() => { closeReviewModal(); renderList(); }, 1500);
+                    } else {
+                        msgBox.style.display='block'; msgBox.style.background='#fee2e2'; msgBox.style.color='#991b1b';
+                        msgBox.textContent = data.error || 'Wystąpił błąd.';
+                    }
+                });
+        }
+
+        // --- MODAL PROFILU LEKARZA ---
+        function openDoctorProfileModal(doctorId) {
+            const body = document.getElementById('doctor-profile-body');
+            body.innerHTML = '<div style="text-align:center; padding:3rem; color:#64748b;"><i class="fa-solid fa-circle-notch fa-spin fa-2x"></i></div>';
+            document.getElementById('doctorProfileModal').classList.add('active');
+            fetch(`/api-doctor-profile?id=${doctorId}`)
+                .then(r => r.json())
+                .then(data => renderDoctorProfile(data, doctorId))
+                .catch(() => { body.innerHTML = '<p style="color:red; text-align:center; padding:2rem;">Błąd wczytywania.</p>'; });
+        }
+        function closeDoctorProfileModal() { document.getElementById('doctorProfileModal').classList.remove('active'); }
+        document.addEventListener('DOMContentLoaded', () => {
+            const _dpm = document.getElementById('doctorProfileModal');
+            if (_dpm) _dpm.addEventListener('click', e => { if (e.target === _dpm) closeDoctorProfileModal(); });
+        });
+
+        function renderDoctorProfile(data, doctorId) {
+            if (data.error) { document.getElementById('doctor-profile-body').innerHTML = `<p style="color:red;text-align:center;padding:2rem;">${data.error}</p>`; return; }
+            const p = data.profile, s = data.summary, reviews = data.reviews || [];
+            document.getElementById('dp-name').textContent = `dr ${p.name}`;
+            document.getElementById('dp-spec').textContent = p.specializations || 'Lekarz';
+            let nextSlotHtml = '—';
+            if (data.next_slot) { const [d, t] = data.next_slot.split(' '); nextSlotHtml = new Date(d + 'T00:00:00').toLocaleDateString('pl-PL', {day:'2-digit',month:'long',year:'numeric'}) + ' godz. ' + t; }
+            let priceHtml = '<span style="color:#94a3b8;">Brak danych</span>';
+            if (p.visit_price) priceHtml = `${parseFloat(p.visit_price).toFixed(0)} zł / ${p.visit_duration || 30} min`;
+            let bioHtml = p.bio ? `<div style="background:#f8fafc; padding:1rem; border-radius:8px; font-size:0.95rem; color:#374151; line-height:1.6;">${escHtml(p.bio)}</div>` : '';
+            let revHtml = reviews.length === 0 ? '<p style="color:#94a3b8; text-align:center; padding:1.5rem 0;">Brak opinii.</p>' : reviews.map(r => `
+                <div style="border-bottom:1px solid #e2e8f0; padding:1rem 0;">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:0.5rem;">
+                        <span style="font-weight:600; color:#0f172a;">${escHtml(r.patient_display_name)} <span style="color:#94a3b8; font-size:0.8rem; margin-left:0.3rem;">${new Date(r.created_at).toLocaleDateString('pl-PL')}</span></span>
+                        <div style="display:flex; align-items:center; gap:0.75rem;"><div>${renderStarsStatic(r.rating)}</div><button onclick="openReportModal(${r.id})" style="background:none; border:none; color:#94a3b8; font-size:0.8rem; cursor:pointer;" title="Zgłoś"><i class="fa-solid fa-flag"></i></button></div>
+                    </div>
+                    ${r.comment ? `<p style="margin:0.5rem 0 0; color:#475569; font-size:0.9rem;">${escHtml(r.comment)}</p>` : ''}
+                </div>`).join('');
+            document.getElementById('doctor-profile-body').innerHTML = `
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1.5rem;">
+                    <div style="background:#f8fafc; padding:1rem; border-radius:8px;"><p style="font-size:0.9rem; font-weight:700; color:#64748b; text-transform:uppercase; margin:0 0 0.3rem;">Najbliższy wolny termin</p><p style="margin:0; font-weight:600; color:#0f172a; font-size:0.9rem;">${nextSlotHtml}</p></div>
+                    <div style="background:#f8fafc; padding:1rem; border-radius:8px;"><p style="font-size:0.9rem; font-weight:700; color:#64748b; text-transform:uppercase; margin:0 0 0.3rem;">Koszt wizyty</p><p style="margin:0; font-weight:600; color:#0f172a; font-size:0.9rem;">${priceHtml}</p></div>
+                </div>
+                ${bioHtml ? `<div style="margin-bottom:1.5rem;"><h4 style="margin:0 0 0.5rem; color:#0f172a; font-size:0.95rem;">Opis wprowadzony przez lekarza</h4>${bioHtml}</div>` : ''}
+                <div style="margin-bottom:1.5rem; padding:1rem; background:linear-gradient(135deg,#f0fdf4,#d1fae5); border-radius:8px;">${renderStars(s.avg_rating, s.review_count)}</div>
+                <div style="margin-bottom:1.5rem;"><h4 style="margin:0 0 0.75rem; color:#0f172a;">Opinie pacjentów</h4>${revHtml}</div>
+                <a href="/book-appointment?id=${doctorId}" style="display:block; text-align:center; background:#125B46; color:white; padding:0.9rem; border-radius:8px; font-weight:700; text-decoration:none; font-size:1rem;">Umów wizytę &rarr;</a>
+            `;
+        }
+
+        function openReportModal(reviewId) {
+            document.getElementById('report-review-id').value = reviewId;
+            document.getElementById('report-message').style.display = 'none';
+            document.getElementById('report-form').reset();
+            document.getElementById('report-review-id').value = reviewId;
+            document.getElementById('reportModal').classList.add('active');
+        }
+        function closeReportModal() { document.getElementById('reportModal').classList.remove('active'); }
+        document.addEventListener('DOMContentLoaded', () => {
+            const _rpm = document.getElementById('reportModal');
+            if (_rpm) _rpm.addEventListener('click', e => { if (e.target === _rpm) closeReportModal(); });
+        });
+        function submitReport(e) {
+            e.preventDefault();
+            const msgBox = document.getElementById('report-message');
+            const reason = document.getElementById('report-reason').value.trim();
+            if (!reason) { msgBox.style.display='block'; msgBox.textContent='Opisz powód zgłoszenia.'; return; }
+            fetch('/report-review', { method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({review_id: parseInt(document.getElementById('report-review-id').value), category: document.getElementById('report-category').value, reason})
+            }).then(r=>r.json()).then(data => {
+                if (data.success) { msgBox.style.display='block'; msgBox.style.color='#065f46'; msgBox.style.background='#d1fae5'; msgBox.textContent='Zgłoszenie wysłane!'; setTimeout(closeReportModal, 1800); }
+                else { msgBox.style.display='block'; msgBox.style.color='#991b1b'; msgBox.style.background='#fee2e2'; msgBox.textContent = data.error || 'Błąd.'; }
+            });
+        }
     </script>
+
+    <!-- Modal Wystawiania Opinii -->
+    <div id="reviewModal" class="modal-overlay" style="z-index:4000;">
+        <div class="modal-content" style="max-width:480px; padding:2rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
+                <h3 style="margin:0; font-size:1.2rem; color:#0f172a;">Wystaw opinię</h3>
+                <button onclick="closeReviewModal()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#6b7280;">&times;</button>
+            </div>
+            <div id="review-message" style="display:none; padding:0.75rem; border-radius:8px; margin-bottom:1rem; font-size:0.9rem;"></div>
+            <input type="hidden" id="review-appointment-id">
+            <div style="margin-bottom:1.25rem; text-align:center;">
+                <p style="font-size:0.8rem; font-weight:700; color:#4b5563; text-transform:uppercase; margin-bottom:0.75rem;">Ocena</p>
+                <div style="display:flex; gap:0.5rem; justify-content:center; font-size:2.2rem;">
+                    <i class="fa-regular fa-star review-star" data-val="1" style="color:#f59e0b; cursor:pointer;"></i>
+                    <i class="fa-regular fa-star review-star" data-val="2" style="color:#f59e0b; cursor:pointer;"></i>
+                    <i class="fa-regular fa-star review-star" data-val="3" style="color:#f59e0b; cursor:pointer;"></i>
+                    <i class="fa-regular fa-star review-star" data-val="4" style="color:#f59e0b; cursor:pointer;"></i>
+                    <i class="fa-regular fa-star review-star" data-val="5" style="color:#f59e0b; cursor:pointer;"></i>
+                </div>
+                <input type="hidden" id="review-rating" value="0">
+            </div>
+            <div style="margin-bottom:1.25rem;">
+                <label style="display:block; font-size:0.8rem; font-weight:700; color:#4b5563; text-transform:uppercase; margin-bottom:0.4rem;">Komentarz (opcjonalny)</label>
+                <textarea id="review-comment" rows="4" placeholder="Podziel się swoimi wrażeniami..." style="width:100%; padding:0.75rem; border:1px solid #d1d5db; border-radius:8px; font-family:inherit; box-sizing:border-box; resize:vertical;"></textarea>
+            </div>
+            <button onclick="submitReview()" style="width:100%; background:#125B46; color:white; border:none; padding:0.85rem; border-radius:8px; font-weight:700; cursor:pointer; font-size:0.95rem;">Wyślij opinię</button>
+        </div>
+    </div>
+
+    <!-- Modal Profilu Lekarza -->
+    <div id="doctorProfileModal" class="modal-overlay" style="z-index:3000;">
+        <div class="modal-content" style="max-width:680px; max-height:90vh; overflow-y:auto; padding:0; display:flex; flex-direction:column;">
+            <div style="padding:1.5rem 2rem; background:linear-gradient(135deg,#125B46 0%,#1a7a60 100%); border-radius:16px 16px 0 0; display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
+                <div>
+                    <h2 id="dp-name" style="color:white; margin:0; font-size:1.4rem;"></h2>
+                    <p id="dp-spec" style="color:rgba(255,255,255,0.8); margin:0.4rem 0 0; font-size:0.95rem;"></p>
+                </div>
+                <button onclick="closeDoctorProfileModal()" style="background:rgba(255,255,255,0.2); border:none; color:white; font-size:1.4rem; cursor:pointer; border-radius:8px; padding:4px 10px; line-height:1;">&times;</button>
+            </div>
+            <div id="doctor-profile-body" style="padding:1.5rem; overflow-y:auto; flex:1;"></div>
+        </div>
+    </div>
+
+    <!-- Modal Zgłoszenia Opinii -->
+    <div id="reportModal" class="modal-overlay" style="z-index:4000;">
+        <div class="modal-content" style="max-width:480px; padding:2rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
+                <h3 style="margin:0; font-size:1.2rem; color:#0f172a;">Zgłoś opinię</h3>
+                <button onclick="closeReportModal()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#6b7280;">&times;</button>
+            </div>
+            <div id="report-message" style="display:none; padding:0.75rem; border-radius:8px; margin-bottom:1rem; font-size:0.9rem;"></div>
+            <input type="hidden" id="report-review-id">
+            <form id="report-form" onsubmit="submitReport(event)">
+                <div style="margin-bottom:1rem;">
+                    <label style="display:block; font-size:0.8rem; font-weight:700; color:#4b5563; text-transform:uppercase; margin-bottom:0.4rem;">Kategoria</label>
+                    <select id="report-category" required style="width:100%; padding:0.75rem; border:1px solid #d1d5db; border-radius:8px; font-family:inherit;">
+                        <option value="Przekleństwa i wulgarne słownictwo">Przekleństwa i wulgarne słownictwo</option>
+                        <option value="Opinia niezgodna z prawdą">Opinia niezgodna z prawdą</option>
+                        <option value="Treść nieodpowiednia">Treść nieodpowiednia</option>
+                        <option value="Spam lub reklama">Spam lub reklama</option>
+                        <option value="Inne">Inne</option>
+                    </select>
+                </div>
+                <div style="margin-bottom:1.25rem;">
+                    <label style="display:block; font-size:0.8rem; font-weight:700; color:#4b5563; text-transform:uppercase; margin-bottom:0.4rem;">Uzasadnienie</label>
+                    <textarea id="report-reason" rows="4" required placeholder="Opisz dokładnie powód zgłoszenia..." style="width:100%; padding:0.75rem; border:1px solid #d1d5db; border-radius:8px; font-family:inherit; box-sizing:border-box; resize:vertical;"></textarea>
+                </div>
+                <button type="submit" style="width:100%; background:#dc2626; color:white; border:none; padding:0.85rem; border-radius:8px; font-weight:700; cursor:pointer; font-size:0.95rem;">Wyślij zgłoszenie</button>
+            </form>
+        </div>
+    </div>
 </body>
 </html>

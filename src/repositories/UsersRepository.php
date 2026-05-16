@@ -167,13 +167,17 @@ class UsersRepository extends Repository {
 
     public function searchDoctors(string $keyword, string $specialization): array {
         $db = $this->database->connect();
-        
+
         $sql = "
-            SELECT d.id as doctor_id, u.username as name, s.name as specialization
+            SELECT d.id as doctor_id, u.username as name, s.name as specialization,
+                   d.visit_price, d.visit_duration,
+                   COALESCE(ROUND(AVG(r.rating)::NUMERIC, 1), 0) as avg_rating,
+                   COUNT(r.id) as review_count
             FROM doctors d
             JOIN users u ON d.id_user = u.id
             LEFT JOIN doctors_specializations ds ON d.id = ds.id_doctor
             LEFT JOIN specializations s ON ds.id_specialization = s.id
+            LEFT JOIN reviews r ON d.id = r.id_doctor
             WHERE u.username ILIKE :keyword
         ";
 
@@ -181,10 +185,12 @@ class UsersRepository extends Repository {
             $sql .= " AND s.name = :specialization";
         }
 
+        $sql .= " GROUP BY d.id, u.username, s.name, d.visit_price, d.visit_duration ORDER BY avg_rating DESC NULLS LAST";
+
         $stmt = $db->prepare($sql);
         $searchKeyword = '%' . $keyword . '%';
         $stmt->bindParam(':keyword', $searchKeyword, PDO::PARAM_STR);
-        
+
         if ($specialization !== 'all') {
             $stmt->bindParam(':specialization', $specialization, PDO::PARAM_STR);
         }

@@ -37,9 +37,17 @@
             <div class="nav-links">
                 <a href="#" class="active" onclick="switchTab('wizyty')">Wizyty</a>
                 <a href="#" onclick="switchTab('uzytkownicy')">Użytkownicy</a>
+                <a href="#" onclick="switchTab('opinie')">Wystawione opinie</a>
             </div>
         </div>
         <div class="nav-right">
+            <div style="position:relative; display:inline-block;">
+                <button id="notifBellBtn" onclick="openNotificationsModal()" title="Powiadomienia" style="background:none; border:1px solid #e2e8f0; border-radius:8px; padding:8px 12px; cursor:pointer; color:#64748b; font-size:1.1rem; transition:0.2s;" onmouseover="this.style.color='#0f172a'" onmouseout="this.style.color='#64748b'"><i class="fa-regular fa-bell"></i></button>
+                <?php $unreadNotifCount = count(array_filter($notifications ?? [], fn($n) => !$n['is_read'])); ?>
+                <?php if ($unreadNotifCount > 0): ?>
+                <span id="admin-notif-badge" style="position:absolute; top:-5px; right:-5px; background:#dc2626; color:white; border-radius:50%; width:18px; height:18px; font-size:0.65rem; font-weight:700; display:flex; align-items:center; justify-content:center; pointer-events:none;"><?= min($unreadNotifCount, 9) ?><?= $unreadNotifCount > 9 ? '+' : '' ?></span>
+                <?php endif; ?>
+            </div>
             <a href="/logout" class="logout-link-admin"><i class="fa-solid fa-arrow-right-from-bracket"></i> Wyloguj</a>
         </div>
     </nav>
@@ -199,6 +207,69 @@
                 <div id="noUsersMessage" style="display: none; text-align: center; padding: 3rem; color: #64748b;">
                     Brak wyników wyszukiwania.
                 </div>
+            </div>
+        </div>
+
+        <!-- TAB OPINIE -->
+        <div id="tab-opinie" style="display:none; background:white; border-radius:16px; border:1px solid #e2e8f0; overflow:hidden; margin-bottom:2rem;">
+            <div style="padding:1.5rem; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
+                <h2 style="margin:0; display:flex; align-items:center; gap:10px; font-size:1.3rem;">
+                    <span style="display:inline-block; width:6px; height:24px; background:#f59e0b; border-radius:4px;"></span>
+                    Wystawione opinie
+                </h2>
+                <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+                    <input type="text" id="reviewSearchPatient" onkeyup="filterReviews()" placeholder="Szukaj pacjenta..." style="padding:0.5rem 0.75rem; border-radius:8px; border:1px solid #cbd5e1; font-size:0.9rem; outline:none;">
+                    <input type="text" id="reviewSearchDoctor" onkeyup="filterReviews()" placeholder="Szukaj lekarza..." style="padding:0.5rem 0.75rem; border-radius:8px; border:1px solid #cbd5e1; font-size:0.9rem; outline:none;">
+                    <select id="reviewSearchRating" onchange="filterReviews()" style="padding:0.5rem; border-radius:8px; border:1px solid #cbd5e1; font-size:0.9rem; outline:none;">
+                        <option value="">Wszystkie oceny</option>
+                        <option value="5">5 gwiazdek</option>
+                        <option value="4">4 gwiazdki</option>
+                        <option value="3">3 gwiazdki</option>
+                        <option value="2">2 gwiazdki</option>
+                        <option value="1">1 gwiazdka</option>
+                    </select>
+                    <input type="date" id="reviewSearchDate" onchange="filterReviews()" style="padding:0.5rem; border-radius:8px; border:1px solid #cbd5e1; font-size:0.9rem; outline:none;">
+                </div>
+            </div>
+            <div style="overflow-x:auto;">
+                <table style="width:100%; border-collapse:collapse; text-align:left; min-width:800px;">
+                    <thead style="background:#f8fafc; font-size:0.85rem; color:#64748b; text-transform:uppercase;">
+                        <tr>
+                            <th style="padding:1.2rem 1.5rem; border-bottom:2px solid #e2e8f0;">Pacjent</th>
+                            <th style="padding:1.2rem 1.5rem; border-bottom:2px solid #e2e8f0;">Lekarz</th>
+                            <th style="padding:1.2rem 1.5rem; border-bottom:2px solid #e2e8f0;">Ocena</th>
+                            <th style="padding:1.2rem 1.5rem; border-bottom:2px solid #e2e8f0;">Komentarz</th>
+                            <th style="padding:1.2rem 1.5rem; border-bottom:2px solid #e2e8f0;">Data</th>
+                            <th style="padding:1.2rem 1.5rem; text-align:right; border-bottom:2px solid #e2e8f0;">Akcje</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reviews-table-body">
+                        <?php if (!empty($reviews)): ?>
+                            <?php foreach ($reviews as $rev): ?>
+                            <tr class="review-row"
+                                data-patient="<?= htmlspecialchars(strtolower($rev['patient_name']), ENT_QUOTES) ?>"
+                                data-doctor="<?= htmlspecialchars(strtolower($rev['doctor_name']), ENT_QUOTES) ?>"
+                                data-rating="<?= (int)$rev['rating'] ?>"
+                                data-date="<?= date('Y-m-d', strtotime($rev['created_at'])) ?>"
+                                style="border-bottom:1px solid #e2e8f0; transition:background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
+                                <td style="padding:1.25rem 1.5rem; font-weight:600; color:#0f172a;"><?= htmlspecialchars($rev['patient_name']) ?></td>
+                                <td style="padding:1.25rem 1.5rem; color:#475569;">dr <?= htmlspecialchars($rev['doctor_name']) ?></td>
+                                <td style="padding:1.25rem 1.5rem;">
+                                    <span class="rev-stars" data-rating="<?= (int)$rev['rating'] ?>"></span>
+                                </td>
+                                <td style="padding:1.25rem 1.5rem; color:#475569; max-width:250px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><?= htmlspecialchars($rev['comment'] ?? '') ?></td>
+                                <td style="padding:1.25rem 1.5rem; color:#64748b; font-size:0.9rem;"><?= date('d.m.Y', strtotime($rev['created_at'])) ?></td>
+                                <td style="padding:1.25rem 1.5rem; text-align:right;">
+                                    <button class="admin-action-btn btn-edit" onclick="openReviewManageModal(<?= $rev['id'] ?>)"><i class="fa-solid fa-flag"></i> Zarządzaj</button>
+                                    <button class="btn-delete" style="padding:8px 12px; font-size:0.85rem;" onclick="quickDeleteReview(<?= $rev['id'] ?>, this)"><i class="fa-solid fa-trash"></i></button>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <tr><td colspan="6" style="text-align:center; padding:3rem; color:#64748b;">Brak opinii w systemie.</td></tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
             </div>
         </div>
 
@@ -402,13 +473,58 @@
         </div>
     </div>
 
+    <!-- Modal zarządzania opinią -->
+    <div id="reviewManageModal" class="admin-modal-overlay" style="z-index:5000;">
+        <div class="admin-modal-content" style="max-width:580px; max-height:90vh; overflow-y:auto; padding:2rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                <h3 style="margin:0; font-size:1.3rem; color:#0f172a;">Zarządzaj opinią</h3>
+                <button onclick="closeReviewManageModal()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#64748b;">&times;</button>
+            </div>
+            <div id="review-manage-body"><p style="text-align:center; color:#64748b; padding:2rem;">Wczytywanie...</p></div>
+            <div id="review-manage-message" style="display:none; padding:0.75rem; border-radius:8px; margin-top:1rem; font-size:0.9rem;"></div>
+            <div style="display:flex; justify-content:flex-end; border-top:1px solid #e2e8f0; padding-top:1.25rem; margin-top:1rem;">
+                <button class="btn-delete" onclick="adminDeleteCurrentReview()"><i class="fa-solid fa-trash"></i> Usuń opinię (wszystkie zgłoszenia)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Powiadomień Admin -->
+    <div id="adminNotifModal" class="admin-modal-overlay" style="z-index:3000;">
+        <div class="admin-modal-content" style="max-width:520px; max-height:85vh; display:flex; flex-direction:column;">
+            <div style="padding:1.25rem 1.5rem; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
+                <h3 style="margin:0; font-size:1.2rem;">Powiadomienia</h3>
+                <button onclick="closeNotificationsModal()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#64748b;">&times;</button>
+            </div>
+            <div id="admin-notif-list" style="overflow-y:auto; flex:1; padding:0;"></div>
+        </div>
+    </div>
+
     <script>
+        const allAdminNotifications = <?= json_encode($notifications ?? []) ?>;
+        const allReviewsData = <?= json_encode($reviews ?? []) ?>;
+        let currentReviewId = null;
+
+        function renderStarsStatic(rating) {
+            let html = '';
+            for (let i = 1; i <= 5; i++) {
+                html += i <= rating
+                    ? '<i class="fa-solid fa-star" style="color:#f59e0b; font-size:0.85rem;"></i>'
+                    : '<i class="fa-regular fa-star" style="color:#f59e0b; font-size:0.85rem;"></i>';
+            }
+            return html;
+        }
+
+        document.querySelectorAll('.rev-stars').forEach(el => {
+            el.innerHTML = renderStarsStatic(parseInt(el.dataset.rating) || 0);
+        });
+
         // -- WIZYTY I ZAKŁADKI --
         function switchTab(tabName) {
             document.querySelectorAll('.nav-links a').forEach(link => link.classList.remove('active'));
             event.target.classList.add('active');
             document.getElementById('tab-wizyty').style.display = 'none';
             document.getElementById('tab-uzytkownicy').style.display = 'none';
+            document.getElementById('tab-opinie').style.display = 'none';
             document.getElementById('tab-' + tabName).style.display = 'block';
         }
 
@@ -532,6 +648,201 @@
 
         function openAddUserModal() { document.getElementById('addUserModal').classList.add('active'); }
         function closeAddUserModal() { document.getElementById('addUserModal').classList.remove('active'); }
+
+        // -- OPINIE --
+        function filterReviews() {
+            const patient = document.getElementById('reviewSearchPatient').value.toLowerCase();
+            const doctor = document.getElementById('reviewSearchDoctor').value.toLowerCase();
+            const rating = document.getElementById('reviewSearchRating').value;
+            const date = document.getElementById('reviewSearchDate').value;
+
+            document.querySelectorAll('.review-row').forEach(row => {
+                const matchP = row.dataset.patient.includes(patient);
+                const matchD = row.dataset.doctor.includes(doctor);
+                const matchR = !rating || row.dataset.rating === rating;
+                const matchDate = !date || row.dataset.date === date;
+                row.style.display = (matchP && matchD && matchR && matchDate) ? '' : 'none';
+            });
+        }
+
+        function quickDeleteReview(reviewId, btn) {
+            if (!confirm('Na pewno usunąć tę opinię?')) return;
+            fetch('/admin-delete-review', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({review_id: reviewId})
+            }).then(r => r.json()).then(data => {
+                if (data.success) {
+                    const row = btn.closest('tr');
+                    if (row) row.remove();
+                } else {
+                    alert(data.error || 'Błąd usuwania.');
+                }
+            });
+        }
+
+        function openReviewManageModal(reviewId) {
+            currentReviewId = reviewId;
+            document.getElementById('review-manage-message').style.display = 'none';
+            document.getElementById('review-manage-body').innerHTML = '<p style="text-align:center; color:#64748b; padding:2rem;"><i class="fa-solid fa-circle-notch fa-spin"></i> Wczytywanie...</p>';
+            document.getElementById('reviewManageModal').classList.add('active');
+
+            fetch(`/api-get-review-reports?review_id=${reviewId}`)
+                .then(r => r.json())
+                .then(reports => renderReviewManageBody(reviewId, reports))
+                .catch(() => { document.getElementById('review-manage-body').innerHTML = '<p style="color:red; text-align:center; padding:2rem;">Błąd wczytywania.</p>'; });
+        }
+
+        function renderReviewManageBody(reviewId, reports) {
+            const rev = allReviewsData.find(r => r.id == reviewId);
+            let html = '';
+
+            if (rev) {
+                html += `<div style="background:#f8fafc; padding:1rem; border-radius:8px; margin-bottom:1.25rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:0.5rem;">
+                        <div>
+                            <span style="font-weight:700; color:#0f172a;">${escHtml(rev.patient_name)}</span>
+                            <span style="color:#94a3b8; font-size:0.8rem; margin-left:0.5rem;">→ dr ${escHtml(rev.doctor_name)}</span>
+                        </div>
+                        <span style="font-size:0.85rem;">${renderStarsStatic(rev.rating)}</span>
+                    </div>
+                    ${rev.comment ? `<p style="margin:0.5rem 0 0; color:#475569; font-size:0.9rem;">${escHtml(rev.comment)}</p>` : ''}
+                </div>`;
+            }
+
+            if (!reports || reports.length === 0) {
+                html += '<p style="color:#94a3b8; text-align:center; padding:1.5rem;">Brak zgłoszeń dla tej opinii.</p>';
+            } else {
+                html += `<h4 style="margin:0 0 0.75rem; color:#0f172a;">Zgłoszenia (${reports.length})</h4>`;
+                reports.forEach(rep => {
+                    const date = new Date(rep.created_at).toLocaleDateString('pl-PL');
+                    html += `<div style="border:1px solid #e2e8f0; border-radius:8px; padding:1rem; margin-bottom:0.75rem;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                            <span style="font-size:0.8rem; font-weight:700; background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:4px;">${escHtml(rep.category)}</span>
+                            <span style="color:#94a3b8; font-size:0.8rem;">${date}</span>
+                        </div>
+                        <p style="margin:0 0 0.75rem; color:#374151; font-size:0.9rem;">${escHtml(rep.reason)}</p>
+                        <div style="display:flex; gap:0.5rem; align-items:flex-end; flex-wrap:wrap;">
+                            <textarea id="dismiss-reason-${rep.id}" rows="2" placeholder="Uzasadnienie odrzucenia (dla zgłaszającego)..." style="flex:1; min-width:180px; padding:0.5rem; border:1px solid #d1d5db; border-radius:6px; font-family:inherit; font-size:0.85rem; resize:none;"></textarea>
+                            <button onclick="adminDismissReport(${rep.id})" style="background:#eff6ff; color:#2563eb; border:none; padding:0.5rem 0.9rem; border-radius:6px; font-weight:600; cursor:pointer; font-size:0.85rem;">Odrzuć</button>
+                        </div>
+                    </div>`;
+                });
+            }
+
+            document.getElementById('review-manage-body').innerHTML = html;
+        }
+
+        function closeReviewManageModal() {
+            document.getElementById('reviewManageModal').classList.remove('active');
+            currentReviewId = null;
+        }
+        document.getElementById('reviewManageModal').addEventListener('click', e => { if (e.target === document.getElementById('reviewManageModal')) closeReviewManageModal(); });
+
+        function adminDeleteCurrentReview() {
+            if (!currentReviewId || !confirm('Na pewno usunąć tę opinię i powiadomić zgłaszających?')) return;
+            fetch('/admin-resolve-report', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({review_id: currentReviewId})
+            }).then(r => r.json()).then(data => {
+                const msg = document.getElementById('review-manage-message');
+                if (data.success) {
+                    msg.style.display = 'block'; msg.style.background = '#d1fae5'; msg.style.color = '#065f46';
+                    msg.textContent = 'Opinia usunięta i zgłaszający powiadomieni.';
+                    const row = document.querySelector(`.review-row button[onclick="openReviewManageModal(${currentReviewId})"]`)?.closest('tr');
+                    if (row) row.remove();
+                    setTimeout(closeReviewManageModal, 1500);
+                } else {
+                    msg.style.display = 'block'; msg.style.background = '#fee2e2'; msg.style.color = '#991b1b';
+                    msg.textContent = data.error || 'Wystąpił błąd.';
+                }
+            });
+        }
+
+        function adminDismissReport(reportId) {
+            const reason = document.getElementById(`dismiss-reason-${reportId}`).value.trim();
+            if (!reason) { alert('Wpisz uzasadnienie odrzucenia.'); return; }
+
+            fetch('/admin-dismiss-report', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({report_id: reportId, admin_response: reason})
+            }).then(r => r.json()).then(data => {
+                const msg = document.getElementById('review-manage-message');
+                if (data.success) {
+                    msg.style.display = 'block'; msg.style.background = '#d1fae5'; msg.style.color = '#065f46';
+                    msg.textContent = 'Zgłoszenie odrzucone, zgłaszający powiadomiony.';
+                    if (currentReviewId) openReviewManageModal(currentReviewId);
+                } else {
+                    msg.style.display = 'block'; msg.style.background = '#fee2e2'; msg.style.color = '#991b1b';
+                    msg.textContent = data.error || 'Wystąpił błąd.';
+                }
+            });
+        }
+
+        function escHtml(str) {
+            return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+
+        // -- POWIADOMIENIA ADMINA --
+        function openNotificationsModal() {
+            // Oznacz powiadomienia jako przeczytane i ukryj badge
+            fetch('/api-mark-notifications-read', {method:'POST'}).then(() => {
+                const badge = document.getElementById('admin-notif-badge');
+                if (badge) badge.style.display = 'none';
+            });
+            const list = document.getElementById('admin-notif-list');
+            list.innerHTML = '';
+            if (!allAdminNotifications || allAdminNotifications.length === 0) {
+                list.innerHTML = '<p style="text-align:center; color:#64748b; padding:2rem;">Brak powiadomień.</p>';
+            } else {
+                allAdminNotifications.forEach(n => {
+                    const isReport = n.type === 'report';
+                    const div = document.createElement('div');
+                    div.style.cssText = 'padding:1rem; border-bottom:1px solid #e2e8f0;';
+                    let actionsHtml = '';
+                    if (isReport && n.related_id) {
+                        actionsHtml = `<div style="display:flex; gap:0.5rem; margin-top:0.6rem;">
+                            <button onclick="closeNotificationsModal(); openReviewManageModal(${n.related_id})" style="display:flex; align-items:center; gap:0.4rem; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; border-radius:6px; padding:0.35rem 0.75rem; font-size:0.8rem; font-weight:600; cursor:pointer;" title="Zarządzaj opinią"><i class="fa-solid fa-pen-to-square"></i> Zarządzaj</button>
+                            <button onclick="quickDeleteFromNotif(${n.related_id}, this.closest('div[data-notif]'))" style="display:flex; align-items:center; gap:0.4rem; background:#fef2f2; color:#dc2626; border:1px solid #fecaca; border-radius:6px; padding:0.35rem 0.75rem; font-size:0.8rem; font-weight:600; cursor:pointer;" title="Usuń opinię"><i class="fa-solid fa-trash"></i> Usuń opinię</button>
+                        </div>`;
+                    }
+                    div.setAttribute('data-notif', n.id);
+                    div.innerHTML = `<div style="display:flex; align-items:flex-start; gap:0.75rem;">
+                        ${isReport ? '<i class="fa-solid fa-flag" style="color:#f59e0b; margin-top:2px;"></i>' : '<i class="fa-regular fa-bell" style="color:#64748b; margin-top:2px;"></i>'}
+                        <div style="flex:1;">
+                            <p style="margin:0; color:#111827; font-size:0.95rem;">${escHtml(n.message)}</p>
+                            <p style="margin:0.4rem 0 0; color:#9ca3af; font-size:0.8rem;">${new Date(n.created_at).toLocaleString('pl-PL')}</p>
+                            ${actionsHtml}
+                        </div>
+                    </div>`;
+                    list.appendChild(div);
+                });
+            }
+            document.getElementById('adminNotifModal').classList.add('active');
+        }
+
+        function quickDeleteFromNotif(reviewId, notifEl) {
+            if (!confirm('Na pewno usunąć tę opinię?')) return;
+            fetch('/admin-delete-review', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({review_id: reviewId})
+            }).then(r => r.json()).then(data => {
+                if (data.success) {
+                    if (notifEl) notifEl.remove();
+                    // Usuń z tabeli opinii jeśli widoczny
+                    document.querySelectorAll('.review-row').forEach(row => {
+                        if (row.querySelector(`[onclick*="openReviewManageModal(${reviewId})"]`)) row.remove();
+                    });
+                } else {
+                    alert(data.error || 'Błąd usuwania.');
+                }
+            });
+        }
+
+        function closeNotificationsModal() { document.getElementById('adminNotifModal').classList.remove('active'); }
+        document.addEventListener('DOMContentLoaded', () => {
+            const nm = document.getElementById('adminNotifModal');
+            if (nm) nm.addEventListener('click', e => { if (e.target === nm) closeNotificationsModal(); });
+        });
     </script>
 </body>
 </html>

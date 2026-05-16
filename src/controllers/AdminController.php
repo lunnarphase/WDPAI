@@ -3,16 +3,19 @@
 require_once 'AppController.php';
 require_once __DIR__ . '/../repositories/AppointmentRepository.php';
 require_once __DIR__ . '/../repositories/UsersRepository.php';
+require_once __DIR__ . '/../repositories/ReviewRepository.php';
 
 class AdminController extends AppController {
 
     private $appointmentRepo;
     private $userRepo;
+    private $reviewRepo;
 
-    public function __construct(AppointmentRepository $appointmentRepo = null, UsersRepository $userRepo = null) {
+    public function __construct(AppointmentRepository $appointmentRepo = null, UsersRepository $userRepo = null, ReviewRepository $reviewRepo = null) {
         parent::__construct();
         $this->appointmentRepo = $appointmentRepo ?: new AppointmentRepository();
         $this->userRepo = $userRepo ?: new UsersRepository();
+        $this->reviewRepo = $reviewRepo ?: new ReviewRepository();
     }
     
     private function requireAdmin() {
@@ -27,11 +30,13 @@ class AdminController extends AppController {
         
         return $this->render('admin_dashboard', [
             'appointments' => $this->appointmentRepo->getAllAppointmentsAdmin(),
-            'todayCount' => $this->appointmentRepo->getTodaysAppointmentsCount(),
-            'usersCount' => $this->userRepo->getUsersCount(),
-            'patients' => $this->userRepo->getAllPatientsAdmin(),
-            'doctors' => $this->userRepo->getAllDoctorsAdmin(),
-            'users' => $this->userRepo->getAllUsersWithRoles()
+            'todayCount'   => $this->appointmentRepo->getTodaysAppointmentsCount(),
+            'usersCount'   => $this->userRepo->getUsersCount(),
+            'patients'     => $this->userRepo->getAllPatientsAdmin(),
+            'doctors'      => $this->userRepo->getAllDoctorsAdmin(),
+            'users'        => $this->userRepo->getAllUsersWithRoles(),
+            'reviews'      => $this->reviewRepo->getAllReviewsAdmin(),
+            'notifications' => $this->appointmentRepo->getUserNotifications($_SESSION['user_id'])
         ]);
     }
 
@@ -139,6 +144,88 @@ class AdminController extends AppController {
         }
         
         header("Location: http://$_SERVER[HTTP_HOST]/admin-dashboard"); 
+        exit();
+    }
+
+    public function adminDeleteReview() {
+        $this->requireAdmin();
+        header('Content-Type: application/json');
+
+        if (!$this->isPost()) {
+            echo json_encode(['error' => 'Niedozwolona metoda.']);
+            exit();
+        }
+
+        $input = json_decode(file_get_contents('php://input'), true);
+        $reviewId = (int)($input['review_id'] ?? 0);
+
+        if (!$reviewId) {
+            echo json_encode(['error' => 'Brak ID opinii.']);
+            exit();
+        }
+
+        $this->reviewRepo->deleteReviewAdmin($reviewId);
+        echo json_encode(['success' => true]);
+        exit();
+    }
+
+    public function adminDismissReport() {
+        $this->requireAdmin();
+        header('Content-Type: application/json');
+
+        if (!$this->isPost()) {
+            echo json_encode(['error' => 'Niedozwolona metoda.']);
+            exit();
+        }
+
+        $input = json_decode(file_get_contents('php://input'), true);
+        $reportId = (int)($input['report_id'] ?? 0);
+        $adminResponse = trim($input['admin_response'] ?? '');
+
+        if (!$reportId || empty($adminResponse)) {
+            echo json_encode(['error' => 'Podaj uzasadnienie odrzucenia.']);
+            exit();
+        }
+
+        $this->reviewRepo->dismissReport($reportId, $adminResponse);
+        echo json_encode(['success' => true]);
+        exit();
+    }
+
+    public function adminResolveReport() {
+        $this->requireAdmin();
+        header('Content-Type: application/json');
+
+        if (!$this->isPost()) {
+            echo json_encode(['error' => 'Niedozwolona metoda.']);
+            exit();
+        }
+
+        $input = json_decode(file_get_contents('php://input'), true);
+        $reviewId = (int)($input['review_id'] ?? 0);
+
+        if (!$reviewId) {
+            echo json_encode(['error' => 'Brak ID opinii.']);
+            exit();
+        }
+
+        $this->reviewRepo->resolveReportByDeletion($reviewId);
+        echo json_encode(['success' => true]);
+        exit();
+    }
+
+    public function apiGetReviewReports() {
+        $this->requireAdmin();
+        header('Content-Type: application/json');
+
+        $reviewId = (int)($_GET['review_id'] ?? 0);
+        if (!$reviewId) {
+            echo json_encode([]);
+            exit();
+        }
+
+        $reports = $this->reviewRepo->getPendingReportsForReview($reviewId);
+        echo json_encode($reports);
         exit();
     }
 }

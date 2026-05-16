@@ -2,14 +2,17 @@
 
 require_once 'AppController.php';
 require_once __DIR__ . '/../repositories/AppointmentRepository.php';
+require_once __DIR__ . '/../repositories/ReviewRepository.php';
 
 class DoctorController extends AppController {
 
     private $appointmentRepo;
+    private $reviewRepo;
 
-    public function __construct(AppointmentRepository $appointmentRepo = null) {
+    public function __construct(AppointmentRepository $appointmentRepo = null, ReviewRepository $reviewRepo = null) {
         parent::__construct();
         $this->appointmentRepo = $appointmentRepo ?: new AppointmentRepository();
+        $this->reviewRepo = $reviewRepo ?: new ReviewRepository();
     }
     
     private function requireDoctor() {
@@ -27,11 +30,51 @@ class DoctorController extends AppController {
         $appointments = $this->appointmentRepo->getDoctorAppointments($userId);
         $stats = $this->appointmentRepo->getDoctorStats($userId);
 
+        $doctorId = $this->getDoctorIdByUserId($userId);
+        $doctorProfile  = $this->reviewRepo->getDoctorProfileData($doctorId);
+        $doctorReviews  = $this->reviewRepo->getDoctorReviews($doctorId, true);
+        $reviewSummary  = $this->reviewRepo->getReviewSummary($doctorId);
+
         return $this->render('doctor_dashboard', [
-            'appointments' => $appointments,
-            'todayCount' => $stats['today'],
-            'upcomingCount' => $stats['upcoming']
+            'appointments'  => $appointments,
+            'todayCount'    => $stats['today'],
+            'upcomingCount' => $stats['upcoming'],
+            'doctorProfile' => $doctorProfile,
+            'doctorReviews' => $doctorReviews,
+            'reviewSummary' => $reviewSummary,
+            'notifications' => $this->appointmentRepo->getUserNotifications($userId)
         ]);
+    }
+
+    private function getDoctorIdByUserId(int $userId): int {
+        return $this->reviewRepo->getDoctorIdByUserId($userId);
+    }
+
+    public function updateDoctorProfile() {
+        $this->requireDoctor();
+        header('Content-Type: application/json');
+
+        if (!$this->isPost()) {
+            echo json_encode(['error' => 'Niedozwolona metoda.']);
+            exit();
+        }
+
+        $input = json_decode(file_get_contents('php://input'), true);
+        $bio = trim($input['bio'] ?? '');
+        $visitPrice = isset($input['visit_price']) && $input['visit_price'] !== '' ? (float)$input['visit_price'] : null;
+        $visitDuration = isset($input['visit_duration']) && (int)$input['visit_duration'] > 0
+            ? (int)$input['visit_duration']
+            : 30;
+
+        $this->reviewRepo->updateDoctorProfile(
+            $_SESSION['user_id'],
+            $bio,
+            $visitPrice,
+            $visitDuration
+        );
+
+        echo json_encode(['success' => true]);
+        exit();
     }
 
     public function doctorUpdateStatus() {

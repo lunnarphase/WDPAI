@@ -3,16 +3,19 @@
 require_once 'AppController.php';
 require_once __DIR__.'/../repositories/AppointmentRepository.php';
 require_once __DIR__.'/../repositories/UsersRepository.php';
+require_once __DIR__.'/../repositories/ReviewRepository.php';
 
 class DashboardController extends AppController {
 
     private $appointmentRepo;
     private $userRepo;
+    private $reviewRepo;
 
     public function __construct(AppointmentRepository $appointmentRepo = null, UsersRepository $userRepo = null) {
         parent::__construct();
         $this->appointmentRepo = $appointmentRepo ?: new AppointmentRepository();
         $this->userRepo = $userRepo ?: new UsersRepository();
+        $this->reviewRepo = new ReviewRepository();
     }
 
     public function myAppointments() {
@@ -60,6 +63,11 @@ class DashboardController extends AppController {
         $spec = $_GET['spec'] ?? 'all';
 
         $doctors = $this->userRepo->searchDoctors($keyword, $spec);
+
+        foreach ($doctors as &$doctor) {
+            $doctor['next_slot'] = $this->reviewRepo->getNextAvailableSlot((int)$doctor['doctor_id']);
+        }
+        unset($doctor);
 
         echo json_encode($doctors);
         exit();

@@ -50,10 +50,13 @@ class AppointmentRepository extends Repository {
                 a.status,
                 a.recommendations,
                 u.username as doctor_name,
+                d.id as doctor_id,
                 (SELECT STRING_AGG(s.name, \', \')
                  FROM doctors_specializations ds
                  JOIN specializations s ON ds.id_specialization = s.id
-                 WHERE ds.id_doctor = d.id) as specializations
+                 WHERE ds.id_doctor = d.id) as specializations,
+                (SELECT COUNT(*) FROM reviews r WHERE r.id_appointment = a.id) > 0 as has_review,
+                a.review_submitted
             FROM appointments a
             JOIN doctors d ON a.id_doctor = d.id
             JOIN users u ON d.id_user = u.id
@@ -217,14 +220,14 @@ class AppointmentRepository extends Repository {
             ');
             $stmt->execute([$status, $recommendations, $appointmentId, $userId]);
 
-            if ($status === 'completed') {
+            if ($status === 'completed' && !empty($recommendations)) {
                 $stmt2 = $db->prepare('SELECT p.id_user FROM appointments a JOIN patients p ON a.id_patient = p.id WHERE a.id = ?');
                 $stmt2->execute([$appointmentId]);
                 $patientUserId = $stmt2->fetchColumn();
 
                 if ($patientUserId) {
-                    $msg = "Masz nowe zalecenia od lekarza po zakończonej wizycie. Sprawdź swój profil!";
-                    $stmt3 = $db->prepare('INSERT INTO notifications (id_user, message) VALUES (?, ?)');
+                    $msg = "Lekarz dodał zalecenia do Twojej zakończonej wizyty. Sprawdź szczegóły w historii wizyt.";
+                    $stmt3 = $db->prepare('INSERT INTO notifications (id_user, message, type) VALUES (?, ?, \'general\')');
                     $stmt3->execute([$patientUserId, $msg]);
                 }
             }
@@ -272,7 +275,7 @@ class AppointmentRepository extends Repository {
     public function getUserNotifications(int $userId): array {
         $db = $this->database->connect();
         $stmt = $db->prepare('
-            SELECT id, message, is_read, created_at
+            SELECT id, message, is_read, created_at, type, related_id
             FROM notifications
             WHERE id_user = :user_id
             ORDER BY created_at DESC
