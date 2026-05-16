@@ -6,12 +6,20 @@ require_once __DIR__.'/../repositories/UsersRepository.php';
 
 class DashboardController extends AppController {
 
+    private $appointmentRepo;
+    private $userRepo;
+
+    public function __construct(AppointmentRepository $appointmentRepo = null, UsersRepository $userRepo = null) {
+        parent::__construct();
+        $this->appointmentRepo = $appointmentRepo ?: new AppointmentRepository();
+        $this->userRepo = $userRepo ?: new UsersRepository();
+    }
+
     public function index() {
         $this->requireLogin();
 
-        $appointmentRepo = new AppointmentRepository();
-        $appointments = $appointmentRepo->getUpcomingAppointmentsForPatient($_SESSION['user_id']);
-        $notifications = $appointmentRepo->getUserNotifications($_SESSION['user_id']);
+        $appointments = $this->appointmentRepo->getUpcomingAppointmentsForPatient($_SESSION['user_id']);
+        $notifications = $this->appointmentRepo->getUserNotifications($_SESSION['user_id']);
 
         $messages = [];
         if (isset($_GET['booking']) && $_GET['booking'] === 'success') {
@@ -28,23 +36,18 @@ class DashboardController extends AppController {
     }
 
     public function apiSearchDoctors() {
-        if (session_status() === PHP_SESSION_NONE) session_start();
-
         header('Content-Type: application/json');
 
         $keyword = $_GET['q'] ?? '';
         $spec = $_GET['spec'] ?? 'all';
 
-        $repo = new UsersRepository();
-        $doctors = $repo->searchDoctors($keyword, $spec);
+        $doctors = $this->userRepo->searchDoctors($keyword, $spec);
 
         echo json_encode($doctors);
         exit();
     }
 
     public function apiGetAppointments() {
-        if (session_status() === PHP_SESSION_NONE) session_start();
-
         header('Content-Type: application/json');
 
         if (!isset($_SESSION['user_id'])) {
@@ -52,8 +55,7 @@ class DashboardController extends AppController {
             exit();
         }
 
-        $appointmentRepo = new AppointmentRepository();
-        $appointments = $appointmentRepo->getUpcomingAppointmentsForPatient($_SESSION['user_id']);
+        $appointments = $this->appointmentRepo->getUpcomingAppointmentsForPatient($_SESSION['user_id']);
 
         $miesiace = ['Jan'=>'Sty', 'Feb'=>'Lut', 'Mar'=>'Mar', 'Apr'=>'Kwi', 'May'=>'Maj', 'Jun'=>'Cze', 'Jul'=>'Lip', 'Aug'=>'Sie', 'Sep'=>'Wrz', 'Oct'=>'Paź', 'Nov'=>'Lis', 'Dec'=>'Gru'];
         $processedAppointments = [];

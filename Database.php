@@ -30,7 +30,9 @@ class Database {
             $this->connection->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             return $this->connection;
         } catch(PDOException $e) {
-            die("Connection failed: " . $e->getMessage());
+            http_response_code(500);
+            include 'public/views/500.html';
+            exit();
         }
     }
 }

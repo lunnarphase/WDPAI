@@ -6,33 +6,42 @@ require_once __DIR__ . '/../repositories/UsersRepository.php';
 
 class AdminController extends AppController {
 
-    public function adminDashboard() {
-        if (session_status() === PHP_SESSION_NONE) session_start();
+    private $appointmentRepo;
+    private $userRepo;
 
+    public function __construct(AppointmentRepository $appointmentRepo = null, UsersRepository $userRepo = null) {
+        parent::__construct();
+        $this->appointmentRepo = $appointmentRepo ?: new AppointmentRepository();
+        $this->userRepo = $userRepo ?: new UsersRepository();
+    }
+    
+    private function requireAdmin() {
+        $this->requireLogin();
         if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'admin') {
-            header("Location: http://$_SERVER[HTTP_HOST]/dashboard"); exit();
+            $this->forbidden();
         }
+    }
 
-        $appointmentRepo = new AppointmentRepository();
-        $userRepo = new UsersRepository();
+    public function adminDashboard() {
+        $this->requireAdmin();
         
         return $this->render('admin_dashboard', [
-            'appointments' => $appointmentRepo->getAllAppointmentsAdmin(),
-            'todayCount' => $appointmentRepo->getTodaysAppointmentsCount(),
-            'usersCount' => $userRepo->getUsersCount(),
-            'patients' => $userRepo->getAllPatientsAdmin(),
-            'doctors' => $userRepo->getAllDoctorsAdmin(),
-            'users' => $userRepo->getAllUsersWithRoles()
+            'appointments' => $this->appointmentRepo->getAllAppointmentsAdmin(),
+            'todayCount' => $this->appointmentRepo->getTodaysAppointmentsCount(),
+            'usersCount' => $this->userRepo->getUsersCount(),
+            'patients' => $this->userRepo->getAllPatientsAdmin(),
+            'doctors' => $this->userRepo->getAllDoctorsAdmin(),
+            'users' => $this->userRepo->getAllUsersWithRoles()
         ]);
     }
 
     public function adminUpdateAppointment() {
-        if (session_status() === PHP_SESSION_NONE) session_start();
-        if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'admin') {
-            header("Location: http://$_SERVER[HTTP_HOST]/dashboard"); exit();
-        }
+        $this->requireAdmin();
 
         if ($this->isPost()) {
+            if (empty($_POST['appointment_id']) || empty($_POST['patient_id']) || empty($_POST['doctor_id']) || empty($_POST['appointment_date'])) {
+                $this->badRequest();
+            }
             $id = (int)$_POST['appointment_id'];
             $patientId = (int)$_POST['patient_id'];
             $doctorId = (int)$_POST['doctor_id'];
@@ -40,33 +49,31 @@ class AdminController extends AppController {
             $time = $_POST['appointment_time'];
             $status = $_POST['status'];
             
-            $repo = new AppointmentRepository();
-            $repo->updateAppointmentAdmin($id, $patientId, $doctorId, $date, $time, $status);
+            $this->appointmentRepo->updateAppointmentAdmin($id, $patientId, $doctorId, $date, $time, $status);
         }
         header("Location: http://$_SERVER[HTTP_HOST]/admin-dashboard"); exit();
     }
 
     public function adminDeleteAppointment() {
-        if (session_status() === PHP_SESSION_NONE) session_start();
-        if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'admin') {
-            header("Location: http://$_SERVER[HTTP_HOST]/dashboard"); exit();
-        }
+        $this->requireAdmin();
 
         if ($this->isPost()) {
+            if (empty($_POST['appointment_id'])) {
+                $this->badRequest();
+            }
             $id = (int)$_POST['appointment_id'];
-            $repo = new AppointmentRepository();
-            $repo->deleteAppointmentAdmin($id);
+            $this->appointmentRepo->deleteAppointmentAdmin($id);
         }
         header("Location: http://$_SERVER[HTTP_HOST]/admin-dashboard"); exit();
     }
 
     public function adminUpdateUser() {
-        if (session_status() === PHP_SESSION_NONE) session_start();
-        if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'admin') {
-            header("Location: http://$_SERVER[HTTP_HOST]/dashboard"); exit();
-        }
+        $this->requireAdmin();
 
         if ($this->isPost()) {
+            if (empty($_POST['user_id']) || empty($_POST['username']) || empty($_POST['email']) || empty($_POST['role'])) {
+                $this->badRequest();
+            }
             $id = (int)$_POST['user_id'];
             $username = $_POST['username'];
             $email = $_POST['email'];
@@ -74,8 +81,7 @@ class AdminController extends AppController {
             $role = $_POST['role'];
             $pesel = $_POST['pesel'] ?? '';
             
-            $repo = new UsersRepository();
-            $repo->updateUserAdmin($id, $username, $email, $password, $role, $pesel);
+            $this->userRepo->updateUserAdmin($id, $username, $email, $password, $role, $pesel);
         }
         
         header("Location: http://$_SERVER[HTTP_HOST]/admin-dashboard"); 
@@ -83,27 +89,26 @@ class AdminController extends AppController {
     }
 
     public function adminDeleteUser() {
-        if (session_status() === PHP_SESSION_NONE) session_start();
-        if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'admin') {
-            header("Location: http://$_SERVER[HTTP_HOST]/dashboard"); exit();
-        }
+        $this->requireAdmin();
 
         if ($this->isPost()) {
+            if (empty($_POST['user_id']) || empty($_POST['user_role'])) {
+                $this->badRequest();
+            }
             $id = (int)$_POST['user_id'];
             $role = $_POST['user_role'];
-            $repo = new UsersRepository();
 
             if ($id === $_SESSION['user_id']) {
                 header("Location: http://$_SERVER[HTTP_HOST]/admin-dashboard?error=self_delete");
                 exit();
             }
 
-            if ($role === 'admin' && $repo->getAdminCount() <= 1) {
+            if ($role === 'admin' && $this->userRepo->getAdminCount() <= 1) {
                 header("Location: http://$_SERVER[HTTP_HOST]/admin-dashboard?error=last_admin");
                 exit();
             }
 
-            $repo->deleteUserAdmin($id);
+            $this->userRepo->deleteUserAdmin($id);
         }
         
         header("Location: http://$_SERVER[HTTP_HOST]/admin-dashboard"); 

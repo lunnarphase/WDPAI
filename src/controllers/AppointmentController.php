@@ -5,6 +5,13 @@ require_once __DIR__.'/../repositories/AppointmentRepository.php';
 
 class AppointmentController extends AppController {
 
+    private $appointmentRepo;
+
+    public function __construct(AppointmentRepository $appointmentRepo = null) {
+        parent::__construct();
+        $this->appointmentRepo = $appointmentRepo ?: new AppointmentRepository();
+    }
+
     public function book() {
         $this->requireLogin();
         
@@ -38,10 +45,8 @@ class AppointmentController extends AppController {
             ]);
         }
 
-        $appointmentRepo = new AppointmentRepository();
-
         try {
-            $appointmentRepo->createAppointment($userId, $doctorId, $date, $time);
+            $this->appointmentRepo->createAppointment($userId, $doctorId, $date, $time);
             header("Location: http://$_SERVER[HTTP_HOST]/dashboard?booking=success");
             exit();
         } catch (Exception $e) {
@@ -49,6 +54,32 @@ class AppointmentController extends AppController {
                 'doctorId' => $doctorId, 
                 'messages' => ['Wystąpił błąd podczas zapisu: ' . $e->getMessage()]
             ]);
+        }
+    }
+
+    public function cancel() {
+        $this->requireLogin();
+
+        if (!$this->isPost()) {
+            header("Location: http://$_SERVER[HTTP_HOST]/dashboard");
+            exit();
+        }
+
+        if (empty($_POST['appointment_id'])) {
+            $this->badRequest();
+        }
+
+        $appointmentId = (int)$_POST['appointment_id'];
+        $cancelReason = $_POST['cancel_reason'] ?? '';
+        $userId = $_SESSION['user_id'];
+
+        try {
+            $this->appointmentRepo->cancelAppointment($appointmentId, $userId, $cancelReason, '');
+            header("Location: http://$_SERVER[HTTP_HOST]/dashboard?cancel=success");
+            exit();
+        } catch (Exception $e) {
+            header("Location: http://$_SERVER[HTTP_HOST]/dashboard?cancel=error");
+            exit();
         }
     }
 
@@ -63,8 +94,7 @@ class AppointmentController extends AppController {
             $startDate = $decoded['start_date'];
             $endDate = $decoded['end_date'];
 
-            $repo = new AppointmentRepository();
-            $bookedSlots = $repo->getBookedSlots($doctorId, $startDate, $endDate);
+            $bookedSlots = $this->appointmentRepo->getBookedSlots($doctorId, $startDate, $endDate);
 
             header('Content-Type: application/json');
             echo json_encode($bookedSlots);

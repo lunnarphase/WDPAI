@@ -5,19 +5,27 @@ require_once __DIR__ . '/../repositories/AppointmentRepository.php';
 
 class DoctorController extends AppController {
 
-    public function doctorDashboard() {
-        if (session_status() === PHP_SESSION_NONE) session_start();
+    private $appointmentRepo;
 
+    public function __construct(AppointmentRepository $appointmentRepo = null) {
+        parent::__construct();
+        $this->appointmentRepo = $appointmentRepo ?: new AppointmentRepository();
+    }
+    
+    private function requireDoctor() {
+        $this->requireLogin();
         if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'doctor') {
-            header("Location: http://$_SERVER[HTTP_HOST]/dashboard"); 
-            exit();
+            $this->forbidden();
         }
+    }
 
-        $repo = new AppointmentRepository();
+    public function doctorDashboard() {
+        $this->requireDoctor();
+
         $userId = $_SESSION['user_id'];
         
-        $appointments = $repo->getDoctorAppointments($userId);
-        $stats = $repo->getDoctorStats($userId);
+        $appointments = $this->appointmentRepo->getDoctorAppointments($userId);
+        $stats = $this->appointmentRepo->getDoctorStats($userId);
 
         return $this->render('doctor_dashboard', [
             'appointments' => $appointments,
@@ -27,32 +35,25 @@ class DoctorController extends AppController {
     }
 
     public function doctorUpdateStatus() {
-        if (session_status() === PHP_SESSION_NONE) session_start();
-        
-        if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'doctor') {
-            header("Location: http://$_SERVER[HTTP_HOST]/dashboard"); exit();
-        }
+        $this->requireDoctor();
 
         if ($this->isPost()) {
+            if (empty($_POST['appointment_id']) || empty($_POST['status'])) {
+                $this->badRequest();
+            }
             $appointmentId = (int)$_POST['appointment_id'];
             $status = $_POST['status'];
             $recommendations = $_POST['recommendations'] ?? null; 
             $userId = $_SESSION['user_id'];
 
-            $repo = new AppointmentRepository();
-            $repo->updateAppointmentStatusByDoctor($appointmentId, $userId, $status, $recommendations);
+            $this->appointmentRepo->updateAppointmentStatusByDoctor($appointmentId, $userId, $status, $recommendations);
         }
         
         header("Location: http://$_SERVER[HTTP_HOST]/doctor-dashboard"); exit();
     }
 
     public function findDoctor() {
-        if (session_status() === PHP_SESSION_NONE) session_start();
-
-        if (!isset($_SESSION['user_id'])) {
-            header("Location: http://$_SERVER[HTTP_HOST]/login"); 
-            exit();
-        }
+        $this->requireLogin();
 
         $doctorId = $_GET['id'] ?? $_GET['doctor_id'] ?? null;
 
@@ -69,11 +70,15 @@ class DoctorController extends AppController {
     public function apiGetSlots() {
         header('Content-Type: application/json');
         
-        $doctorId = (int)$_GET['doctor_id'];
-        $date = $_GET['date'];
+        $doctorId = (int)($_GET['doctor_id'] ?? 0);
+        $date = $_GET['date'] ?? '';
 
-        $repo = new AppointmentRepository();
-        $takenSlots = $repo->getTakenSlots($doctorId, $date);
+        if(!$doctorId || empty($date)) {
+            echo json_encode([]);
+            exit();
+        }
+
+        $takenSlots = $this->appointmentRepo->getTakenSlots($doctorId, $date);
 
         $allSlots = ['08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '13:00', '13:30', '14:00', '14:30', '15:00'];
 
@@ -95,12 +100,16 @@ class DoctorController extends AppController {
             $content = trim(file_get_contents("php://input"));
             $decoded = json_decode($content, true);
 
-            $doctorId = (int)$decoded['doctor_id'];
-            $startDate = $decoded['start_date'];
-            $endDate = $decoded['end_date'];
+            $doctorId = (int)($decoded['doctor_id'] ?? 0);
+            $startDate = $decoded['start_date'] ?? '';
+            $endDate = $decoded['end_date'] ?? '';
 
-            $repo = new AppointmentRepository();
-            $booked = $repo->getAppointmentsInRange($doctorId, $startDate, $endDate);
+            if(!$doctorId || empty($startDate) || empty($endDate)) {
+                echo json_encode([]);
+                exit();
+            }
+
+            $booked = $this->appointmentRepo->getAppointmentsInRange($doctorId, $startDate, $endDate);
 
             header('Content-Type: application/json');
             echo json_encode($booked);

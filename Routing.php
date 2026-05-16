@@ -96,39 +96,22 @@ class Routing {
     ];
 
     public static function run(string $path) {
-        switch($path) {
-            case 'dashboard':
-            case 'admin-dashboard': 
-            case '':
-            case 'login':
-            case 'register':
-            case 'find-doctor':
-            case 'search':
-            case 'book-appointment':
-            case 'confirm-appointment':
-            case 'cancel-appointment':
-            case 'doctor-availability':
-            case 'admin-update-appointment':
-            case 'admin-delete-appointment':
-            case 'admin-update-user':
-            case 'admin-delete-user':
-            case 'doctor-dashboard':
-            case 'doctor-update-status':
-            case 'api-search-doctors':
-            case 'api-get-appointments':
-            case 'api-get-slots':
-            case 'logout':
-                $controller = Routing::$routes[$path]["controller"];
-                $action = Routing::$routes[$path]["action"];
+        if (array_key_exists($path, self::$routes)) {
+            $controller = self::$routes[$path]["controller"];
+            $action = self::$routes[$path]["action"];
 
-                $controllerObj = new $controller;
-                $id = null;
+            $controllerObj = new $controller;
+            $id = null;
 
+            try {
                 $controllerObj->$action($id);
-                break; 
-            default:
-                include 'public/views/404.html';
-                break;
+            } catch (\Exception $e) {
+                http_response_code(500);
+                include 'public/views/500.html';
+            }
+        } else {
+            http_response_code(404);
+            include 'public/views/404.html';
         }
     }
 }

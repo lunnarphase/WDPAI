@@ -5,11 +5,14 @@ require_once __DIR__ . '/../repositories/UsersRepository.php';
 
 class SecurityController extends AppController {
 
-    public function login() {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
+    private $userRepository;
 
+    public function __construct(UsersRepository $userRepository = null) {
+        parent::__construct();
+        $this->userRepository = $userRepository ?: new UsersRepository();
+    }
+
+    public function login() {
         if (isset($_SESSION['user_id'])) {
             $url = "http://$_SERVER[HTTP_HOST]";
             if (isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'admin') {
@@ -31,8 +34,7 @@ class SecurityController extends AppController {
             return $this->render('login', ['messages' => ['Wypełnij wszystkie pola']]);
         }
 
-        $userRepository = new UsersRepository();
-        $user = $userRepository->getUserByEmail($email);
+        $user = $this->userRepository->getUserByEmail($email);
 
         if (!$user) {
             return $this->render('login', ['messages' => ['Nie znaleziono użytkownika']]);
@@ -71,10 +73,6 @@ class SecurityController extends AppController {
     }
 
     public function logout() {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
-        
         $_SESSION = [];
         
         if (ini_get("session.use_cookies")) {
@@ -93,9 +91,6 @@ class SecurityController extends AppController {
     }
 
     public function register() {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
         if (isset($_SESSION['user_id'])) {
             $url = "http://$_SERVER[HTTP_HOST]";
             header("Location: {$url}/dashboard");
@@ -118,11 +113,9 @@ class SecurityController extends AppController {
         }
 
         $username = strtolower($name . $surname);
-
-        $userRepository = new UsersRepository();
         
         try {
-            $userRepository->createUser(
+            $this->userRepository->createUser(
                 $email, 
                 password_hash($password, PASSWORD_BCRYPT), 
                 $username, 
