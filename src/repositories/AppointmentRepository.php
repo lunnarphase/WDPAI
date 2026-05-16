@@ -42,7 +42,7 @@ class AppointmentRepository extends Repository {
 
     public function getUpcomingAppointmentsForPatient(int $userId): array {
         $db = $this->database->connect();
-        $stmt = $db->prepare('
+        $stmt = $db->prepare("
             SELECT
                 a.id as appointment_id,
                 a.appointment_date,
@@ -51,7 +51,7 @@ class AppointmentRepository extends Repository {
                 a.recommendations,
                 u.username as doctor_name,
                 d.id as doctor_id,
-                (SELECT STRING_AGG(s.name, \', \')
+                (SELECT STRING_AGG(s.name, ', ')
                  FROM doctors_specializations ds
                  JOIN specializations s ON ds.id_specialization = s.id
                  WHERE ds.id_doctor = d.id) as specializations,
@@ -62,8 +62,10 @@ class AppointmentRepository extends Repository {
             JOIN users u ON d.id_user = u.id
             JOIN patients p ON a.id_patient = p.id
             WHERE p.id_user = :user_id
-            ORDER BY a.id DESC
-        ');
+            ORDER BY
+                (CASE WHEN a.status = 'completed' AND a.review_submitted = FALSE THEN 0 ELSE 1 END),
+                a.id DESC
+        ");
         
         $stmt->bindParam(':user_id', $userId, PDO::PARAM_INT);
         $stmt->execute();
@@ -299,5 +301,11 @@ class AppointmentRepository extends Repository {
         $stmt = $db->prepare('DELETE FROM notifications WHERE id_user = :user_id');
         $stmt->bindParam(':user_id', $userId, PDO::PARAM_INT);
         $stmt->execute();
+    }
+
+    public function deleteNotification(int $notifId, int $userId): void {
+        $db = $this->database->connect();
+        $stmt = $db->prepare('DELETE FROM notifications WHERE id = :id AND id_user = :user_id');
+        $stmt->execute([':id' => $notifId, ':user_id' => $userId]);
     }
 }

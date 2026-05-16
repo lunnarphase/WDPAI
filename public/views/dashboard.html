@@ -144,7 +144,7 @@
                                     <?php if($status !== 'cancelled' && $status !== 'completed'): ?>
                                         <button class="btn-secondary" onclick="openCancelModal(<?= $app['appointment_id'] ?>)">Anuluj</button>
                                     <?php endif; ?>
-                                    <?php if($status === 'completed' && !($app['review_submitted'] ?? false)): ?>
+                                    <?php if($status === 'completed' && $app['review_submitted'] !== 't' && $app['review_submitted'] !== true): ?>
                                         <button class="btn-secondary" style="background:#fefce8; color:#92400e; border-color:#fde68a; font-size:0.85rem;" onclick="openReviewModal(<?= $app['appointment_id'] ?>)"><i class="fa-regular fa-star"></i> Wystaw opinię</button>
                                     <?php endif; ?>
                                 </div>
@@ -248,24 +248,10 @@
         </div>
     </div>
 
-    <div id="notificationsModal" class="modal-overlay">
-        <div class="modal-content" style="max-width: 500px;">
-            <div class="history-header">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <h3 style="font-size: 1.25rem; color: #111827; margin: 0;">Powiadomienia</h3>
-                    <div style="display: flex; gap: 1rem; align-items: center;">
-                        <button onclick="clearAllNotifications()" style="background: none; border: none; font-size: 0.9rem; cursor: pointer; color: #ef4444; font-weight: 600;">Wyczyść wszystko</button>
-                        <button onclick="closeNotificationsModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280; line-height: 1;">&times;</button>
-                    </div>
-                </div>
-            </div>
-            <div id="notifications-list" class="history-body" style="max-height: 500px;">
-            </div>
-        </div>
-    </div>
+    <?php include __DIR__ . '/partials/notif_modal_user.html'; ?>
 
     <script>
-        const allAppointments = <?= json_encode($processedAppointments) ?>;
+        let allAppointments = <?= json_encode($processedAppointments) ?>;
         const allNotifications = <?= json_encode($notifications ?? []) ?>;
         function navToSpecialists() {
             const searchInput = document.getElementById('live-doctor-search');
@@ -392,24 +378,43 @@
             allNotifications.forEach(notification => {
                 const isReviewReq = notification.type === 'review_request';
                 const notifDiv = document.createElement('div');
-                notifDiv.style.cssText = `padding: 1rem; border-bottom: 1px solid #e2e8f0; background: white; ${isReviewReq ? 'cursor:pointer;' : ''}`;
+                notifDiv.setAttribute('data-notif-id', notification.id);
+                notifDiv.style.cssText = `padding: 1rem; border-bottom: 1px solid #e2e8f0; background: white; display: flex; align-items: flex-start; gap: 0.75rem;${isReviewReq ? ' cursor:pointer;' : ''}`;
                 if (isReviewReq) {
                     notifDiv.onmouseover = () => notifDiv.style.background = '#f0fdf4';
                     notifDiv.onmouseout  = () => notifDiv.style.background = 'white';
                     notifDiv.onclick = () => handleNotificationClick(notification);
                 }
+                const icon = isReviewReq
+                    ? '<i class="fa-solid fa-star" style="color:#f59e0b; margin-top:3px; flex-shrink:0;"></i>'
+                    : '<i class="fa-regular fa-bell" style="color:#64748b; margin-top:3px; flex-shrink:0;"></i>';
                 notifDiv.innerHTML = `
-                    <div style="display:flex; align-items:flex-start; gap:0.75rem;">
-                        ${isReviewReq ? '<i class="fa-solid fa-star" style="color:#f59e0b; margin-top:2px; flex-shrink:0;"></i>' : '<i class="fa-regular fa-bell" style="color:#64748b; margin-top:2px; flex-shrink:0;"></i>'}
-                        <div>
-                            <p style="margin: 0; color: #111827; font-size: 0.95rem;">${notification.message}</p>
-                            <p style="margin: 0.5rem 0 0 0; color: #9ca3af; font-size: 0.8rem;">${new Date(notification.created_at).toLocaleString('pl-PL')}</p>
-                            ${isReviewReq ? '<p style="margin:0.3rem 0 0;font-size:0.8rem;color:#125B46;font-weight:600;">Kliknij, aby wystawić opinię →</p>' : ''}
-                        </div>
+                    ${icon}
+                    <div style="flex:1; min-width:0;">
+                        <p style="margin: 0; color: #111827; font-size: 0.95rem;">${notification.message}</p>
+                        <p style="margin: 0.5rem 0 0 0; color: #9ca3af; font-size: 0.8rem;">${new Date(notification.created_at).toLocaleString('pl-PL')}</p>
+                        ${isReviewReq ? '<p style="margin:0.3rem 0 0;font-size:0.8rem;color:#125B46;font-weight:600;">Kliknij, aby wystawić opinię →</p>' : ''}
                     </div>
+                    <button onclick="event.stopPropagation(); dismissNotification(${notification.id}, this)" style="background:none; border:none; color:#9ca3af; font-size:1.1rem; cursor:pointer; padding:0 0 0 0.5rem; flex-shrink:0; line-height:1;" title="Usuń powiadomienie">&times;</button>
                 `;
                 notificationsList.appendChild(notifDiv);
             });
+        }
+
+        function dismissNotification(id, btn) {
+            fetch('/api-delete-notification', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({id: id})
+            }).then(r => r.json()).then(data => {
+                if (data.success) {
+                    const idx = allNotifications.findIndex(n => n.id === id);
+                    if (idx !== -1) allNotifications.splice(idx, 1);
+                    const el = btn.closest('[data-notif-id]');
+                    if (el) el.remove();
+                    if (allNotifications.length === 0) renderNotificationsModal();
+                }
+            }).catch(err => console.error(err));
         }
 
         notificationsModal.addEventListener('click', function(e) { if (e.target === notificationsModal) closeNotificationsModal(); });
@@ -733,9 +738,9 @@
 
         // --- REVIEW REQUEST W POWIADOMIENIACH ---
         const reviewedAppointmentIds = new Set(<?= json_encode(
-            array_map(fn($a) => $a['appointment_id'],
-                array_filter($processedAppointments, fn($a) => $a['review_submitted'] ?? false)
-            )
+            array_values(array_map(fn($a) => $a['appointment_id'],
+                array_filter($processedAppointments, fn($a) => ($a['review_submitted'] === 't' || $a['review_submitted'] === true))
+            ))
         ) ?>);
 
         function handleNotificationClick(notification) {

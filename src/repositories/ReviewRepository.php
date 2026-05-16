@@ -105,19 +105,45 @@ class ReviewRepository extends Repository {
             VALUES (?, ?, ?, ?) RETURNING id
         ');
         $stmt->execute([$reviewId, $reporterUserId, $category, $reason]);
-        $reportId = $stmt->fetchColumn();
+
+        // Pobierz dane do wzbogacenia wiadomości
+        $detailStmt = $db->prepare("
+            SELECT u_doctor.username as doctor_name
+            FROM reviews r
+            JOIN doctors d ON r.id_doctor = d.id
+            JOIN users u_doctor ON d.id_user = u_doctor.id
+            WHERE r.id = ?
+        ");
+        $detailStmt->execute([$reviewId]);
+        $details = $detailStmt->fetch(PDO::FETCH_ASSOC);
+        $doctorName = $details['doctor_name'] ?? 'Nieznany lekarz';
+
+        $reporterStmt = $db->prepare('SELECT username FROM users WHERE id = ?');
+        $reporterStmt->execute([$reporterUserId]);
+        $reporterName = $reporterStmt->fetchColumn() ?? 'Nieznany';
+        $reporterAnon = mb_strtoupper(mb_substr($reporterName, 0, 1)) . '*****';
+
+        $categoryLabels = [
+            'inappropriate' => 'Nieodpowiednia treść',
+            'spam' => 'Spam',
+            'fake' => 'Fałszywa opinia',
+            'other' => 'Inne',
+        ];
+        $categoryLabel = $categoryLabels[$category] ?? $category;
+
+        $message = "Opinia dla dr. {$doctorName} — zgłoszona przez: {$reporterAnon} | Kat.: {$categoryLabel}";
 
         // Powiadomienie dla wszystkich administratorów
         $adminStmt = $db->prepare("SELECT u.id FROM users u JOIN roles r ON u.id_role = r.id WHERE r.name = 'admin'");
         $adminStmt->execute();
         $admins = $adminStmt->fetchAll(PDO::FETCH_COLUMN);
 
-        $notifStmt = $db->prepare('
+        $notifStmt = $db->prepare("
             INSERT INTO notifications (id_user, message, type, related_id)
-            VALUES (?, \'Nowe zgłoszenie opinii oczekuje na Twoją weryfikację.\', \'report\', ?)
-        ');
+            VALUES (?, ?, 'report', ?)
+        ");
         foreach ($admins as $adminId) {
-            $notifStmt->execute([$adminId, $reviewId]);
+            $notifStmt->execute([$adminId, $message, $reviewId]);
         }
     }
 
@@ -169,6 +195,8 @@ class ReviewRepository extends Repository {
 
     public function deleteReviewAdmin(int $reviewId): void {
         $db = $this->database->connect();
+        // Usuń powiadomienia admina dot. tego zgłoszenia przed usunięciem opinii
+        $db->prepare("DELETE FROM notifications WHERE type = 'report' AND related_id = ?")->execute([$reviewId]);
         $stmt = $db->prepare('DELETE FROM reviews WHERE id = ?');
         $stmt->execute([$reviewId]);
     }
@@ -190,7 +218,7 @@ class ReviewRepository extends Repository {
     public function dismissReport(int $reportId, string $adminResponse): void {
         $db = $this->database->connect();
 
-        $stmt = $db->prepare('SELECT id_reporter FROM review_reports WHERE id = ?');
+        $stmt = $db->prepare('SELECT id_reporter, id_review FROM review_reports WHERE id = ?');
         $stmt->execute([$reportId]);
         $report = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$report) return;
@@ -201,6 +229,13 @@ class ReviewRepository extends Repository {
         $msg = 'Twoje zgłoszenie opinii zostało rozpatrzone przez administratora. Odpowiedź: ' . $adminResponse;
         $stmt = $db->prepare("INSERT INTO notifications (id_user, message, type) VALUES (?, ?, 'report_dismissed')");
         $stmt->execute([$report['id_reporter'], $msg]);
+
+        // Jeśli nie ma więcej oczekujących zgłoszeń dla tej opinii, usuń powiadomienie admina
+        $pendingStmt = $db->prepare("SELECT COUNT(*) FROM review_reports WHERE id_review = ? AND status = 'pending'");
+        $pendingStmt->execute([$report['id_review']]);
+        if ((int)$pendingStmt->fetchColumn() === 0) {
+            $db->prepare("DELETE FROM notifications WHERE type = 'report' AND related_id = ?")->execute([$report['id_review']]);
+        }
     }
 
     public function resolveReportByDeletion(int $reviewId): void {
@@ -210,6 +245,9 @@ class ReviewRepository extends Repository {
         $stmt = $db->prepare("SELECT DISTINCT id_reporter FROM review_reports WHERE id_review = ? AND status = 'pending'");
         $stmt->execute([$reviewId]);
         $reporters = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+        // Usuń powiadomienia admina dla tego zgłoszenia
+        $db->prepare("DELETE FROM notifications WHERE type = 'report' AND related_id = ?")->execute([$reviewId]);
 
         // Usuń opinię — kaskadowo usunie też review_reports
         $stmt = $db->prepare('DELETE FROM reviews WHERE id = ?');

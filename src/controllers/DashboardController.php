@@ -113,6 +113,17 @@ class DashboardController extends AppController {
         exit();
     }
 
+    public function apiDeleteNotification() {
+        $this->requireLogin();
+        header('Content-Type: application/json');
+        $input = json_decode(file_get_contents('php://input'), true);
+        $notifId = (int)($input['id'] ?? 0);
+        if ($notifId <= 0) { echo json_encode(['success' => false, 'error' => 'Invalid id']); exit(); }
+        $this->appointmentRepo->deleteNotification($notifId, $_SESSION['user_id']);
+        echo json_encode(['success' => true]);
+        exit();
+    }
+
     public function apiGetProfile() {
         $this->requireLogin();
         header('Content-Type: application/json');

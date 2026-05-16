@@ -57,7 +57,7 @@
             <button onclick="openNotificationsModal()" title="Powiadomienia" style="position:relative; background:none; border:1px solid #e2e8f0; border-radius:8px; padding:8px 12px; cursor:pointer; color:#64748b; font-size:1.1rem; transition:0.2s;" onmouseover="this.style.color='#0f172a'" onmouseout="this.style.color='#64748b'">
                 <i class="fa-regular fa-bell"></i>
                 <?php if($notifCount > 0): ?>
-                    <span style="position:absolute; top:-5px; right:-5px; background:#ef4444; color:white; border-radius:50%; width:18px; height:18px; font-size:0.7rem; font-weight:700; display:flex; align-items:center; justify-content:center;"><?= $notifCount ?></span>
+                    <span id="doctor-notif-badge" style="position:absolute; top:-5px; right:-5px; background:#ef4444; color:white; border-radius:50%; width:18px; height:18px; font-size:0.7rem; font-weight:700; display:flex; align-items:center; justify-content:center;"><?= $notifCount ?></span>
                 <?php endif; ?>
             </button>
             <button onclick="openDoctorProfileEditModal()" title="Edytuj profil" style="background:none; border:1px solid #e2e8f0; border-radius:8px; padding:8px 12px; cursor:pointer; color:#64748b; font-size:1.1rem; transition:0.2s;" onmouseover="this.style.color='#0f172a'" onmouseout="this.style.color='#64748b'"><i class="fa-regular fa-user"></i></button>
@@ -455,14 +455,16 @@
                 allDoctorNotifications.forEach(n => {
                     const isNew = n.type === 'new_review';
                     const div = document.createElement('div');
-                    div.style.cssText = 'padding:1rem; border-bottom:1px solid #e2e8f0;';
-                    div.innerHTML = `<div style="display:flex; align-items:flex-start; gap:0.75rem;">
-                        ${isNew ? '<i class="fa-solid fa-star" style="color:#f59e0b; margin-top:2px;"></i>' : '<i class="fa-regular fa-bell" style="color:#64748b; margin-top:2px;"></i>'}
-                        <div>
+                    div.setAttribute('data-notif-id', n.id);
+                    div.style.cssText = 'padding:1rem; border-bottom:1px solid #e2e8f0; display:flex; align-items:flex-start; gap:0.75rem;';
+                    div.innerHTML = `
+                        ${isNew ? '<i class="fa-solid fa-star" style="color:#f59e0b; margin-top:3px; flex-shrink:0;"></i>' : '<i class="fa-regular fa-bell" style="color:#64748b; margin-top:3px; flex-shrink:0;"></i>'}
+                        <div style="flex:1; min-width:0;">
                             <p style="margin:0; color:#111827; font-size:0.95rem;">${escHtml(n.message)}</p>
                             <p style="margin:0.4rem 0 0; color:#9ca3af; font-size:0.8rem;">${new Date(n.created_at).toLocaleString('pl-PL')}</p>
                         </div>
-                    </div>`;
+                        <button onclick="dismissDoctorNotification(${n.id}, this)" style="background:none; border:none; color:#9ca3af; font-size:1.1rem; cursor:pointer; padding:0 0 0 0.5rem; flex-shrink:0; line-height:1;" title="Usuń powiadomienie">&times;</button>
+                    `;
                     list.appendChild(div);
                 });
             }
@@ -471,6 +473,36 @@
             fetch('/api-mark-notifications-read', {method:'POST'});
         }
         function closeNotificationsModal() { document.getElementById('doctorNotifModal').classList.remove('active'); }
+
+        function dismissDoctorNotification(id, btn) {
+            fetch('/api-delete-notification', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({id: id})
+            }).then(r => r.json()).then(data => {
+                if (data.success) {
+                    const idx = allDoctorNotifications.findIndex(n => n.id === id);
+                    if (idx !== -1) allDoctorNotifications.splice(idx, 1);
+                    const el = btn.closest('[data-notif-id]');
+                    if (el) el.remove();
+                    const list = document.getElementById('doctor-notif-list');
+                    if (allDoctorNotifications.length === 0) {
+                        list.innerHTML = '<p style="text-align:center; color:#64748b; padding:2rem;">Brak powiadomień.</p>';
+                    }
+                }
+            }).catch(err => console.error(err));
+        }
+
+        function clearAllDoctorNotifications() {
+            if (!confirm('Wyczyścić wszystkie powiadomienia?')) return;
+            fetch('/api-clear-notifications', {method:'POST'})
+                .then(r => r.json())
+                .then(() => {
+                    allDoctorNotifications.splice(0);
+                    document.getElementById('doctor-notif-list').innerHTML = '<p style="text-align:center; color:#64748b; padding:2rem;">Brak powiadomień.</p>';
+                    const badge = document.getElementById('doctor-notif-badge');
+                    if (badge) badge.style.display = 'none';
+                }).catch(err => console.error(err));
+        }
 
         function escHtml(str) {
             return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -523,7 +555,10 @@
         <div class="doctor-modal-content" style="max-width:520px; max-height:85vh; display:flex; flex-direction:column; padding:0;">
             <div style="padding:1.25rem 1.5rem; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
                 <h3 style="margin:0; font-size:1.2rem;">Powiadomienia</h3>
-                <button onclick="closeNotificationsModal()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#64748b;">&times;</button>
+                <div style="display:flex; gap:0.75rem; align-items:center;">
+                    <button onclick="clearAllDoctorNotifications()" style="background:none; border:none; font-size:0.85rem; cursor:pointer; color:#ef4444; font-weight:600;">Wyczyść wszystko</button>
+                    <button onclick="closeNotificationsModal()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#64748b;">&times;</button>
+                </div>
             </div>
             <div id="doctor-notif-list" style="overflow-y:auto; flex:1; padding:0;"></div>
         </div>

@@ -85,12 +85,15 @@
         </div>
 
         <div id="tab-wizyty" style="background: white; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; margin-bottom: 2rem;">
-            <div style="padding: 1.5rem; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+            <div style="padding: 1.5rem; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
                 <h2 style="margin: 0; display: flex; align-items: center; gap: 10px; font-size: 1.3rem;">
                     <span style="display: inline-block; width: 6px; height: 24px; background-color: #125B46; border-radius: 4px;"></span>
                     Zarządzanie wizytami
                 </h2>
-                <div style="display: flex; gap: 0.5rem;">
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+                    <input type="text" id="appointmentSearchPatient" onkeyup="filterAppointments()" placeholder="Szukaj pacjenta..." style="padding: 0.45rem 0.75rem; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; font-size: 0.9rem;">
+                    <input type="text" id="appointmentSearchDoctor" onkeyup="filterAppointments()" placeholder="Szukaj lekarza..." style="padding: 0.45rem 0.75rem; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; font-size: 0.9rem;">
+                    <input type="date" id="appointmentSearchDate" onchange="filterAppointments()" style="padding: 0.45rem 0.75rem; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; font-size: 0.9rem;">
                     <select id="appointmentFilter" onchange="filterAppointments()" style="padding: 0.4rem; border-radius: 6px; border: 1px solid #cbd5e1; outline: none; font-weight: 600; color: #475569;">
                         <option value="active" selected>Tylko aktywne</option>
                         <option value="all">Wszystkie</option>
@@ -115,7 +118,11 @@
                             <tr><td colspan="5" style="text-align: center; padding: 3rem; color: #64748b;">Brak wizyt w systemie.</td></tr>
                         <?php else: ?>
                             <?php foreach ($appointments as $app): ?>
-                                <tr class="app-row" data-status="<?= $app['status'] ?>" style="border-bottom: 1px solid #e2e8f0; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
+                                <tr class="app-row"
+                                    data-status="<?= $app['status'] ?>"
+                                    data-patient="<?= htmlspecialchars(strtolower($app['patient_name']), ENT_QUOTES) ?>"
+                                    data-doctor="<?= htmlspecialchars(strtolower($app['doctor_name']), ENT_QUOTES) ?>"
+                                    data-date="<?= $app['appointment_date'] ?>" style="border-bottom: 1px solid #e2e8f0; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
                                     <td style="padding: 1.25rem 1.5rem; font-weight: 600; color: #0f172a;"><?= htmlspecialchars($app['patient_name']) ?></td>
                                     <td style="padding: 1.25rem 1.5rem; color: #475569;">dr <?= htmlspecialchars($app['doctor_name']) ?></td>
                                     <td style="padding: 1.25rem 1.5rem;">
@@ -493,7 +500,10 @@
         <div class="admin-modal-content" style="max-width:520px; max-height:85vh; display:flex; flex-direction:column;">
             <div style="padding:1.25rem 1.5rem; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
                 <h3 style="margin:0; font-size:1.2rem;">Powiadomienia</h3>
-                <button onclick="closeNotificationsModal()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#64748b;">&times;</button>
+                <div style="display:flex; gap:0.75rem; align-items:center;">
+                    <button onclick="clearAllAdminNotifications()" style="background:none; border:none; font-size:0.85rem; cursor:pointer; color:#ef4444; font-weight:600;">Wyczyść wszystko</button>
+                    <button onclick="closeNotificationsModal()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#64748b;">&times;</button>
+                </div>
             </div>
             <div id="admin-notif-list" style="overflow-y:auto; flex:1; padding:0;"></div>
         </div>
@@ -529,14 +539,25 @@
         }
 
         function filterAppointments() {
-            const filter = document.getElementById('appointmentFilter').value;
+            const statusFilter = document.getElementById('appointmentFilter').value;
+            const patientQuery = (document.getElementById('appointmentSearchPatient')?.value || '').toLowerCase().trim();
+            const doctorQuery = (document.getElementById('appointmentSearchDoctor')?.value || '').toLowerCase().trim();
+            const dateFilter = document.getElementById('appointmentSearchDate')?.value || '';
+
             document.querySelectorAll('.app-row').forEach(row => {
                 const status = row.getAttribute('data-status');
-                if (filter === 'all' || (filter === 'active' && status !== 'cancelled') || (filter === 'cancelled' && status === 'cancelled')) {
-                    row.style.display = '';
-                } else {
-                    row.style.display = 'none';
-                }
+                const patient = row.getAttribute('data-patient') || '';
+                const doctor = row.getAttribute('data-doctor') || '';
+                const date = row.getAttribute('data-date') || '';
+
+                const matchesStatus = statusFilter === 'all' ||
+                    (statusFilter === 'active' && status !== 'cancelled') ||
+                    (statusFilter === 'cancelled' && status === 'cancelled');
+                const matchesPatient = !patientQuery || patient.includes(patientQuery);
+                const matchesDoctor = !doctorQuery || doctor.includes(doctorQuery);
+                const matchesDate = !dateFilter || date === dateFilter;
+
+                row.style.display = (matchesStatus && matchesPatient && matchesDoctor && matchesDate) ? '' : 'none';
             });
         }
         document.addEventListener('DOMContentLoaded', filterAppointments);
@@ -797,27 +818,58 @@
                 allAdminNotifications.forEach(n => {
                     const isReport = n.type === 'report';
                     const div = document.createElement('div');
-                    div.style.cssText = 'padding:1rem; border-bottom:1px solid #e2e8f0;';
+                    div.setAttribute('data-notif-id', n.id);
+                    div.style.cssText = 'padding:1rem; border-bottom:1px solid #e2e8f0; display:flex; align-items:flex-start; gap:0.75rem;';
                     let actionsHtml = '';
                     if (isReport && n.related_id) {
                         actionsHtml = `<div style="display:flex; gap:0.5rem; margin-top:0.6rem;">
                             <button onclick="closeNotificationsModal(); openReviewManageModal(${n.related_id})" style="display:flex; align-items:center; gap:0.4rem; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; border-radius:6px; padding:0.35rem 0.75rem; font-size:0.8rem; font-weight:600; cursor:pointer;" title="Zarządzaj opinią"><i class="fa-solid fa-pen-to-square"></i> Zarządzaj</button>
-                            <button onclick="quickDeleteFromNotif(${n.related_id}, this.closest('div[data-notif]'))" style="display:flex; align-items:center; gap:0.4rem; background:#fef2f2; color:#dc2626; border:1px solid #fecaca; border-radius:6px; padding:0.35rem 0.75rem; font-size:0.8rem; font-weight:600; cursor:pointer;" title="Usuń opinię"><i class="fa-solid fa-trash"></i> Usuń opinię</button>
+                            <button onclick="quickDeleteFromNotif(${n.related_id}, this.closest('div[data-notif-id]'))" style="display:flex; align-items:center; gap:0.4rem; background:#fef2f2; color:#dc2626; border:1px solid #fecaca; border-radius:6px; padding:0.35rem 0.75rem; font-size:0.8rem; font-weight:600; cursor:pointer;" title="Usuń opinię"><i class="fa-solid fa-trash"></i> Usuń opinię</button>
                         </div>`;
                     }
-                    div.setAttribute('data-notif', n.id);
-                    div.innerHTML = `<div style="display:flex; align-items:flex-start; gap:0.75rem;">
-                        ${isReport ? '<i class="fa-solid fa-flag" style="color:#f59e0b; margin-top:2px;"></i>' : '<i class="fa-regular fa-bell" style="color:#64748b; margin-top:2px;"></i>'}
-                        <div style="flex:1;">
-                            <p style="margin:0; color:#111827; font-size:0.95rem;">${escHtml(n.message)}</p>
+                    div.innerHTML = `
+                        ${isReport ? '<i class="fa-solid fa-flag" style="color:#f59e0b; margin-top:3px; flex-shrink:0;"></i>' : '<i class="fa-regular fa-bell" style="color:#64748b; margin-top:3px; flex-shrink:0;"></i>'}
+                        <div style="flex:1; min-width:0;">
+                            <p style="margin:0; color:#111827; font-size:0.95rem;"><span style="font-size:0.72rem; color:#94a3b8; font-family:monospace; margin-right:0.4rem;">#${n.id}</span>${escHtml(n.message)}</p>
                             <p style="margin:0.4rem 0 0; color:#9ca3af; font-size:0.8rem;">${new Date(n.created_at).toLocaleString('pl-PL')}</p>
                             ${actionsHtml}
                         </div>
-                    </div>`;
+                        <button onclick="dismissAdminNotification(${n.id}, this)" style="background:none; border:none; color:#9ca3af; font-size:1.1rem; cursor:pointer; padding:0 0 0 0.5rem; flex-shrink:0; line-height:1;" title="Usuń powiadomienie">&times;</button>
+                    `;
                     list.appendChild(div);
                 });
             }
             document.getElementById('adminNotifModal').classList.add('active');
+        }
+
+        function dismissAdminNotification(id, btn) {
+            fetch('/api-delete-notification', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({id: id})
+            }).then(r => r.json()).then(data => {
+                if (data.success) {
+                    const idx = allAdminNotifications.findIndex(n => n.id === id);
+                    if (idx !== -1) allAdminNotifications.splice(idx, 1);
+                    const el = btn.closest('[data-notif-id]');
+                    if (el) el.remove();
+                    const list = document.getElementById('admin-notif-list');
+                    if (allAdminNotifications.length === 0) {
+                        list.innerHTML = '<p style="text-align:center; color:#64748b; padding:2rem;">Brak powiadomień.</p>';
+                    }
+                }
+            }).catch(err => console.error(err));
+        }
+
+        function clearAllAdminNotifications() {
+            if (!confirm('Wyczyścić wszystkie powiadomienia?')) return;
+            fetch('/api-clear-notifications', {method:'POST'})
+                .then(r => r.json())
+                .then(() => {
+                    allAdminNotifications.splice(0);
+                    document.getElementById('admin-notif-list').innerHTML = '<p style="text-align:center; color:#64748b; padding:2rem;">Brak powiadomień.</p>';
+                    const badge = document.getElementById('admin-notif-badge');
+                    if (badge) badge.style.display = 'none';
+                }).catch(err => console.error(err));
         }
 
         function quickDeleteFromNotif(reviewId, notifEl) {

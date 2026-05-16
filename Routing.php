@@ -107,7 +107,12 @@ class Routing {
         ],
         "api-clear-notifications" => [
             "controller" => "DashboardController",
-            "action" => "apiClearNotifications"        ],
+            "action" => "apiClearNotifications"
+        ],
+        "api-delete-notification" => [
+            "controller" => "DashboardController",
+            "action" => "apiDeleteNotification"
+        ],
         "api-get-profile" => [
             "controller" => "DashboardController",
             "action" => "apiGetProfile"
