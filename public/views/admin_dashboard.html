@@ -40,6 +40,9 @@
                 <a href="#" onclick="switchTab('opinie')">Wystawione opinie</a>
             </div>
         </div>
+        <button class="hamburger-btn" onclick="toggleAdminMobileMenu()" style="display:none;">
+            <i class="fa-solid fa-bars"></i>
+        </button>
         <div class="nav-right">
             <div style="position:relative; display:inline-block;">
                 <button id="notifBellBtn" onclick="openNotificationsModal()" title="Powiadomienia" style="background:none; border:1px solid #e2e8f0; border-radius:8px; padding:8px 12px; cursor:pointer; color:#64748b; font-size:1.1rem; transition:0.2s;" onmouseover="this.style.color='#0f172a'" onmouseout="this.style.color='#64748b'"><i class="fa-regular fa-bell"></i></button>
@@ -49,6 +52,13 @@
                 <?php endif; ?>
             </div>
             <a href="/logout" class="logout-link-admin"><i class="fa-solid fa-arrow-right-from-bracket"></i> Wyloguj</a>
+        </div>
+        <div class="mobile-menu" id="adminMobileMenu">
+            <a href="#" onclick="switchTab('wizyty'); toggleAdminMobileMenu();"><i class="fa-regular fa-calendar-check"></i> Wizyty</a>
+            <a href="#" onclick="switchTab('uzytkownicy'); toggleAdminMobileMenu();"><i class="fa-solid fa-users"></i> Użytkownicy</a>
+            <a href="#" onclick="switchTab('opinie'); toggleAdminMobileMenu();"><i class="fa-regular fa-star"></i> Wystawione opinie</a>
+            <a href="#" onclick="openNotificationsModal(); toggleAdminMobileMenu();"><i class="fa-regular fa-bell"></i> Powiadomienia</a>
+            <a href="/logout"><i class="fa-solid fa-arrow-right-from-bracket"></i> Wyloguj</a>
         </div>
     </nav>
 
@@ -267,6 +277,9 @@
                                 <td style="padding:1.25rem 1.5rem; color:#475569; max-width:250px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><?= htmlspecialchars($rev['comment'] ?? '') ?></td>
                                 <td style="padding:1.25rem 1.5rem; color:#64748b; font-size:0.9rem;"><?= date('d.m.Y', strtotime($rev['created_at'])) ?></td>
                                 <td style="padding:1.25rem 1.5rem; text-align:right;">
+                                    <?php if ((int)$rev['pending_reports'] > 0): ?>
+                                        <span title="<?= (int)$rev['pending_reports'] ?> oczekujące zgłoszenie(a)" style="display:inline-flex; align-items:center; justify-content:center; background:#dc2626; color:white; border-radius:50%; width:22px; height:22px; font-size:0.72rem; font-weight:700; margin-right:6px; vertical-align:middle; cursor:default;"><?= (int)$rev['pending_reports'] ?></span>
+                                    <?php endif; ?>
                                     <button class="admin-action-btn btn-edit" onclick="openReviewManageModal(<?= $rev['id'] ?>)"><i class="fa-solid fa-flag"></i> Zarządzaj</button>
                                     <button class="btn-delete" style="padding:8px 12px; font-size:0.85rem;" onclick="quickDeleteReview(<?= $rev['id'] ?>, this)"><i class="fa-solid fa-trash"></i></button>
                                 </td>
@@ -529,6 +542,10 @@
         });
 
         // -- WIZYTY I ZAKŁADKI --
+        function toggleAdminMobileMenu() {
+            document.getElementById('adminMobileMenu').classList.toggle('active');
+        }
+
         function switchTab(tabName) {
             document.querySelectorAll('.nav-links a').forEach(link => link.classList.remove('active'));
             event.target.classList.add('active');
@@ -738,7 +755,7 @@
                     const date = new Date(rep.created_at).toLocaleDateString('pl-PL');
                     html += `<div style="border:1px solid #e2e8f0; border-radius:8px; padding:1rem; margin-bottom:0.75rem;">
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
-                            <span style="font-size:0.8rem; font-weight:700; background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:4px;">${escHtml(rep.category)}</span>
+                            <span style="font-size:0.8rem; font-weight:700; background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:4px;">${escHtml({'inappropriate':'Nieodpowiednia treść','spam':'Spam','fake':'Fałszywa opinia'}[rep.category] || rep.category)}</span>
                             <span style="color:#94a3b8; font-size:0.8rem;">${date}</span>
                         </div>
                         <p style="margin:0 0 0.75rem; color:#374151; font-size:0.9rem;">${escHtml(rep.reason)}</p>
@@ -827,10 +844,22 @@
                             <button onclick="quickDeleteFromNotif(${n.related_id}, this.closest('div[data-notif-id]'))" style="display:flex; align-items:center; gap:0.4rem; background:#fef2f2; color:#dc2626; border:1px solid #fecaca; border-radius:6px; padding:0.35rem 0.75rem; font-size:0.8rem; font-weight:600; cursor:pointer;" title="Usuń opinię"><i class="fa-solid fa-trash"></i> Usuń opinię</button>
                         </div>`;
                     }
+                    const msgLines = n.message.split('\n');
+                    const firstLine = escHtml(msgLines[0]);
+                    const restLines = msgLines.slice(1).map(l => {
+                        const colonIdx = l.indexOf(':');
+                        if (colonIdx !== -1 && l.trimStart().startsWith('Powód')) {
+                            const label = escHtml(l.substring(0, colonIdx + 1));
+                            const value = escHtml(l.substring(colonIdx + 2).trim());
+                            return `<span style="display:block; font-size:0.85rem; color:#475569; margin-top:0.25rem;">${label} <em>&ldquo;${value}&rdquo;</em></span>`;
+                        }
+                        return `<span style="display:block; font-size:0.85rem; color:#475569; margin-top:0.25rem;">${escHtml(l)}</span>`;
+                    }).join('');
                     div.innerHTML = `
                         ${isReport ? '<i class="fa-solid fa-flag" style="color:#f59e0b; margin-top:3px; flex-shrink:0;"></i>' : '<i class="fa-regular fa-bell" style="color:#64748b; margin-top:3px; flex-shrink:0;"></i>'}
                         <div style="flex:1; min-width:0;">
-                            <p style="margin:0; color:#111827; font-size:0.95rem;"><span style="font-size:0.72rem; color:#94a3b8; font-family:monospace; margin-right:0.4rem;">#${n.id}</span>${escHtml(n.message)}</p>
+                            <p style="margin:0; color:#111827; font-size:0.95rem;"><span style="font-size:0.72rem; color:#94a3b8; font-family:monospace; margin-right:0.4rem;">#${n.id}</span><strong>${firstLine}</strong></p>
+                            ${restLines}
                             <p style="margin:0.4rem 0 0; color:#9ca3af; font-size:0.8rem;">${new Date(n.created_at).toLocaleString('pl-PL')}</p>
                             ${actionsHtml}
                         </div>

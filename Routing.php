@@ -100,7 +100,12 @@ class Routing {
         ],
         "api-get-slots" => [
             "controller" => "DoctorController",
-            "action" => "apiGetSlots"        ],
+            "action" => "apiGetSlots"
+        ],
+        "api-get-doctor-appointments" => [
+            "controller" => "DoctorController",
+            "action" => "apiGetDoctorAppointments"
+        ],
         "api-mark-notifications-read" => [
             "controller" => "DashboardController",
             "action" => "apiMarkNotificationsRead"

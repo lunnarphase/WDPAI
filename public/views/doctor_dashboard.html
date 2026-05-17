@@ -52,6 +52,9 @@
                 <a href="#" onclick="switchTab('opinie', this)">Twoje opinie</a>
             </div>
         </div>
+        <button class="hamburger-btn" onclick="toggleDoctorMobileMenu()" style="display:none;">
+            <i class="fa-solid fa-bars"></i>
+        </button>
         <div class="nav-right">
             <?php $notifCount = count(array_filter($notifications ?? [], fn($n) => !$n['is_read'])); ?>
             <button onclick="openNotificationsModal()" title="Powiadomienia" style="position:relative; background:none; border:1px solid #e2e8f0; border-radius:8px; padding:8px 12px; cursor:pointer; color:#64748b; font-size:1.1rem; transition:0.2s;" onmouseover="this.style.color='#0f172a'" onmouseout="this.style.color='#64748b'">
@@ -62,6 +65,14 @@
             </button>
             <button onclick="openDoctorProfileEditModal()" title="Edytuj profil" style="background:none; border:1px solid #e2e8f0; border-radius:8px; padding:8px 12px; cursor:pointer; color:#64748b; font-size:1.1rem; transition:0.2s;" onmouseover="this.style.color='#0f172a'" onmouseout="this.style.color='#64748b'"><i class="fa-regular fa-user"></i></button>
             <a href="/logout" class="logout-link"><i class="fa-solid fa-arrow-right-from-bracket"></i> Wyloguj</a>
+        </div>
+        <div class="mobile-menu" id="doctorMobileMenu">
+            <a href="#" onclick="switchTab('harmonogram', this); toggleDoctorMobileMenu();"><i class="fa-regular fa-calendar-check"></i> Mój Harmonogram</a>
+            <a href="#" onclick="switchTab('historia', this); toggleDoctorMobileMenu();"><i class="fa-solid fa-clock-rotate-left"></i> Historia wizyt</a>
+            <a href="#" onclick="switchTab('opinie', this); toggleDoctorMobileMenu();"><i class="fa-regular fa-star"></i> Twoje opinie</a>
+            <a href="#" onclick="openNotificationsModal(); toggleDoctorMobileMenu();"><i class="fa-regular fa-bell"></i> Powiadomienia</a>
+            <a href="#" onclick="openDoctorProfileEditModal(); toggleDoctorMobileMenu();"><i class="fa-regular fa-user"></i> Edytuj profil</a>
+            <a href="/logout"><i class="fa-solid fa-arrow-right-from-bracket"></i> Wyloguj</a>
         </div>
     </nav>
 
@@ -91,9 +102,12 @@
                     <span style="display: inline-block; width: 6px; height: 24px; background-color: #2563eb; border-radius: 4px;"></span>
                     Nadchodzące i dzisiejsze wizyty
                 </h2>
-                <div style="position: relative;">
-                    <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
-                    <input type="text" id="searchActive" onkeyup="searchAppointments('active-table', 'searchActive')" placeholder="Szukaj (pacjent, PESEL)..." style="padding: 0.5rem 0.5rem 0.5rem 2.2rem; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; font-size: 0.9rem; min-width: 250px;">
+                <div style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;">
+                    <button onclick="refreshSchedule(true)" id="refresh-schedule-btn" title="Odśwież harmonogram" style="background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; border-radius:8px; padding:0.45rem 0.9rem; font-size:0.9rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px; transition:0.2s;" onmouseover="this.style.background='#dbeafe'" onmouseout="this.style.background='#eff6ff'"><i class="fa-solid fa-rotate-right"></i> Odśwież</button>
+                    <div style="position: relative;">
+                        <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
+                        <input type="text" id="searchActive" onkeyup="searchAppointments('active-table', 'searchActive')" placeholder="Szukaj (pacjent, PESEL)..." style="padding: 0.5rem 0.5rem 0.5rem 2.2rem; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; font-size: 0.9rem; min-width: 250px;">
+                    </div>
                 </div>
             </div>
             <div style="overflow-x: auto;">
@@ -350,6 +364,10 @@
             summaryStarsEl.innerHTML = html;
         }
 
+        function toggleDoctorMobileMenu() {
+            document.getElementById('doctorMobileMenu').classList.toggle('active');
+        }
+
         function switchTab(tabName, element) {
             document.querySelectorAll('.nav-links a').forEach(link => link.classList.remove('active'));
             if (element) element.classList.add('active');
@@ -377,6 +395,62 @@
                 }
             });
         }
+
+        // --- AUTO-REFRESH HARMONOGRAMU ---
+        function formatScheduleModalDateTime(dateStr, timeStr) {
+            const t = timeStr.substring(0, 5);
+            const d = new Date(dateStr + 'T00:00:00');
+            const day = String(d.getDate()).padStart(2, '0');
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const year = d.getFullYear();
+            return `${t}, ${day}.${month}.${year}`;
+        }
+        function formatScheduleDisplayDate(dateStr) {
+            const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            const d = new Date(dateStr + 'T00:00:00');
+            return `${String(d.getDate()).padStart(2,'0')} ${months[d.getMonth()]} ${d.getFullYear()}`;
+        }
+        function safeAttr(str) {
+            return String(str || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r/g, '\\r').replace(/\n/g, '\\n');
+        }
+
+        function refreshSchedule(manual = false) {
+            const btn = document.getElementById('refresh-schedule-btn');
+            if (manual && btn) { btn.innerHTML = '<i class="fa-solid fa-rotate-right fa-spin"></i> Odświeżanie...'; btn.disabled = true; }
+            fetch('/api-get-doctor-appointments')
+                .then(r => r.json())
+                .then(data => {
+                    const tbody = document.getElementById('active-table');
+                    const confirmed = data.filter(a => a.status === 'confirmed');
+                    if (confirmed.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 3rem; color: #64748b;">Brak nadchodzących wizyt.</td></tr>';
+                    } else {
+                        tbody.innerHTML = confirmed.map(a => {
+                            const displayTime = a.appointment_time.substring(0, 5);
+                            const displayDate = formatScheduleDisplayDate(a.appointment_date);
+                            const modalDateTime = safeAttr(formatScheduleModalDateTime(a.appointment_date, a.appointment_time));
+                            const patientName = safeAttr(a.patient_name);
+                            const recom = safeAttr(a.recommendations || '');
+                            return `<tr class="searchable-row" style="border-bottom:1px solid #e2e8f0; transition:background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
+                                <td style="padding:1.25rem 1.5rem;"><strong style="display:block; color:#0f172a; font-size:1.1rem;">${escHtml(displayTime)}</strong><span style="font-size:0.85rem; color:#64748b;">${escHtml(displayDate)}</span></td>
+                                <td style="padding:1.25rem 1.5rem; font-weight:600; color:#0f172a; font-size:1.05rem;">${escHtml(a.patient_name)}</td>
+                                <td style="padding:1.25rem 1.5rem; color:#475569; font-family:monospace; font-size:1rem;">${escHtml(a.patient_pesel)}</td>
+                                <td style="padding:1.25rem 1.5rem;"><span class="status-badge status-confirmed">Zarezerwowana</span></td>
+                                <td style="padding:1.25rem 1.5rem; text-align:right;"><button class="btn-active-action" onclick="openStatusModal(${a.id}, '${patientName}', '${modalDateTime}', '${a.status}', '${recom}')" title="Zarządzaj wizytą"><i class="fa-solid fa-stethoscope"></i> Zarządzaj</button></td>
+                            </tr>`;
+                        }).join('');
+                    }
+                    const searchVal = document.getElementById('searchActive').value;
+                    if (searchVal) searchAppointments('active-table', 'searchActive');
+                })
+                .catch(err => console.error('Błąd odświeżania harmonogramu:', err))
+                .finally(() => {
+                    if (manual && btn) { btn.innerHTML = '<i class="fa-solid fa-rotate-right"></i> Odśwież'; btn.disabled = false; }
+                });
+        }
+
+        // Auto-odświeżanie co 5 sekund
+        setInterval(() => refreshSchedule(false), 5000);
 
         function openStatusModal(id, patientName, time, status, recommendations) {
             document.getElementById('modal_app_id').value = id;
@@ -469,8 +543,11 @@
                 });
             }
             document.getElementById('doctorNotifModal').classList.add('active');
-            // Oznacz jako przeczytane
-            fetch('/api-mark-notifications-read', {method:'POST'});
+            // Oznacz jako przeczytane i ukryj badge
+            fetch('/api-mark-notifications-read', {method:'POST'}).then(() => {
+                const badge = document.getElementById('doctor-notif-badge');
+                if (badge) badge.style.display = 'none';
+            });
         }
         function closeNotificationsModal() { document.getElementById('doctorNotifModal').classList.remove('active'); }
 

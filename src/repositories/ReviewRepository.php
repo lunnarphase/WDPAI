@@ -50,8 +50,13 @@ class ReviewRepository extends Repository {
         $doctorUserStmt->execute([$data['id_doctor']]);
         $doctorUserId = $doctorUserStmt->fetchColumn();
         if ($doctorUserId) {
-            $notifStmt = $db->prepare("INSERT INTO notifications (id_user, message, type, related_id) VALUES (?, 'Otrzymałeś nową ocenę od pacjenta. Sprawdź zakładkę Twoje opinie.', 'new_review', ?)");
-            $notifStmt->execute([$doctorUserId, $data['id_doctor']]);
+            $patientNameStmt = $db->prepare('SELECT u.username FROM users u JOIN patients p ON p.id_user = u.id WHERE p.id = ?');
+            $patientNameStmt->execute([$data['patient_id']]);
+            $patientName = $patientNameStmt->fetchColumn() ?? 'Nieznany pacjent';
+            $starsStr = str_repeat('★', $rating) . str_repeat('☆', 5 - $rating);
+            $notifMessage = "Pacjent {$patientName} wystawił Ci nową opinię: {$starsStr} ({$rating}/5)";
+            $notifStmt = $db->prepare("INSERT INTO notifications (id_user, message, type, related_id) VALUES (?, ?, 'new_review', ?)");
+            $notifStmt->execute([$doctorUserId, $notifMessage, $data['id_doctor']]);
         }
     }
 
@@ -121,7 +126,6 @@ class ReviewRepository extends Repository {
         $reporterStmt = $db->prepare('SELECT username FROM users WHERE id = ?');
         $reporterStmt->execute([$reporterUserId]);
         $reporterName = $reporterStmt->fetchColumn() ?? 'Nieznany';
-        $reporterAnon = mb_strtoupper(mb_substr($reporterName, 0, 1)) . '*****';
 
         $categoryLabels = [
             'inappropriate' => 'Nieodpowiednia treść',
@@ -131,7 +135,7 @@ class ReviewRepository extends Repository {
         ];
         $categoryLabel = $categoryLabels[$category] ?? $category;
 
-        $message = "Opinia dla dr. {$doctorName} — zgłoszona przez: {$reporterAnon} | Kat.: {$categoryLabel}";
+        $message = "Opinia dla dr. {$doctorName}\nZgłoszona przez: {$reporterName}\nKategoria: {$categoryLabel}\nPowód: {$reason}";
 
         // Powiadomienie dla wszystkich administratorów
         $adminStmt = $db->prepare("SELECT u.id FROM users u JOIN roles r ON u.id_role = r.id WHERE r.name = 'admin'");

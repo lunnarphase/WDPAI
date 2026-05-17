@@ -47,7 +47,6 @@
               <a href="/dashboard" class="active">Strona główna</a>
               <a href="/my-appointments">Moje Wizyty</a>
               <a href="#" onclick="navToSpecialists()">Nasi specjaliści</a>
-              <a href="#">O nas</a>
           </div>
       </div>
 
@@ -73,10 +72,12 @@
       </div>
 
       <div class="mobile-menu" id="mobileMenu">
-          <a href="/dashboard">Strona główna</a>
-          <a href="/my-appointments">Moje Wizyty</a>
-          <a href="#" onclick="navToSpecialists(); toggleMobileMenu();">Nasi specjaliści</a>
-          <a href="/logout">Wyloguj się</a>
+          <a href="/dashboard"><i class="fa-solid fa-house"></i> Strona główna</a>
+          <a href="/my-appointments"><i class="fa-regular fa-calendar"></i> Moje Wizyty</a>
+          <a href="#" onclick="navToSpecialists(); toggleMobileMenu();"><i class="fa-solid fa-user-doctor"></i> Nasi specjaliści</a>
+          <a href="#" onclick="openNotificationsModal(); toggleMobileMenu();"><i class="fa-regular fa-bell"></i> Powiadomienia</a>
+          <a href="#" onclick="openProfileModal(); toggleMobileMenu();"><i class="fa-regular fa-user"></i> Profil i ustawienia</a>
+          <a href="/logout"><i class="fa-solid fa-arrow-right-from-bracket"></i> Wyloguj się</a>
       </div>
     </nav>
 
@@ -87,9 +88,27 @@
         </header>
 
         <?php if(isset($messages) && !empty($messages)): ?>
-            <div class="success-messages" style="margin-bottom: 2rem; border-left: 4px solid #15803d; background: #f0fdf4; padding: 1rem; border-radius: 8px; color: #15803d; font-weight: 600;">
+            <div id="flash-success" class="success-messages" style="margin-bottom: 2rem; border-left: 4px solid #15803d; background: #f0fdf4; padding: 1rem; border-radius: 8px; color: #15803d; font-weight: 600; transition: opacity 0.5s;">
                 <?php foreach($messages as $message) { echo $message; } ?>
             </div>
+            <script>
+                (function(){
+                    // Usuń parametr z URL żeby odświeżenie strony nie pokazywało wiadomości ponownie
+                    if (window.history && window.history.replaceState) {
+                        const url = new URL(window.location.href);
+                        url.searchParams.delete('booking');
+                        window.history.replaceState({}, '', url.toString());
+                    }
+                    // Ukryj po 3 sekundach
+                    setTimeout(function() {
+                        const el = document.getElementById('flash-success');
+                        if (el) {
+                            el.style.opacity = '0';
+                            setTimeout(function() { if (el) el.remove(); }, 500);
+                        }
+                    }, 3000);
+                })();
+            </script>
         <?php endif; ?>
 
         <div class="dashboard-grid">
@@ -99,7 +118,7 @@
                     <a href="#" onclick="openHistoryModal()" class="view-all">Zobacz wszystkie</a>
                 </div>
 
-                <div class="appointments-list">
+                <div class="appointments-list" id="appointments-list-container">
                     <?php if (empty($processedAppointments)): ?>
                         <div class="empty-state" style="background: white; padding: 2rem; border-radius: 12px; border: 1px solid #e2e8f0; text-align: center;">
                             <p style="color: var(--text-muted); margin-bottom: 1rem;">Nie masz aktualnie zaplanowanych wizyt.</p>
@@ -465,12 +484,58 @@
 
         function toggleMobileMenu() {
           const menu = document.getElementById('mobileMenu');
-          if (menu.style.display === 'flex') {
-              menu.style.display = 'none';
-          } else {
-              menu.style.display = 'flex';
-          }
+          menu.classList.toggle('active');
         }
+
+        // --- AUTO-REFRESH LISTY WIZYT CO 5 SEKUND ---
+        const statusMap = {
+            'confirmed': { text: 'Potwierdzona', color: '#22c55e' },
+            'completed':  { text: 'Zakończona',  color: '#3b82f6' },
+            'noshow':     { text: 'Nieobecność klienta', color: '#eab308' },
+            'cancelled':  { text: 'Anulowana',   color: '#ef4444' }
+        };
+        function refreshAppointments() {
+            fetch('/api-get-appointments')
+                .then(r => r.json())
+                .then(data => {
+                    const container = document.getElementById('appointments-list-container');
+                    if (!container) return;
+                    const items = data.slice(0, 3);
+                    if (items.length === 0) {
+                        container.innerHTML = `<div class="empty-state" style="background: white; padding: 2rem; border-radius: 12px; border: 1px solid #e2e8f0; text-align: center;"><p style="color: var(--text-muted); margin-bottom: 1rem;">Nie masz aktualnie zaplanowanych wizyt.</p></div>`;
+                        return;
+                    }
+                    container.innerHTML = items.map(app => {
+                        const status = app.status || 'confirmed';
+                        const si = statusMap[status] || { text: status, color: '#6b7280' };
+                        const opacity = status === 'cancelled' ? 'opacity:0.6;' : '';
+                        const recomHtml = app.recommendations ? `<div style="margin-top:0.75rem; padding:0.75rem; background:#f3f4f6; border-radius:6px; font-size:0.9rem; color:#374151;"><strong>Zalecenia:</strong><br>${escHtml(app.recommendations)}</div>` : '';
+                        let actionBtns = '';
+                        if (status !== 'cancelled' && status !== 'completed') {
+                            actionBtns += `<button class="btn-secondary" onclick="openCancelModal(${app.appointment_id})">Anuluj</button>`;
+                        }
+                        if (status === 'completed' && app.review_submitted !== 't' && app.review_submitted !== true && !reviewedAppointmentIds.has(app.appointment_id)) {
+                            actionBtns += `<button class="btn-secondary" style="background:#fefce8; color:#92400e; border-color:#fde68a; font-size:0.85rem;" onclick="openReviewModal(${app.appointment_id})"><i class="fa-regular fa-star"></i> Wystaw opinię</button>`;
+                        }
+                        return `<div class="appointment-card" style="${opacity}">
+                            <div class="app-date">
+                                <span class="day">${escHtml(app.day)}</span>
+                                <span class="month">${escHtml(app.month)}</span>
+                                <span class="time">${escHtml(app.time_formatted)}</span>
+                            </div>
+                            <div class="app-details">
+                                <p class="spec">${escHtml(app.specializations || '')}</p>
+                                <h3>dr ${escHtml(app.doctor_name)}</h3>
+                                <p class="status"><span class="dot" style="background-color:${si.color};"></span> ${si.text}</p>
+                                ${recomHtml}
+                            </div>
+                            <div class="app-actions" style="display:flex; flex-direction:column; align-items:flex-end; gap:0.25rem;">${actionBtns}</div>
+                        </div>`;
+                    }).join('');
+                })
+                .catch(() => {});
+        }
+        setInterval(refreshAppointments, 5000);
 
         document.querySelectorAll('.mobile-menu a').forEach(link => {
             link.addEventListener('click', () => {
@@ -810,6 +875,12 @@
             }).then(r => r.json()).then(data => {
                 if (data.success) {
                     reviewedAppointmentIds.add(appointmentId);
+                    // Dynamicznie usuń przycisk "Wystaw opinię" bez przeładowania strony
+                    document.querySelectorAll('.app-actions button').forEach(btn => {
+                        if (btn.getAttribute('onclick') && btn.getAttribute('onclick').includes(`openReviewModal(${appointmentId})`)) {
+                            btn.remove();
+                        }
+                    });
                     msgBox.style.display = 'block';
                     msgBox.style.background = '#d1fae5';
                     msgBox.style.color = '#065f46';

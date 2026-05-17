@@ -138,6 +138,14 @@ class DoctorController extends AppController {
         exit();
     }
 
+    public function apiGetDoctorAppointments() {
+        $this->requireDoctor();
+        header('Content-Type: application/json');
+        $appointments = $this->appointmentRepo->getDoctorAppointments($_SESSION['user_id']);
+        echo json_encode($appointments);
+        exit();
+    }
+
     public function doctorAvailability() {
         $contentType = isset($_SERVER["CONTENT_TYPE"]) ? trim($_SERVER["CONTENT_TYPE"]) : '';
 
