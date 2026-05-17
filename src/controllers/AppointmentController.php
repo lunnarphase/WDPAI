@@ -18,7 +18,7 @@ class AppointmentController extends AppController {
         $doctorId = $_GET['id'] ?? null;
 
         if (!$doctorId) {
-            header("Location: http://$_SERVER[HTTP_HOST]/dashboard");
+            header("Location: " . $this->getBaseUrl() . "/dashboard");
             exit();
         }
 
@@ -29,7 +29,7 @@ class AppointmentController extends AppController {
         $this->requireLogin();
 
         if (!$this->isPost()) {
-            header("Location: http://$_SERVER[HTTP_HOST]/dashboard");
+            header("Location: " . $this->getBaseUrl() . "/dashboard");
             exit();
         }
 
@@ -47,12 +47,13 @@ class AppointmentController extends AppController {
 
         try {
             $this->appointmentRepo->createAppointment($userId, $doctorId, $date, $time);
-            header("Location: http://$_SERVER[HTTP_HOST]/dashboard?booking=success");
+            header("Location: " . $this->getBaseUrl() . "/dashboard?booking=success");
             exit();
         } catch (Exception $e) {
+            error_log('Appointment creation error: ' . $e->getMessage());
             return $this->render('book_appointment', [
                 'doctorId' => $doctorId, 
-                'messages' => ['Wystąpił błąd podczas zapisu: ' . $e->getMessage()]
+                'messages' => ['Wystąpił błąd podczas zapisu wizyty. Spróbuj ponownie.']
             ]);
         }
     }
@@ -61,7 +62,7 @@ class AppointmentController extends AppController {
         $this->requireLogin();
 
         if (!$this->isPost()) {
-            header("Location: http://$_SERVER[HTTP_HOST]/dashboard");
+            header("Location: " . $this->getBaseUrl() . "/dashboard");
             exit();
         }
 
@@ -75,10 +76,11 @@ class AppointmentController extends AppController {
 
         try {
             $this->appointmentRepo->cancelAppointment($appointmentId, $userId, $cancelReason, '');
-            header("Location: http://$_SERVER[HTTP_HOST]/dashboard?cancel=success");
+            header("Location: " . $this->getBaseUrl() . "/dashboard?cancel=success");
             exit();
         } catch (Exception $e) {
-            header("Location: http://$_SERVER[HTTP_HOST]/dashboard?cancel=error");
+            error_log('Appointment cancellation error: ' . $e->getMessage());
+            header("Location: " . $this->getBaseUrl() . "/dashboard?cancel=error");
             exit();
         }
     }

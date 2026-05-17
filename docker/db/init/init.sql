@@ -4,6 +4,7 @@ DROP TRIGGER IF EXISTS trg_review_request ON appointments;
 DROP FUNCTION IF EXISTS notify_patient_review_request();
 DROP TRIGGER IF EXISTS check_doctor_availability_trigger ON appointments;
 DROP FUNCTION IF EXISTS check_doctor_availability_func();
+DROP TABLE IF EXISTS login_attempts CASCADE;
 DROP TABLE IF EXISTS review_reports CASCADE;
 DROP TABLE IF EXISTS reviews CASCADE;
 DROP TABLE IF EXISTS appointments CASCADE;
@@ -34,8 +35,20 @@ CREATE TABLE users (
     email VARCHAR(255) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
     username VARCHAR(100) NOT NULL,
-    id_role INTEGER NOT NULL REFERENCES roles(id) ON DELETE CASCADE
+    id_role INTEGER NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+    is_blocked BOOLEAN NOT NULL DEFAULT FALSE
 );
+
+-- Logi prób logowania (bezpieczeństwo)
+CREATE TABLE login_attempts (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(255) NOT NULL,
+    ip_address VARCHAR(45),
+    attempted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    success BOOLEAN NOT NULL DEFAULT FALSE
+);
+CREATE INDEX idx_login_attempts_email ON login_attempts(email);
+CREATE INDEX idx_login_attempts_attempted_at ON login_attempts(attempted_at);
 
 -- Profile szczegółowe (Relacja 1:1)
 CREATE TABLE patients (
@@ -127,26 +140,29 @@ CREATE TABLE review_reports (
 
 BEGIN;
 INSERT INTO roles (name) VALUES ('admin'), ('doctor'), ('patient');
-INSERT INTO specializations (name) VALUES ('Kardiologia'), ('Pediatria'), ('Neurologia');
+INSERT INTO specializations (name) VALUES ('Kardiologia'), ('Pediatria'), ('Neurologia'), ('Medycyna rodzinna');
 
--- Hasło dla wszystkich kont to: admin
+-- Konta startowe
 INSERT INTO users (email, password, username, id_role) VALUES 
-('admin@admin', '$2y$10$//rDsSveI/6Kkva/05WJY..EoeseX9MSzipriOKtwNMc1LXTyyEyG', 'Admin', 1),
-('kowalski@med.pl', '$2y$10$//rDsSveI/6Kkva/05WJY..EoeseX9MSzipriOKtwNMc1LXTyyEyG', 'Jan Kowalski', 2),
-('nowak@med.pl', '$2y$10$//rDsSveI/6Kkva/05WJY..EoeseX9MSzipriOKtwNMc1LXTyyEyG', 'Anna Nowak', 2),
-('wisniewski@med.pl', '$2y$10$//rDsSveI/6Kkva/05WJY..EoeseX9MSzipriOKtwNMc1LXTyyEyG', 'Piotr Wiśniewski', 2);
+('admin@medischedule.pl', '$2y$10$j.lupyyTuXSgcq5xb5T/feHdywl8umdI0uSFSeBjtqyg9cQP89NuO', 'Administrator', 1),
+('kardiolog@medischedule.pl', '$2y$10$rQACxK30Fpmy187xgd93Aug9yEfJHTNugz0z6In4VP1cRou19MYKO', 'Jan Kowalski', 2),
+('pediatra@medischedule.pl', '$2y$10$ugYop9lkO49FmaEqsbiMv.HcWuhVIOR.PYP38aWyQLZAngM9g2iaO', 'Anna Nowak', 2),
+('neurolog@medischedule.pl', '$2y$10$g9diWoBBPfztRbmyc7BTguI3odHgcajNX534c6OIr4kyxTDLHltPa', 'Piotr Wisniewski', 2),
+('rodzinny@medischedule.pl', '$2y$10$v3hz5XIPRiuqXcbPSQqb9OGgVCNhccv8ZGPqp3sus8iFu6IL3ZY6G', 'Marek Zielinski', 2);
 
 -- Profile lekarzy z cennikiem
 INSERT INTO doctors (id_user, bio, visit_price, visit_duration) VALUES 
-(2, 'Doświadczony kardiolog z 15-letnim stażem pracy w wiodących klinikach kardiologicznych. Specjalizuje się w diagnostyce i leczeniu chorób sercowo-naczyniowych.', 200.00, 30),
-(3, 'Pediatra z wieloletnim doświadczeniem w opiece nad dziećmi od noworodka do 18. roku życia. Cierpliwy i empatyczny w pracy z małymi pacjentami.', 150.00, 30),
-(4, 'Specjalista neurologii klinicznej z certyfikatami europejskiego towarzystwa neurologicznego. Zajmuje się m.in. bólami głowy, epilepsją i chorobami neurodegeneracyjnymi.', 250.00, 45);
+(2, 'Specjalista kardiologii z wieloletnim doswiadczeniem klinicznym.', 220.00, 30),
+(3, 'Pediatra prowadzacy konsultacje dzieci od wieku niemowlecego.', 180.00, 30),
+(4, 'Neurolog zajmujacy sie diagnostyka i leczeniem schorzen ukladu nerwowego.', 240.00, 45),
+(5, 'Lekarz medycyny rodzinnej prowadzacy kompleksowa opieke nad pacjentami.', 170.00, 30);
 
 -- Specjalizacje lekarzy
 INSERT INTO doctors_specializations (id_doctor, id_specialization) VALUES 
 (1, 1),
 (2, 2),
-(3, 3);
+(3, 3),
+(4, 4);
 COMMIT;
 
 -- Trigger: powiadomienie o prośbie o opinię po zakończeniu wizyty

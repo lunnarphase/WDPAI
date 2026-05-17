@@ -92,7 +92,7 @@ class DoctorController extends AppController {
             $this->appointmentRepo->updateAppointmentStatusByDoctor($appointmentId, $userId, $status, $recommendations);
         }
         
-        header("Location: http://$_SERVER[HTTP_HOST]/doctor-dashboard"); exit();
+        header("Location: " . $this->getBaseUrl() . "/doctor-dashboard"); exit();
     }
 
     public function findDoctor() {

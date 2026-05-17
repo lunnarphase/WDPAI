@@ -38,6 +38,7 @@
                 <a href="#" class="active" onclick="switchTab('wizyty')">Wizyty</a>
                 <a href="#" onclick="switchTab('uzytkownicy')">Użytkownicy</a>
                 <a href="#" onclick="switchTab('opinie')">Wystawione opinie</a>
+                <a href="#" onclick="switchTab('bezpieczenstwo')">Bezpieczeństwo</a>
             </div>
         </div>
         <button class="hamburger-btn" onclick="toggleAdminMobileMenu()" style="display:none;">
@@ -57,6 +58,7 @@
             <a href="#" onclick="switchTab('wizyty'); toggleAdminMobileMenu();"><i class="fa-regular fa-calendar-check"></i> Wizyty</a>
             <a href="#" onclick="switchTab('uzytkownicy'); toggleAdminMobileMenu();"><i class="fa-solid fa-users"></i> Użytkownicy</a>
             <a href="#" onclick="switchTab('opinie'); toggleAdminMobileMenu();"><i class="fa-regular fa-star"></i> Wystawione opinie</a>
+            <a href="#" onclick="switchTab('bezpieczenstwo'); toggleAdminMobileMenu();"><i class="fa-solid fa-shield-halved"></i> Bezpieczeństwo</a>
             <a href="#" onclick="openNotificationsModal(); toggleAdminMobileMenu();"><i class="fa-regular fa-bell"></i> Powiadomienia</a>
             <a href="/logout"><i class="fa-solid fa-arrow-right-from-bracket"></i> Wyloguj</a>
         </div>
@@ -129,10 +131,10 @@
                         <?php else: ?>
                             <?php foreach ($appointments as $app): ?>
                                 <tr class="app-row"
-                                    data-status="<?= $app['status'] ?>"
+                                    data-status="<?= htmlspecialchars($app['status'], ENT_QUOTES) ?>"
                                     data-patient="<?= htmlspecialchars(strtolower($app['patient_name']), ENT_QUOTES) ?>"
                                     data-doctor="<?= htmlspecialchars(strtolower($app['doctor_name']), ENT_QUOTES) ?>"
-                                    data-date="<?= $app['appointment_date'] ?>" style="border-bottom: 1px solid #e2e8f0; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
+                                    data-date="<?= htmlspecialchars($app['appointment_date'], ENT_QUOTES) ?>" style="border-bottom: 1px solid #e2e8f0; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
                                     <td style="padding: 1.25rem 1.5rem; font-weight: 600; color: #0f172a;"><?= htmlspecialchars($app['patient_name']) ?></td>
                                     <td style="padding: 1.25rem 1.5rem; color: #475569;">dr <?= htmlspecialchars($app['doctor_name']) ?></td>
                                     <td style="padding: 1.25rem 1.5rem;">
@@ -147,7 +149,7 @@
                                         <?php endif; ?>
                                     </td>
                                     <td style="padding: 1.25rem 1.5rem; text-align: right;">
-                                        <button class="admin-action-btn btn-edit" onclick="openAdminEditModal(<?= $app['id'] ?>, <?= $app['id_patient'] ?>, <?= $app['id_doctor'] ?>, '<?= $app['appointment_date'] ?>', '<?= date('H:i', strtotime($app['appointment_time'])) ?>', '<?= $app['status'] ?>')" title="Zarządzaj wizytą"><i class="fa-solid fa-pen-to-square"></i> Edytuj</button>
+                                        <button class="admin-action-btn btn-edit" onclick="openAdminEditModal(<?= (int)$app['id'] ?>, <?= (int)$app['id_patient'] ?>, <?= (int)$app['id_doctor'] ?>, '<?= htmlspecialchars($app['appointment_date'], ENT_QUOTES) ?>', '<?= htmlspecialchars(date('H:i', strtotime($app['appointment_time'])), ENT_QUOTES) ?>', '<?= htmlspecialchars($app['status'], ENT_QUOTES) ?>')" title="Zarządzaj wizytą"><i class="fa-solid fa-pen-to-square"></i> Edytuj</button>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -204,7 +206,7 @@
                                     if($roleRaw === 'admin') { $rolePl = 'Admin'; $color = '#991b1b'; $bg = '#fee2e2'; }
                                     if($roleRaw === 'doctor') { $rolePl = 'Lekarz'; $color = '#166534'; $bg = '#bbf7d0'; }
                                 ?>
-                                <tr class="user-row" data-role="<?= $roleRaw ?>" style="border-bottom: 1px solid #e2e8f0; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
+                                <tr class="user-row" data-role="<?= htmlspecialchars($roleRaw, ENT_QUOTES) ?>" style="border-bottom: 1px solid #e2e8f0; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
                                     <td style="padding: 1.25rem 1.5rem; color: #64748b; font-family: monospace;">#<?= $u['id'] ?></td>
                                     <td class="searchable-name" style="padding: 1.25rem 1.5rem; font-weight: 600; color: #0f172a;"><?= htmlspecialchars($u['username']) ?></td>
                                     <td class="searchable-email" style="padding: 1.25rem 1.5rem; color: #475569;"><?= htmlspecialchars($u['email']) ?></td>
@@ -214,7 +216,7 @@
                                         </span>
                                     </td>
                                     <td style="padding: 1.25rem 1.5rem; text-align: right;">
-                                        <button class="admin-action-btn btn-edit" onclick="openUserEditModal(<?= $u['id'] ?>, '<?= htmlspecialchars($u['username'], ENT_QUOTES) ?>', '<?= htmlspecialchars($u['email'], ENT_QUOTES) ?>', '<?= $roleRaw ?>', '<?= $u['pesel'] ?? '' ?>', '<?= $u['specialization'] ?? '' ?>')" title="Edytuj profil"><i class="fa-solid fa-pen-to-square"></i> Edytuj</button>
+                                        <button class="admin-action-btn btn-edit" onclick="openUserEditModal(<?= (int)$u['id'] ?>, '<?= htmlspecialchars($u['username'], ENT_QUOTES) ?>', '<?= htmlspecialchars($u['email'], ENT_QUOTES) ?>', '<?= htmlspecialchars($roleRaw, ENT_QUOTES) ?>', '<?= htmlspecialchars($u['pesel'] ?? '', ENT_QUOTES) ?>', '<?= htmlspecialchars($u['specialization'] ?? '', ENT_QUOTES) ?>')" title="Edytuj profil"><i class="fa-solid fa-pen-to-square"></i> Edytuj</button>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -287,6 +289,69 @@
                             <?php endforeach; ?>
                         <?php else: ?>
                             <tr><td colspan="6" style="text-align:center; padding:3rem; color:#64748b;">Brak opinii w systemie.</td></tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- TAB BEZPIECZENSTWO -->
+        <div id="tab-bezpieczenstwo" style="display:none; background:white; border-radius:16px; border:1px solid #e2e8f0; overflow:hidden; margin-bottom:2rem;">
+            <div style="padding:1.5rem; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
+                <h2 style="margin:0; display:flex; align-items:center; gap:10px; font-size:1.3rem;">
+                    <span style="display:inline-block; width:6px; height:24px; background:#dc2626; border-radius:4px;"></span>
+                    Podejrzana aktywność logowania
+                </h2>
+                <button onclick="refreshLoginLogs()" style="padding:0.5rem 1rem; background:#0f172a; color:white; border:none; border-radius:8px; cursor:pointer; font-size:0.9rem;"><i class="fa-solid fa-rotate"></i> Odśwież</button>
+            </div>
+            <div style="overflow-x:auto;">
+                <table style="width:100%; border-collapse:collapse;">
+                    <thead>
+                        <tr style="background:#f8fafc;">
+                            <th style="padding:0.75rem 1rem; text-align:left; font-size:0.85rem; color:#64748b; font-weight:600; border-bottom:1px solid #e2e8f0;">Email</th>
+                            <th style="padding:0.75rem 1rem; text-align:left; font-size:0.85rem; color:#64748b; font-weight:600; border-bottom:1px solid #e2e8f0;">Użytkownik</th>
+                            <th style="padding:0.75rem 1rem; text-align:left; font-size:0.85rem; color:#64748b; font-weight:600; border-bottom:1px solid #e2e8f0;">Nieudane próby</th>
+                            <th style="padding:0.75rem 1rem; text-align:left; font-size:0.85rem; color:#64748b; font-weight:600; border-bottom:1px solid #e2e8f0;">Ostatnia próba</th>
+                            <th style="padding:0.75rem 1rem; text-align:left; font-size:0.85rem; color:#64748b; font-weight:600; border-bottom:1px solid #e2e8f0;">Ostatnie IP</th>
+                            <th style="padding:0.75rem 1rem; text-align:left; font-size:0.85rem; color:#64748b; font-weight:600; border-bottom:1px solid #e2e8f0;">Status konta</th>
+                            <th style="padding:0.75rem 1rem; text-align:left; font-size:0.85rem; color:#64748b; font-weight:600; border-bottom:1px solid #e2e8f0;">Akcje</th>
+                        </tr>
+                    </thead>
+                    <tbody id="login-logs-tbody">
+                        <?php if (!empty($login_logs)): ?>
+                        <?php foreach ($login_logs as $log): ?>
+                        <tr class="login-log-row" data-user-id="<?= (int)($log['user_id'] ?? 0) ?>" data-blocked="<?= !empty($log['is_blocked']) ? '1' : '0' ?>">
+                            <td style="padding:0.75rem 1rem; font-size:0.9rem; border-bottom:1px solid #f1f5f9;"><?= htmlspecialchars($log['email'] ?? '') ?></td>
+                            <td style="padding:0.75rem 1rem; font-size:0.9rem; border-bottom:1px solid #f1f5f9;"><?= htmlspecialchars($log['username'] ?? '—') ?></td>
+                            <td style="padding:0.75rem 1rem; font-size:0.9rem; border-bottom:1px solid #f1f5f9;">
+                                <span style="background:#fef2f2; color:#dc2626; padding:2px 10px; border-radius:999px; font-weight:600;"><?= (int)($log['failure_count'] ?? 0) ?></span>
+                            </td>
+                            <td style="padding:0.75rem 1rem; font-size:0.9rem; border-bottom:1px solid #f1f5f9; color:#64748b;"><?= htmlspecialchars($log['last_attempt'] ?? '—') ?></td>
+                            <td style="padding:0.75rem 1rem; font-size:0.9rem; border-bottom:1px solid #f1f5f9; color:#64748b; font-family:monospace;"><?= htmlspecialchars($log['last_ip'] ?? '—') ?></td>
+                            <td style="padding:0.75rem 1rem; font-size:0.9rem; border-bottom:1px solid #f1f5f9;">
+                                <?php if (!empty($log['is_blocked'])): ?>
+                                <span style="background:#fee2e2; color:#b91c1c; padding:2px 10px; border-radius:999px; font-size:0.8rem; font-weight:600;">Zablokowane</span>
+                                <?php elseif (empty($log['user_id'])): ?>
+                                <span style="background:#f1f5f9; color:#64748b; padding:2px 10px; border-radius:999px; font-size:0.8rem;">Brak konta</span>
+                                <?php else: ?>
+                                <span style="background:#dcfce7; color:#16a34a; padding:2px 10px; border-radius:999px; font-size:0.8rem; font-weight:600;">Aktywne</span>
+                                <?php endif; ?>
+                            </td>
+                            <td style="padding:0.75rem 1rem; font-size:0.9rem; border-bottom:1px solid #f1f5f9;">
+                                <?php if (!empty($log['user_id'])): ?>
+                                    <?php if (!empty($log['is_blocked'])): ?>
+                                    <button onclick="toggleUserBlock(<?= (int)$log['user_id'] ?>, false, this)" style="padding:4px 12px; background:#16a34a; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem;">Odblokuj</button>
+                                    <?php else: ?>
+                                    <button onclick="toggleUserBlock(<?= (int)$log['user_id'] ?>, true, this)" style="padding:4px 12px; background:#dc2626; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem;">Zablokuj</button>
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                <span style="color:#94a3b8; font-size:0.8rem;">—</span>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                        <?php else: ?>
+                        <tr><td colspan="7" style="text-align:center; padding:3rem; color:#64748b;">Brak podejrzanej aktywności logowania.</td></tr>
                         <?php endif; ?>
                     </tbody>
                 </table>
@@ -582,6 +647,7 @@
             document.getElementById('tab-wizyty').style.display = 'none';
             document.getElementById('tab-uzytkownicy').style.display = 'none';
             document.getElementById('tab-opinie').style.display = 'none';
+            document.getElementById('tab-bezpieczenstwo').style.display = 'none';
             document.getElementById('tab-' + tabName).style.display = 'block';
         }
 
@@ -970,6 +1036,81 @@
             const nm = document.getElementById('adminNotifModal');
             if (nm) nm.addEventListener('click', e => { if (e.target === nm) closeNotificationsModal(); });
         });
+
+        // -- BEZPIECZENSTWO (blokowanie kont) --
+        function toggleUserBlock(userId, block, btn) {
+            const action = block ? 'Zablokować' : 'Odblokować';
+            if (!confirm(action + ' to konto?')) return;
+
+            const endpoint = block ? '/admin-block-user' : '/admin-unblock-user';
+            btn.disabled = true;
+
+            fetch(endpoint, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({user_id: userId})
+            }).then(r => r.json()).then(data => {
+                if (data.success) {
+                    const row = btn.closest('.login-log-row');
+                    if (row) {
+                        const statusCell = row.cells[5];
+                        const actionCell = row.cells[6];
+                        if (block) {
+                            statusCell.innerHTML = '<span style="background:#fee2e2; color:#b91c1c; padding:2px 10px; border-radius:999px; font-size:0.8rem; font-weight:600;">Zablokowane</span>';
+                            actionCell.innerHTML = '<button onclick="toggleUserBlock(' + userId + ', false, this)" style="padding:4px 12px; background:#16a34a; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem;">Odblokuj</button>';
+                        } else {
+                            statusCell.innerHTML = '<span style="background:#dcfce7; color:#16a34a; padding:2px 10px; border-radius:999px; font-size:0.8rem; font-weight:600;">Aktywne</span>';
+                            actionCell.innerHTML = '<button onclick="toggleUserBlock(' + userId + ', true, this)" style="padding:4px 12px; background:#dc2626; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem;">Zablokuj</button>';
+                        }
+                    }
+                } else {
+                    alert(data.error || 'Błąd operacji.');
+                    btn.disabled = false;
+                }
+            }).catch(() => {
+                alert('Błąd połączenia z serwerem.');
+                btn.disabled = false;
+            });
+        }
+
+        function refreshLoginLogs() {
+            fetch('/api-get-login-logs')
+                .then(r => r.json())
+                .then(logs => {
+                    const tbody = document.getElementById('login-logs-tbody');
+                    if (!tbody) return;
+                    if (!logs || logs.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:3rem; color:#64748b;">Brak podejrzanej aktywności logowania.</td></tr>';
+                        return;
+                    }
+                    tbody.innerHTML = logs.map(log => {
+                        const uid = parseInt(log.user_id) || 0;
+                        const blocked = log.is_blocked;
+                        const statusHtml = blocked
+                            ? '<span style="background:#fee2e2; color:#b91c1c; padding:2px 10px; border-radius:999px; font-size:0.8rem; font-weight:600;">Zablokowane</span>'
+                            : uid ? '<span style="background:#dcfce7; color:#16a34a; padding:2px 10px; border-radius:999px; font-size:0.8rem; font-weight:600;">Aktywne</span>'
+                                  : '<span style="background:#f1f5f9; color:#64748b; padding:2px 10px; border-radius:999px; font-size:0.8rem;">Brak konta</span>';
+                        const actionHtml = uid
+                            ? (blocked
+                                ? `<button onclick="toggleUserBlock(${uid}, false, this)" style="padding:4px 12px; background:#16a34a; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem;">Odblokuj</button>`
+                                : `<button onclick="toggleUserBlock(${uid}, true, this)" style="padding:4px 12px; background:#dc2626; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem;">Zablokuj</button>`)
+                            : '<span style="color:#94a3b8; font-size:0.8rem;">—</span>';
+                        return `<tr class="login-log-row" data-user-id="${uid}">
+                            <td style="padding:0.75rem 1rem; font-size:0.9rem; border-bottom:1px solid #f1f5f9;">${escapeHtml(log.email || '')}</td>
+                            <td style="padding:0.75rem 1rem; font-size:0.9rem; border-bottom:1px solid #f1f5f9;">${escapeHtml(log.username || '—')}</td>
+                            <td style="padding:0.75rem 1rem; font-size:0.9rem; border-bottom:1px solid #f1f5f9;"><span style="background:#fef2f2; color:#dc2626; padding:2px 10px; border-radius:999px; font-weight:600;">${parseInt(log.failure_count) || 0}</span></td>
+                            <td style="padding:0.75rem 1rem; font-size:0.9rem; border-bottom:1px solid #f1f5f9; color:#64748b;">${escapeHtml(log.last_attempt || '—')}</td>
+                            <td style="padding:0.75rem 1rem; font-size:0.9rem; border-bottom:1px solid #f1f5f9; color:#64748b; font-family:monospace;">${escapeHtml(log.last_ip || '—')}</td>
+                            <td style="padding:0.75rem 1rem; font-size:0.9rem; border-bottom:1px solid #f1f5f9;">${statusHtml}</td>
+                            <td style="padding:0.75rem 1rem; font-size:0.9rem; border-bottom:1px solid #f1f5f9;">${actionHtml}</td>
+                        </tr>`;
+                    }).join('');
+                }).catch(() => alert('Błąd pobierania logów.'));
+        }
+
+        function escapeHtml(str) {
+            return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
     </script>
 </body>
 </html>

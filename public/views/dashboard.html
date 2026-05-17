@@ -89,7 +89,7 @@
 
         <?php if(isset($messages) && !empty($messages)): ?>
             <div id="flash-success" class="success-messages" style="margin-bottom: 2rem; border-left: 4px solid #15803d; background: #f0fdf4; padding: 1rem; border-radius: 8px; color: #15803d; font-weight: 600; transition: opacity 0.5s;">
-                <?php foreach($messages as $message) { echo $message; } ?>
+                <?php foreach($messages as $message) { echo htmlspecialchars($message); } ?>
             </div>
             <script>
                 (function(){
@@ -242,13 +242,14 @@
             <form id="changePasswordForm" onsubmit="handleChangePassword(event)">
                 <div style="margin-bottom: 1.25rem;">
                     <label style="display:block; font-size: 0.8rem; font-weight: 600; color: #4b5563; text-transform: uppercase; margin-bottom: 0.5rem;">Nowe hasło</label>
-                    <input type="password" id="change-password-new" required style="width: 100%; padding: 0.85rem; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box;">
+                    <input type="password" id="change-password-new" minlength="9" required style="width: 100%; padding: 0.85rem; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box;">
                 </div>
                 <div style="margin-bottom: 1.5rem;">
                     <label style="display:block; font-size: 0.8rem; font-weight: 600; color: #4b5563; text-transform: uppercase; margin-bottom: 0.5rem;">Powtórz nowe hasło</label>
-                    <input type="password" id="change-password-confirm" required style="width: 100%; padding: 0.85rem; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box;">
+                    <input type="password" id="change-password-confirm" minlength="9" required style="width: 100%; padding: 0.85rem; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box;">
                     <p id="change-password-match-error" style="display:none; color:#dc2626; font-size:0.8rem; margin:0.35rem 0 0;">Hasła nie są identyczne.</p>
                 </div>
+                <p style="margin-top:-0.75rem; margin-bottom:1rem; color:#64748b; font-size:0.82rem;">Minimum 9 znaków, mała i wielka litera, cyfra oraz znak specjalny.</p>
                 <button type="submit" style="background-color: #125B46; color: white; border: none; padding: 0.85rem; border-radius: 8px; width: 100%; font-weight: 600; cursor: pointer;">Zapisz nowe hasło</button>
                 <button type="button" onclick="closeChangePasswordModal(); openProfileModal();" style="background: none; border: none; color: #64748b; padding: 0.75rem; width: 100%; cursor: pointer; margin-top: 0.5rem; font-size: 0.9rem;">← Wróć do profilu</button>
             </form>

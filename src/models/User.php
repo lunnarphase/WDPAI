@@ -5,14 +5,16 @@ class User {
     private string $email;
     private string $password;
     private string $username;
-    private string $role; 
+    private string $role;
+    private bool $isBlocked;
 
-    public function __construct(string $email, string $password, string $username, string $role = 'patient', ?int $id = null) {
+    public function __construct(string $email, string $password, string $username, string $role = 'patient', ?int $id = null, bool $isBlocked = false) {
         $this->email = $email;
         $this->password = $password;
         $this->username = $username;
         $this->role = $role;
         $this->id = $id;
+        $this->isBlocked = $isBlocked;
     }
 
     public function getId(): ?int {
@@ -33,5 +35,9 @@ class User {
 
     public function getRole(): string {
         return $this->role;
+    }
+
+    public function getIsBlocked(): bool {
+        return $this->isBlocked;
     }
 }

@@ -14,7 +14,7 @@ class DashboardController extends AppController {
     public function __construct(AppointmentRepository $appointmentRepo = null, UsersRepository $userRepo = null) {
         parent::__construct();
         $this->appointmentRepo = $appointmentRepo ?: new AppointmentRepository();
-        $this->userRepo = $userRepo ?: new UsersRepository();
+        $this->userRepo = $userRepo ?: UsersRepository::getInstance();
         $this->reviewRepo = new ReviewRepository();
     }
 
@@ -139,8 +139,14 @@ class DashboardController extends AppController {
         $input = json_decode(file_get_contents('php://input'), true);
         $password = trim($input['password'] ?? '');
 
-        if (strlen($password) < 6) {
-            echo json_encode(['success' => false, 'message' => 'Hasło musi mieć co najmniej 6 znaków']);
+        if (strlen($password) > 1024) {
+            echo json_encode(['success' => false, 'message' => 'Hasło jest zbyt długie.']);
+            exit();
+        }
+
+        $passwordError = $this->validateStrongPassword($password);
+        if ($passwordError !== null) {
+            echo json_encode(['success' => false, 'message' => $passwordError]);
             exit();
         }
 
@@ -171,6 +177,24 @@ class DashboardController extends AppController {
         if (empty($email) || empty($username)) {
             echo json_encode(['success' => false, 'message' => 'Wypełnij wymagane pola (email, nazwa)']);
             exit();
+        }
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            echo json_encode(['success' => false, 'message' => 'Podaj poprawny adres email.']);
+            exit();
+        }
+
+        if ($password !== null) {
+            if (strlen($password) > 1024) {
+                echo json_encode(['success' => false, 'message' => 'Hasło jest zbyt długie.']);
+                exit();
+            }
+
+            $passwordError = $this->validateStrongPassword($password);
+            if ($passwordError !== null) {
+                echo json_encode(['success' => false, 'message' => $passwordError]);
+                exit();
+            }
         }
 
         $result = $this->userRepo->updateUserProfileData($_SESSION['user_id'], $email, $username, $password);

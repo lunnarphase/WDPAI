@@ -186,6 +186,18 @@ class Routing {
             "controller" => "AdminController",
             "action" => "apiGetReviewReports"
         ],
+        "api-get-login-logs" => [
+            "controller" => "AdminController",
+            "action" => "apiGetLoginLogs"
+        ],
+        "admin-block-user" => [
+            "controller" => "AdminController",
+            "action" => "adminBlockUser"
+        ],
+        "admin-unblock-user" => [
+            "controller" => "AdminController",
+            "action" => "adminUnblockUser"
+        ],
     ];
 
     public static function run(string $path) {

@@ -5,9 +5,19 @@ require_once __DIR__ . '/../models/User.php';
 
 class UsersRepository extends Repository {
 
+    private static ?UsersRepository $instance = null;
+
+    public static function getInstance(): UsersRepository
+    {
+        if (self::$instance === null) {
+            self::$instance = new UsersRepository();
+        }
+        return self::$instance;
+    }
+
     public function getUserByEmail(string $email): ?User {
         $query = $this->database->connect()->prepare(
-            "SELECT u.id, u.email, u.password, u.username, r.name as role 
+            "SELECT u.id, u.email, u.password, u.username, r.name as role, u.is_blocked
              FROM users u 
              JOIN roles r ON u.id_role = r.id 
              WHERE u.email = :email"
@@ -25,9 +35,37 @@ class UsersRepository extends Repository {
             $user['email'],
             $user['password'],
             $user['username'],
-            $user['role'], 
-            $user['id']
+            $user['role'],
+            $user['id'],
+            (bool)$user['is_blocked']
         );
+    }
+
+    public function emailExists(string $email): bool {
+        $db = $this->database->connect();
+        $stmt = $db->prepare('SELECT 1 FROM users WHERE email = :email LIMIT 1');
+        $stmt->bindParam(':email', $email, PDO::PARAM_STR);
+        $stmt->execute();
+        return (bool)$stmt->fetchColumn();
+    }
+
+    public function blockUser(int $userId): void {
+        $db = $this->database->connect();
+        $stmt = $db->prepare('UPDATE users SET is_blocked = TRUE WHERE id = ?');
+        $stmt->execute([$userId]);
+    }
+
+    public function unblockUser(int $userId): void {
+        $db = $this->database->connect();
+        $stmt = $db->prepare('UPDATE users SET is_blocked = FALSE WHERE id = ?');
+        $stmt->execute([$userId]);
+    }
+
+    public function getAdminUserIds(): array {
+        $db = $this->database->connect();
+        $stmt = $db->prepare("SELECT u.id FROM users u JOIN roles r ON u.id_role = r.id WHERE r.name = 'admin'");
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_COLUMN);
     }
 
     public function createUser(string $email, string $password, string $username, string $name, string $surname, string $pesel): void 

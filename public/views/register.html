@@ -28,11 +28,12 @@
             
             <?php if(isset($messages)) { ?>
                 <div class="error-messages">
-                    <?php foreach($messages as $message) { echo $message; } ?>
+                    <?php foreach($messages as $message) { echo htmlspecialchars($message); } ?>
                 </div>
             <?php } ?>
 
             <form action="/register" method="POST">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token ?? '') ?>">
                 
                 <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
                     <div class="form-group" style="flex: 1; margin-bottom: 0;">
@@ -58,13 +59,17 @@
                 <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
                     <div class="form-group" style="flex: 1; margin-bottom: 0;">
                         <label for="password">Hasło</label>
-                        <input name="password" id="password" type="password" placeholder="........" required>
+                        <input name="password" id="password" type="password" placeholder="........" minlength="9" required>
                     </div>
                     <div class="form-group" style="flex: 1; margin-bottom: 0;">
                         <label for="password_confirm">Powtórz hasło</label>
-                        <input name="password_confirm" id="password_confirm" type="password" placeholder="........" required>
+                        <input name="password_confirm" id="password_confirm" type="password" placeholder="........" minlength="9" required>
                     </div>
                 </div>
+
+                <p style="margin-top: -0.5rem; margin-bottom: 1.25rem; color: var(--text-muted); font-size: 0.82rem;">
+                    Hasło musi mieć minimum 9 znaków oraz zawierać małą literę, wielką literę, cyfrę i znak specjalny.
+                </p>
 
                 <div class="form-options" style="margin-bottom: 1.5rem;">
                     <label class="checkbox-container" style="align-items: flex-start;">

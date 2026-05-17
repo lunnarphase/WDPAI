@@ -30,11 +30,12 @@
 
             <?php if(isset($messages)) { ?>
                 <div class="<?= isset($is_success) && $is_success ? 'success-messages' : 'error-messages' ?>">
-                    <?php foreach($messages as $message) { echo $message; } ?>
+                        <?php foreach($messages as $message) { echo htmlspecialchars($message); } ?>
                 </div>
             <?php } ?>
 
             <form action="/login" method="POST">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token ?? '') ?>">
                 <div class="form-group">
                     <label for="email">E-mail</label>
                     <input name="email" id="email" type="email" placeholder="twoj@email.pl" value="<?= htmlspecialchars($rememberEmail) ?>" required>
