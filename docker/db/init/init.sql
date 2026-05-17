@@ -2,9 +2,13 @@ DROP VIEW IF EXISTS view_appointment_details CASCADE;
 DROP VIEW IF EXISTS view_doctor_details CASCADE;
 DROP TRIGGER IF EXISTS trg_review_request ON appointments;
 DROP FUNCTION IF EXISTS notify_patient_review_request();
+DROP TRIGGER IF EXISTS check_doctor_availability_trigger ON appointments;
+DROP FUNCTION IF EXISTS check_doctor_availability_func();
 DROP TABLE IF EXISTS review_reports CASCADE;
 DROP TABLE IF EXISTS reviews CASCADE;
 DROP TABLE IF EXISTS appointments CASCADE;
+DROP TABLE IF EXISTS doctor_schedule_templates CASCADE;
+DROP TABLE IF EXISTS doctor_availability CASCADE;
 DROP TABLE IF EXISTS doctors_specializations CASCADE;
 DROP TABLE IF EXISTS doctors CASCADE;
 DROP TABLE IF EXISTS patients CASCADE;
@@ -78,6 +82,24 @@ CREATE TABLE appointments (
     cancel_reason TEXT,
     cancel_comment TEXT,
     review_submitted BOOLEAN DEFAULT FALSE
+);
+
+-- Dostępność lekarza (zakresy godzinowe na konkretny dzień)
+CREATE TABLE doctor_availability (
+    id SERIAL PRIMARY KEY,
+    id_doctor INTEGER NOT NULL REFERENCES doctors(id) ON DELETE CASCADE,
+    date DATE NOT NULL,
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL
+);
+
+-- Szablony tygodniowe lekarza
+CREATE TABLE doctor_schedule_templates (
+    id SERIAL PRIMARY KEY,
+    id_doctor INTEGER NOT NULL REFERENCES doctors(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL
 );
 
 -- Opinie pacjentów (jedna opinia na wizytę)

@@ -106,6 +106,30 @@ class Routing {
             "controller" => "DoctorController",
             "action" => "apiGetDoctorAppointments"
         ],
+        "api-get-week-availability" => [
+            "controller" => "DoctorController",
+            "action" => "apiGetWeekAvailability"
+        ],
+        "api-save-week-availability" => [
+            "controller" => "DoctorController",
+            "action" => "apiSaveWeekAvailability"
+        ],
+        "api-get-schedule-templates" => [
+            "controller" => "DoctorController",
+            "action" => "apiGetScheduleTemplates"
+        ],
+        "api-save-schedule-template" => [
+            "controller" => "DoctorController",
+            "action" => "apiSaveScheduleTemplate"
+        ],
+        "api-delete-schedule-template" => [
+            "controller" => "DoctorController",
+            "action" => "apiDeleteScheduleTemplate"
+        ],
+        "api-get-available-dates" => [
+            "controller" => "DoctorController",
+            "action" => "apiGetAvailableDates"
+        ],
         "api-mark-notifications-read" => [
             "controller" => "DashboardController",
             "action" => "apiMarkNotificationsRead"

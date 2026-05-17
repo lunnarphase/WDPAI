@@ -103,8 +103,6 @@
         let selectedDate = null;
         let selectedTime = null;
 
-        const workingHours = ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00'];
-        const totalSlots = workingHours.length;
         const daysPl = ['Ndz', 'Pon', 'Wto', 'Śro', 'Czw', 'Pią', 'Sob'];
         const monthsPl = ['Sty', 'Lut', 'Mar', 'Kwi', 'Maj', 'Cze', 'Lip', 'Sie', 'Wrz', 'Paź', 'Lis', 'Gru'];
 
@@ -118,34 +116,32 @@
         }
 
         if (doctorId) {
-            fetch('/doctor-availability', {
-                method: 'POST', 
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ doctor_id: doctorId, start_date: days[0].isoDate, end_date: days[days.length - 1].isoDate })
-            })
+            const startDate = days[0].isoDate;
+            const endDate   = days[days.length - 1].isoDate;
+            fetch(`/api-get-available-dates?doctor_id=${encodeURIComponent(doctorId)}&start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}`)
             .then(res => {
                 if (!res.ok) throw new Error("Błąd serwera: " + res.status);
                 return res.json();
             })
-            .then(bookedData => {
-                let bookedMap = {};
-                bookedData.forEach(row => {
-                    if(!bookedMap[row.appointment_date]) bookedMap[row.appointment_date] = [];
-                    bookedMap[row.appointment_date].push(row.appointment_time);
-                });
+            .then(availableDates => {
+                const availableSet = new Set(availableDates);
 
                 calendarContainer.innerHTML = '';
+
+                if (availableSet.size === 0) {
+                    calendarContainer.innerHTML = '<p style="color:#64748b; font-size:0.9rem; padding:0.5rem 0; width:100%; text-align:center;">Ten lekarz nie ma jeszcze ustawionego harmonogramu. Spróbuj ponownie później.</p>';
+                    return;
+                }
+
                 days.forEach(day => {
-                    const bookedCount = bookedMap[day.isoDate] ? bookedMap[day.isoDate].length : 0;
-                    const isFull = bookedCount >= totalSlots; 
-                    const isSunday = day.dateObj.getDay() === 0; 
+                    const isAvailable = availableSet.has(day.isoDate);
 
                     const card = document.createElement('div');
-                    card.className = `date-card ${isFull || isSunday ? 'disabled' : ''}`;
+                    card.className = `date-card ${isAvailable ? '' : 'disabled'}`;
                     card.innerHTML = `<span class="day-name">${day.dayName}</span><span class="day-num">${day.dayNum}</span><span class="month-name">${day.monthName}</span>`;
 
-                    if (!isFull && !isSunday) {
-                        card.addEventListener('click', () => selectDate(card, day.isoDate, bookedMap[day.isoDate] || []));
+                    if (isAvailable) {
+                        card.addEventListener('click', () => selectDate(card, day.isoDate));
                     }
                     calendarContainer.appendChild(card);
                 });
@@ -156,7 +152,7 @@
             });
         }
 
-        function selectDate(cardElement, isoDate, bookedTimesForDay) {
+        function selectDate(cardElement, isoDate) {
             document.querySelectorAll('.date-card').forEach(c => c.classList.remove('selected'));
             cardElement.classList.add('selected');
 
@@ -166,22 +162,29 @@
             submitBtn.disabled = true;
             submitBtn.classList.remove('active');
             timeSection.style.display = 'block';
-            timeContainer.innerHTML = '';
+            timeContainer.innerHTML = '<p style="color:#64748b; font-size:0.85rem;">Wczytywanie godzin...</p>';
 
-            workingHours.forEach(time => {
-                const timeDiv = document.createElement('div');
-                const isBooked = bookedTimesForDay.some(bookedTime => bookedTime.startsWith(time));
-                
-                timeDiv.className = `time-slot ${isBooked ? 'booked' : ''}`;
-                timeDiv.innerText = time;
-                if (!isBooked) { 
-                    timeDiv.addEventListener('click', () => selectTime(timeDiv, time)); 
+            fetch(`/api-get-slots?doctor_id=${encodeURIComponent(doctorId)}&date=${encodeURIComponent(isoDate)}`)
+            .then(res => res.json())
+            .then(availableSlots => {
+                timeContainer.innerHTML = '';
+                if (!availableSlots || availableSlots.length === 0) {
+                    timeContainer.innerHTML = '<p style="color:#64748b; font-size:0.85rem;">Brak dostępnych godzin w tym dniu.</p>';
+                    return;
                 }
-                timeContainer.appendChild(timeDiv);
+                availableSlots.forEach(time => {
+                    const timeDiv = document.createElement('div');
+                    timeDiv.className = 'time-slot';
+                    timeDiv.innerText = time;
+                    timeDiv.addEventListener('click', () => selectTime(timeDiv, time));
+                    timeContainer.appendChild(timeDiv);
+                });
+            })
+            .catch(() => {
+                timeContainer.innerHTML = '<p style="color:#ef4444; font-size:0.85rem;">Błąd wczytywania godzin.</p>';
             });
-            
-            // Przewiń widok do godzin na mobile
-            if(window.innerWidth < 600) {
+
+            if (window.innerWidth < 600) {
                 timeSection.scrollIntoView({ behavior: 'smooth' });
             }
         }
@@ -192,15 +195,10 @@
 
             selectedTime = timeString;
 
-            console.log('Data ustawiona:', selectedDate);
-            console.log('Godzina ustawiona:', selectedTime);
-            console.log('Lekarz ID:', doctorId);
-
             submitBtn.disabled = false;
             submitBtn.classList.add('active');
         }
 
-        // Intercept form submit
         bookingForm.addEventListener('submit', function(e) {
             e.preventDefault();
 
@@ -209,13 +207,9 @@
                 return;
             }
 
-            // Ustawiamy wartości w hidden inputach przed submitem
             document.getElementById('selected_date').value = selectedDate;
             document.getElementById('selected_time').value = selectedTime;
 
-            console.log('Submit - wysyłam datę:', selectedDate, 'godzinę:', selectedTime);
-
-            // Teraz submit formularz
             bookingForm.submit();
         });
     </script>

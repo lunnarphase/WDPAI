@@ -26,6 +26,12 @@ class AppointmentRepository extends Repository {
                 throw new Exception("Przykro nam, ale ten termin został przed chwilą zarezerwowany przez inną osobę.");
             }
 
+            $availStmt = $db->prepare('SELECT COUNT(*) FROM doctor_availability WHERE id_doctor = ? AND date = ? AND start_time <= ? AND end_time > ?');
+            $availStmt->execute([$doctorId, $date, $time . ':00', $time . ':00']);
+            if ((int)$availStmt->fetchColumn() === 0) {
+                throw new Exception("Wybrany termin nie jest już dostępny. Proszę wybrać inny termin.");
+            }
+
             $stmt = $db->prepare('
                 INSERT INTO appointments (id_patient, id_doctor, appointment_date, appointment_time, status)
                 VALUES (?, ?, ?, ?, ?)
@@ -307,5 +313,148 @@ class AppointmentRepository extends Repository {
         $db = $this->database->connect();
         $stmt = $db->prepare('DELETE FROM notifications WHERE id = :id AND id_user = :user_id');
         $stmt->execute([':id' => $notifId, ':user_id' => $userId]);
+    }
+
+    // =================== DOCTOR AVAILABILITY ===================
+
+    public function getDoctorAvailabilityForWeek(int $doctorId, string $weekStart, string $weekEnd): array {
+        $db = $this->database->connect();
+        $stmt = $db->prepare("
+            SELECT date::text AS date, start_time::text AS start_time, end_time::text AS end_time
+            FROM doctor_availability
+            WHERE id_doctor = ? AND date >= ? AND date <= ?
+            ORDER BY date, start_time
+        ");
+        $stmt->execute([$doctorId, $weekStart, $weekEnd]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function saveWeekAvailability(int $doctorId, string $weekStart, string $weekEnd, array $dayRanges): void {
+        $db = $this->database->connect();
+        $db->beginTransaction();
+        try {
+            $db->prepare("DELETE FROM doctor_availability WHERE id_doctor = ? AND date >= ? AND date <= ?")
+               ->execute([$doctorId, $weekStart, $weekEnd]);
+            $stmt = $db->prepare("INSERT INTO doctor_availability (id_doctor, date, start_time, end_time) VALUES (?, ?, ?, ?)");
+            foreach ($dayRanges as $r) {
+                $stmt->execute([$doctorId, $r['date'], $r['start_time'], $r['end_time']]);
+            }
+            $db->commit();
+        } catch (Exception $e) {
+            $db->rollBack();
+            throw $e;
+        }
+    }
+
+    public function getAvailableSlotsForDate(int $doctorId, string $date): array {
+        $db = $this->database->connect();
+        $stmt = $db->prepare("
+            SELECT start_time::text AS start_time, end_time::text AS end_time
+            FROM doctor_availability
+            WHERE id_doctor = ? AND date = ?
+            ORDER BY start_time
+        ");
+        $stmt->execute([$doctorId, $date]);
+        $ranges = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        if (empty($ranges)) return [];
+
+        $slots = [];
+        foreach ($ranges as $r) {
+            $start = strtotime($r['start_time']);
+            $end   = strtotime($r['end_time']);
+            for ($t = $start; $t + 1800 <= $end; $t += 1800) {
+                $slots[] = date('H:i', $t);
+            }
+        }
+        $slots = array_values(array_unique($slots));
+        sort($slots);
+
+        $stmt = $db->prepare("
+            SELECT appointment_time::text AS t
+            FROM appointments
+            WHERE id_doctor = ? AND appointment_date = ? AND status != 'cancelled'
+        ");
+        $stmt->execute([$doctorId, $date]);
+        $booked = array_map(fn($v) => substr($v, 0, 5), $stmt->fetchAll(PDO::FETCH_COLUMN));
+
+        return array_values(array_filter($slots, fn($s) => !in_array($s, $booked)));
+    }
+
+    public function getAvailableDatesInRange(int $doctorId, string $startDate, string $endDate): array {
+        $db = $this->database->connect();
+        $stmt = $db->prepare("
+            SELECT date::text AS date, start_time::text AS start_time, end_time::text AS end_time
+            FROM doctor_availability
+            WHERE id_doctor = ? AND date >= ? AND date <= ?
+            ORDER BY date, start_time
+        ");
+        $stmt->execute([$doctorId, $startDate, $endDate]);
+        $allRanges = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        if (empty($allRanges)) return [];
+
+        $stmt = $db->prepare("
+            SELECT appointment_date::text AS date, appointment_time::text AS time
+            FROM appointments
+            WHERE id_doctor = ? AND appointment_date >= ? AND appointment_date <= ? AND status != 'cancelled'
+        ");
+        $stmt->execute([$doctorId, $startDate, $endDate]);
+        $booked = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $bookedMap = [];
+        foreach ($booked as $b) {
+            $bookedMap[$b['date']][] = substr($b['time'], 0, 5);
+        }
+
+        $byDate = [];
+        foreach ($allRanges as $r) {
+            $byDate[$r['date']][] = $r;
+        }
+
+        $available = [];
+        foreach ($byDate as $date => $ranges) {
+            $taken = $bookedMap[$date] ?? [];
+            foreach ($ranges as $r) {
+                $start = strtotime($r['start_time']);
+                $end   = strtotime($r['end_time']);
+                for ($t = $start; $t + 1800 <= $end; $t += 1800) {
+                    if (!in_array(date('H:i', $t), $taken)) {
+                        $available[] = $date;
+                        break 2;
+                    }
+                }
+            }
+        }
+        return $available;
+    }
+
+    // =================== SCHEDULE TEMPLATES ===================
+
+    public function getScheduleTemplates(int $doctorId): array {
+        $db = $this->database->connect();
+        $stmt = $db->prepare("
+            SELECT id, name, start_time::text AS start_time, end_time::text AS end_time
+            FROM doctor_schedule_templates
+            WHERE id_doctor = ?
+            ORDER BY name
+        ");
+        $stmt->execute([$doctorId]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function saveScheduleTemplate(int $doctorId, string $name, string $startTime, string $endTime): int {
+        $db = $this->database->connect();
+        $stmt = $db->prepare("
+            INSERT INTO doctor_schedule_templates (id_doctor, name, start_time, end_time)
+            VALUES (?, ?, ?, ?)
+            RETURNING id
+        ");
+        $stmt->execute([$doctorId, $name, $startTime, $endTime]);
+        return (int)$stmt->fetchColumn();
+    }
+
+    public function deleteScheduleTemplate(int $doctorId, int $templateId): void {
+        $db = $this->database->connect();
+        $db->prepare("DELETE FROM doctor_schedule_templates WHERE id = ? AND id_doctor = ?")
+           ->execute([$templateId, $doctorId]);
     }
 }

@@ -266,26 +266,40 @@ class ReviewRepository extends Repository {
 
     public function getNextAvailableSlot(int $doctorId): ?string {
         $db = $this->database->connect();
-        $slots = ['08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '13:00', '13:30', '14:00', '14:30', '15:00'];
+        $today = (new DateTime('today'))->format('Y-m-d');
+        $until = (new DateTime('+90 days'))->format('Y-m-d');
 
-        $date = new DateTime('today');
-        for ($i = 0; $i < 60; $i++) {
-            $dateStr = $date->format('Y-m-d');
+        $stmt = $db->prepare("
+            SELECT date::text AS date, start_time::text AS start_time, end_time::text AS end_time
+            FROM doctor_availability
+            WHERE id_doctor = ? AND date >= ? AND date <= ?
+            ORDER BY date, start_time
+        ");
+        $stmt->execute([$doctorId, $today, $until]);
+        $ranges = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            $stmt = $db->prepare("
-                SELECT appointment_time FROM appointments
-                WHERE id_doctor = ? AND appointment_date = ? AND status != 'cancelled'
-            ");
-            $stmt->execute([$doctorId, $dateStr]);
-            $takenRaw = $stmt->fetchAll(PDO::FETCH_COLUMN);
-            $taken = array_map(fn($t) => substr($t, 0, 5), $takenRaw);
+        if (empty($ranges)) return null;
 
-            foreach ($slots as $slot) {
-                if (!in_array($slot, $taken)) {
-                    return $dateStr . ' ' . $slot;
+        $lastDate = null;
+        $booked = [];
+        foreach ($ranges as $r) {
+            if ($r['date'] !== $lastDate) {
+                $lastDate = $r['date'];
+                $bStmt = $db->prepare("
+                    SELECT appointment_time::text AS t FROM appointments
+                    WHERE id_doctor = ? AND appointment_date = ? AND status != 'cancelled'
+                ");
+                $bStmt->execute([$doctorId, $r['date']]);
+                $booked = array_map(fn($v) => substr($v, 0, 5), $bStmt->fetchAll(PDO::FETCH_COLUMN));
+            }
+            $start = strtotime($r['start_time']);
+            $end   = strtotime($r['end_time']);
+            for ($t = $start; $t + 1800 <= $end; $t += 1800) {
+                $slot = date('H:i', $t);
+                if (!in_array($slot, $booked)) {
+                    return $r['date'] . ' ' . $slot;
                 }
             }
-            $date->modify('+1 day');
         }
         return null;
     }

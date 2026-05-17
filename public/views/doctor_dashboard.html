@@ -47,9 +47,10 @@
                 <i class="fa-solid fa-stethoscope" style="color: #2563eb;"></i> MediSchedule <span style="font-size: 0.8rem; color: #64748b; margin-left: 10px; text-transform: uppercase;">Lekarz</span>
             </a>
             <div class="nav-links">
-                <a href="#" class="active" onclick="switchTab('harmonogram', this)">Mój Harmonogram</a>
+                <a href="#" class="active" onclick="switchTab('harmonogram', this)">Nadchodzące wizyty</a>
+                <a href="#" onclick="switchTab('dostepnosc', this)">Mój harmonogram</a>
                 <a href="#" onclick="switchTab('historia', this)">Historia wizyt</a>
-                <a href="#" onclick="switchTab('opinie', this)">Twoje opinie</a>
+                <a href="#" onclick="switchTab('opinie', this)">Moje opinie</a>
             </div>
         </div>
         <button class="hamburger-btn" onclick="toggleDoctorMobileMenu()" style="display:none;">
@@ -67,9 +68,10 @@
             <a href="/logout" class="logout-link"><i class="fa-solid fa-arrow-right-from-bracket"></i> Wyloguj</a>
         </div>
         <div class="mobile-menu" id="doctorMobileMenu">
-            <a href="#" onclick="switchTab('harmonogram', this); toggleDoctorMobileMenu();"><i class="fa-regular fa-calendar-check"></i> Mój Harmonogram</a>
+            <a href="#" onclick="switchTab('harmonogram', this); toggleDoctorMobileMenu();"><i class="fa-regular fa-calendar-check"></i> Nadchodzące wizyty</a>
+            <a href="#" onclick="switchTab('dostepnosc', this); toggleDoctorMobileMenu();"><i class="fa-regular fa-calendar-days"></i> Mój harmonogram</a>
             <a href="#" onclick="switchTab('historia', this); toggleDoctorMobileMenu();"><i class="fa-solid fa-clock-rotate-left"></i> Historia wizyt</a>
-            <a href="#" onclick="switchTab('opinie', this); toggleDoctorMobileMenu();"><i class="fa-regular fa-star"></i> Twoje opinie</a>
+            <a href="#" onclick="switchTab('opinie', this); toggleDoctorMobileMenu();"><i class="fa-regular fa-star"></i> Moje opinie</a>
             <a href="#" onclick="openNotificationsModal(); toggleDoctorMobileMenu();"><i class="fa-regular fa-bell"></i> Powiadomienia</a>
             <a href="#" onclick="openDoctorProfileEditModal(); toggleDoctorMobileMenu();"><i class="fa-regular fa-user"></i> Edytuj profil</a>
             <a href="/logout"><i class="fa-solid fa-arrow-right-from-bracket"></i> Wyloguj</a>
@@ -78,7 +80,7 @@
 
     <main class="dashboard-container" style="max-width: 1100px; margin: 0 auto; padding-top: 2rem;">
         
-        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+        <div id="doctor-welcome-header" style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
             <header class="dashboard-header" style="margin-bottom: 0;">
                 <h1 style="color: #0f172a; font-size: 2.2rem;">Witaj, dr <?= htmlspecialchars($_SESSION['user_name'] ?? 'Lekarzu') ?></h1>
                 <p>Zarządzaj swoimi pacjentami i wystawiaj zalecenia.</p>
@@ -223,7 +225,7 @@
             <div style="padding:1.5rem; border-bottom:1px solid #e2e8f0;">
                 <h2 style="margin:0 0 0.75rem; font-size:1.3rem; display:flex; align-items:center; gap:10px;">
                     <span style="display:inline-block; width:6px; height:24px; background:#f59e0b; border-radius:4px;"></span>
-                    Twoje opinie
+                    Moje opinie
                 </h2>
                 <?php if (!empty($reviewSummary) && $reviewSummary['review_count'] > 0): ?>
                 <div style="display:inline-flex; align-items:center; gap:1rem; background:#fefce8; padding:0.75rem 1.25rem; border-radius:10px; border:1px solid #fde68a;">
@@ -261,7 +263,495 @@
         </div>
     </div>
 
+        <!-- TAB DOSTĘPNOŚCI / MÓJ HARMONOGRAM -->
+        <div id="tab-dostepnosc" style="display:none; padding:0 1.5rem 2rem;">
+
+        <!-- Nagłówek tygodnia (sticky) -->
+        <div id="sched-nav-bar" style="background:#f8fafc; padding-bottom:0.75rem; position:sticky; top:70px; z-index:100;">
+        <div style="background:white; border-radius:16px; border:1px solid #e2e8f0; padding:1.25rem 1.5rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
+            <div style="display:flex; align-items:center; gap:0.75rem;">
+                <button onclick="schedPrevWeek()" style="background:#f1f5f9; border:none; border-radius:8px; padding:0.5rem 0.9rem; cursor:pointer; font-size:1rem; color:#475569; transition:0.15s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">&#8592;</button>
+                <span id="sched-week-label" style="font-weight:700; font-size:1.05rem; color:#0f172a; min-width:200px; text-align:center;">Wczytywanie...</span>
+                <button onclick="schedNextWeek()" style="background:#f1f5f9; border:none; border-radius:8px; padding:0.5rem 0.9rem; cursor:pointer; font-size:1rem; color:#475569; transition:0.15s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">&#8594;</button>
+            </div>
+            <button onclick="openTemplateModal()" style="background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; border-radius:8px; padding:0.6rem 1.2rem; cursor:pointer; font-size:0.9rem; font-weight:600; transition:0.15s;" onmouseover="this.style.background='#dbeafe'" onmouseout="this.style.background='#eff6ff'">
+                <i class="fa-regular fa-calendar-days"></i> Szablony tygodniowe
+            </button>
+        </div>
+        </div>
+
+        <!-- Siatka tygodnia -->
+        <div id="sched-week-grid" style="display:grid; grid-template-columns:repeat(5,1fr); gap:1rem; margin-bottom:1.5rem;">
+            <!-- wypełniane przez JS -->
+        </div>
+
+        <!-- Przycisk zapisu -->
+        <div style="display:flex; justify-content:center;">
+            <button id="sched-save-btn" onclick="saveScheduleWeek()" style="background:#16a34a; color:white; border:none; border-radius:12px; padding:1rem 3.5rem; font-size:1.05rem; font-weight:700; cursor:pointer; transition:0.2s; box-shadow:0 4px 12px rgba(22,163,74,0.25);">
+                <i class="fa-solid fa-floppy-disk"></i> Zapisz harmonogram
+            </button>
+        </div>
+    </div>
+
     </main>
+
+    <!-- Modal szablonów tygodniowych -->
+    <div id="scheduleTemplateModal" class="doctor-modal-overlay">
+        <div class="doctor-modal-content" style="max-width:480px; padding:2rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                <h3 style="margin:0; font-size:1.3rem; color:#0f172a;">Szablony tygodniowe</h3>
+                <button onclick="closeTemplateModal()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#64748b;">&times;</button>
+            </div>
+            <p style="color:#64748b; font-size:0.85rem; margin-bottom:1rem;">Szablon ustawia jednakowy zakres godzin dla wszystkich dni roboczych (Pon–Pt) w bieżącym tygodniu.</p>
+            <div id="sched-template-list" style="margin-bottom:1.25rem;"></div>
+            <div style="border-top:1px solid #e2e8f0; padding-top:1.25rem;">
+                <h4 style="margin:0 0 0.75rem; color:#0f172a; font-size:0.95rem; font-weight:700;">Dodaj nowy szablon</h4>
+                <input type="text" id="new-tmpl-name" placeholder="Nazwa (np. Standardowy tydzień)" style="width:100%; padding:0.65rem 0.9rem; border:1px solid #cbd5e1; border-radius:8px; font-family:inherit; font-size:0.9rem; box-sizing:border-box; margin-bottom:0.75rem; outline:none;">
+                <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
+                    <select id="new-tmpl-start" style="flex:1; min-width:90px; padding:0.6rem; border:1px solid #cbd5e1; border-radius:8px; font-family:inherit; outline:none; font-size:0.9rem;"></select>
+                    <span style="color:#64748b;">–</span>
+                    <select id="new-tmpl-end" style="flex:1; min-width:90px; padding:0.6rem; border:1px solid #cbd5e1; border-radius:8px; font-family:inherit; outline:none; font-size:0.9rem;"></select>
+                    <button onclick="saveNewTemplate()" style="background:#16a34a; color:white; border:none; border-radius:8px; padding:0.65rem 1.1rem; font-weight:600; cursor:pointer; font-size:0.9rem; white-space:nowrap;">Zapisz</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // ====================== HARMONOGRAM DOSTĘPNOŚCI ======================
+
+    let schedWeekOffset = 0;
+    let schedWeekData   = {}; // { 'YYYY-MM-DD': [{start:'08:00', end:'16:00'}, ...] }
+    let schedTemplates  = [];
+    let schedDropdowns  = []; // dropdown menus appended to body — cleaned up on each render
+    let activeSchedDD   = null; // currently open dropdown element
+
+    const MONTHS_PL = ['Sty','Lut','Mar','Kwi','Maj','Cze','Lip','Sie','Wrz','Paź','Lis','Gru'];
+    const DAYS_PL   = ['Poniedziałek','Wtorek','Środa','Czwartek','Piątek'];
+
+    function schedGetMonday(offset) {
+        const d = new Date();
+        const day = d.getDay();
+        const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+        const mon = new Date(d);
+        mon.setDate(diff + offset * 7);
+        mon.setHours(0,0,0,0);
+        return mon;
+    }
+
+    function schedGetWeekDates(offset) {
+        const mon = schedGetMonday(offset);
+        const dates = [];
+        for (let i = 0; i < 5; i++) {
+            const d = new Date(mon);
+            d.setDate(d.getDate() + i);
+            dates.push(d);
+        }
+        return dates;
+    }
+
+    function schedFmtDate(d) {
+        return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    }
+
+    function schedPrevWeek() { schedWeekOffset--; loadScheduleWeek(); }
+    function schedNextWeek() { schedWeekOffset++; loadScheduleWeek(); }
+
+    function loadScheduleWeek() {
+        const dates = schedGetWeekDates(schedWeekOffset);
+        const weekStart = schedFmtDate(dates[0]);
+        const weekEnd   = schedFmtDate(dates[4]);
+
+        schedWeekData = {};
+        dates.forEach(d => { schedWeekData[schedFmtDate(d)] = []; });
+
+        fetch(`/api-get-week-availability?week_start=${encodeURIComponent(weekStart)}&week_end=${encodeURIComponent(weekEnd)}`)
+            .then(r => r.json())
+            .then(rows => {
+                rows.forEach(r => {
+                    const dt = r.date;
+                    if (!schedWeekData[dt]) schedWeekData[dt] = [];
+                    schedWeekData[dt].push({ start: r.start_time.substring(0,5), end: r.end_time.substring(0,5) });
+                });
+                renderScheduleGrid();
+            })
+            .catch(() => renderScheduleGrid());
+    }
+
+    function generateTimeOpts() {
+        const opts = [];
+        for (let h = 6; h <= 22; h++) {
+            opts.push(String(h).padStart(2,'0') + ':00');
+            opts.push(String(h).padStart(2,'0') + ':30');
+        }
+        return opts;
+    }
+
+    // ---- Custom time select ----
+    function closeActiveSchedDD() {
+        if (activeSchedDD) { activeSchedDD.style.display = 'none'; activeSchedDD = null; }
+    }
+    document.addEventListener('click', closeActiveSchedDD);
+
+    function makeTimeSelect(currentVal, dateStr, rangeIdx, field) {
+        const times = generateTimeOpts();
+
+        const wrapper = document.createElement('div');
+        wrapper.style.cssText = 'position:relative; flex:1; min-width:0;';
+
+        const trigger = document.createElement('div');
+        trigger.style.cssText = 'padding:4px 6px; border:1px solid #d1d5db; border-radius:5px; font-size:0.8rem; cursor:pointer; background:white; display:flex; justify-content:space-between; align-items:center; user-select:none; gap:3px;';
+        const valSpan = document.createElement('span');
+        valSpan.textContent = currentVal;
+        const chevron = document.createElement('span');
+        chevron.textContent = '▾';
+        chevron.style.cssText = 'color:#94a3b8; font-size:0.7rem; flex-shrink:0;';
+        trigger.appendChild(valSpan);
+        trigger.appendChild(chevron);
+
+        // dropdown menu — appended to body so it is never clipped
+        const menu = document.createElement('div');
+        menu.style.cssText = 'display:none; position:fixed; background:white; border:1px solid #d1d5db; border-radius:8px; box-shadow:0 6px 20px rgba(0,0,0,0.12); max-height:220px; overflow-y:auto; z-index:99999; min-width:80px;';
+        schedDropdowns.push(menu);
+        document.body.appendChild(menu);
+
+        times.forEach(t => {
+            const item = document.createElement('div');
+            item.textContent = t;
+            const isSelected = (t === currentVal);
+            item.style.cssText = `padding:6px 12px; font-size:0.82rem; cursor:pointer; color:${isSelected ? '#2563eb' : '#0f172a'}; background:${isSelected ? '#eff6ff' : 'transparent'}; font-weight:${isSelected ? '600' : '400'};`;
+            item.addEventListener('mouseenter', () => { if (valSpan.textContent !== t) item.style.background = '#f8fafc'; });
+            item.addEventListener('mouseleave', () => { item.style.background = valSpan.textContent === t ? '#eff6ff' : 'transparent'; });
+            item.addEventListener('click', e => {
+                e.stopPropagation();
+                // deselect previous
+                menu.querySelectorAll('div').forEach(d => { d.style.background = 'transparent'; d.style.color = '#0f172a'; d.style.fontWeight = '400'; });
+                item.style.background = '#eff6ff'; item.style.color = '#2563eb'; item.style.fontWeight = '600';
+                valSpan.textContent = t;
+                closeActiveSchedDD();
+                schedUpdateRange(dateStr, rangeIdx, field, t);
+            });
+            menu.appendChild(item);
+        });
+
+        trigger.addEventListener('click', e => {
+            e.stopPropagation();
+            if (activeSchedDD === menu) { closeActiveSchedDD(); return; }
+            closeActiveSchedDD();
+            const rect = trigger.getBoundingClientRect();
+            const spaceBelow = window.innerHeight - rect.bottom;
+            const menuH = Math.min(220, times.length * 30);
+            menu.style.left  = rect.left + 'px';
+            menu.style.width = Math.max(80, rect.width) + 'px';
+            if (spaceBelow < menuH && rect.top > menuH) {
+                menu.style.top = ''; menu.style.bottom = (window.innerHeight - rect.top + 2) + 'px';
+            } else {
+                menu.style.bottom = ''; menu.style.top = (rect.bottom + 2) + 'px';
+            }
+            menu.style.display = 'block';
+            activeSchedDD = menu;
+            // scroll to selected item
+            const sel = [...menu.children].find(c => c.textContent === valSpan.textContent);
+            if (sel) setTimeout(() => sel.scrollIntoView({ block: 'nearest' }), 0);
+        });
+
+        wrapper.appendChild(trigger);
+        return wrapper;
+    }
+
+    // ---- Grid render ----
+    function renderScheduleGrid() {
+        // Remove old dropdown menus from DOM
+        schedDropdowns.forEach(m => m.parentNode && m.parentNode.removeChild(m));
+        schedDropdowns = [];
+        closeActiveSchedDD();
+
+        const dates = schedGetWeekDates(schedWeekOffset);
+        document.getElementById('sched-week-label').textContent =
+            `${dates[0].getDate()} \u2013 ${dates[4].getDate()} ${MONTHS_PL[dates[4].getMonth()]} ${dates[4].getFullYear()}`;
+
+        const grid = document.getElementById('sched-week-grid');
+        grid.innerHTML = '';
+
+        dates.forEach((d, idx) => {
+            const dateStr = schedFmtDate(d);
+            const ranges  = schedWeekData[dateStr] || [];
+            const enabled = ranges.length > 0;
+            const err     = schedValidateRanges(ranges);
+
+            // Card container — fixed structure, never grows unboundedly
+            const card = document.createElement('div');
+            card.style.cssText = `background:${err && enabled ? '#fff5f5' : 'white'}; border-radius:12px; border:1px solid ${err && enabled ? '#fca5a5' : '#e2e8f0'}; padding:1.1rem; display:flex; flex-direction:column; gap:0.6rem; min-width:0;`;
+
+            // Header row: day name + toggle (always same height)
+            const header = document.createElement('div');
+            header.style.cssText = 'display:flex; justify-content:space-between; align-items:center; flex-shrink:0;';
+            header.innerHTML = `
+                <div>
+                    <div style="font-weight:700; color:#0f172a; font-size:0.9rem;">${DAYS_PL[idx]}</div>
+                    <div style="font-size:0.78rem; color:#94a3b8;">${d.getDate()} ${MONTHS_PL[d.getMonth()]}</div>
+                </div>
+                <label style="position:relative; display:inline-block; width:40px; height:22px; cursor:pointer; flex-shrink:0;">
+                    <input type="checkbox" ${enabled ? 'checked' : ''} style="opacity:0; width:0; height:0;">
+                    <span style="position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background:${enabled ? '#16a34a' : '#cbd5e1'}; border-radius:22px; transition:.3s;"></span>
+                    <span style="position:absolute; left:${enabled ? '20px' : '2px'}; bottom:2px; background:white; width:18px; height:18px; border-radius:50%; transition:.3s; pointer-events:none;"></span>
+                </label>`;
+            header.querySelector('input').addEventListener('change', function() { schedToggleDay(dateStr, this.checked); });
+            card.appendChild(header);
+
+            // Ranges section — scrollable, capped height so card never shifts siblings
+            const rangesWrap = document.createElement('div');
+            rangesWrap.style.cssText = `display:${enabled ? 'flex' : 'none'}; flex-direction:column; gap:6px; overflow-y:auto; max-height:200px;`;
+
+            ranges.forEach((r, i) => {
+                const row = document.createElement('div');
+                row.style.cssText = 'display:flex; align-items:center; gap:4px; background:#f8fafc; border-radius:7px; padding:5px 7px; flex-shrink:0;';
+
+                const startSel = makeTimeSelect(r.start, dateStr, i, 'start');
+                const dash     = document.createElement('span');
+                dash.textContent = '–'; dash.style.cssText = 'color:#94a3b8; font-size:0.8rem; flex-shrink:0;';
+                const endSel   = makeTimeSelect(r.end, dateStr, i, 'end');
+                const rmBtn    = document.createElement('button');
+                rmBtn.textContent = '×';
+                rmBtn.style.cssText = 'background:none; border:none; color:#cbd5e1; cursor:pointer; font-size:1.1rem; padding:0 2px; line-height:1; flex-shrink:0; transition:0.15s;';
+                rmBtn.title = 'Usuń zakres';
+                rmBtn.addEventListener('mouseenter', () => rmBtn.style.color = '#ef4444');
+                rmBtn.addEventListener('mouseleave', () => rmBtn.style.color = '#cbd5e1');
+                rmBtn.addEventListener('click', () => schedRemoveRange(dateStr, i));
+
+                row.appendChild(startSel); row.appendChild(dash); row.appendChild(endSel); row.appendChild(rmBtn);
+                rangesWrap.appendChild(row);
+            });
+
+            if (err) {
+                const errEl = document.createElement('div');
+                errEl.style.cssText = 'color:#dc2626; font-size:0.78rem; flex-shrink:0;';
+                errEl.textContent = '\u26a0 ' + err;
+                rangesWrap.appendChild(errEl);
+            }
+
+            // "+ Dodaj zakres" button — always at bottom of rangesWrap
+            if (enabled) {
+                const addBtn = document.createElement('button');
+                addBtn.textContent = '+ Dodaj zakres';
+                addBtn.style.cssText = 'margin-top:2px; background:#f0fdf4; color:#16a34a; border:1px dashed #86efac; border-radius:7px; padding:5px; font-size:0.82rem; font-weight:600; cursor:pointer; transition:0.15s; flex-shrink:0;';
+                addBtn.addEventListener('mouseenter', () => addBtn.style.background = '#dcfce7');
+                addBtn.addEventListener('mouseleave', () => addBtn.style.background = '#f0fdf4');
+                addBtn.addEventListener('click', () => schedAddRange(dateStr));
+                rangesWrap.appendChild(addBtn);
+            }
+
+            card.appendChild(rangesWrap);
+            grid.appendChild(card);
+        });
+    }
+
+    function schedToggleDay(dateStr, enabled) {
+        schedWeekData[dateStr] = enabled ? [{start:'08:00', end:'16:00'}] : [];
+        renderScheduleGrid();
+    }
+
+    function schedAddRange(dateStr) {
+        if (!schedWeekData[dateStr]) schedWeekData[dateStr] = [];
+        schedWeekData[dateStr].push({start:'08:00', end:'09:00'});
+        renderScheduleGrid();
+    }
+
+    function schedRemoveRange(dateStr, idx) {
+        if (schedWeekData[dateStr]) schedWeekData[dateStr].splice(idx, 1);
+        renderScheduleGrid();
+    }
+
+    function schedUpdateRange(dateStr, idx, field, value) {
+        if (schedWeekData[dateStr] && schedWeekData[dateStr][idx]) {
+            schedWeekData[dateStr][idx][field] = value;
+            // Only re-validate (update border color) without full re-render to avoid closing dropdown
+            const err = schedValidateRanges(schedWeekData[dateStr]);
+            const grid = document.getElementById('sched-week-grid');
+            const cards = grid.children;
+            const dates = schedGetWeekDates(schedWeekOffset);
+            dates.forEach((d, i) => {
+                if (schedFmtDate(d) === dateStr && cards[i]) {
+                    const hasErr = err && schedWeekData[dateStr].length > 0;
+                    cards[i].style.background = hasErr ? '#fff5f5' : 'white';
+                    cards[i].style.borderColor = hasErr ? '#fca5a5' : '#e2e8f0';
+                }
+            });
+        }
+    }
+
+    function schedValidateRanges(ranges) {
+        if (!ranges || ranges.length === 0) return null;
+        for (const r of ranges) {
+            if (r.start >= r.end) return 'Czas zakończenia musi być późniejszy niż czas rozpoczęcia.';
+        }
+        for (let i = 0; i < ranges.length; i++) {
+            for (let j = i + 1; j < ranges.length; j++) {
+                if (ranges[i].start < ranges[j].end && ranges[j].start < ranges[i].end)
+                    return 'Zakresy godzin nakładają się na siebie.';
+            }
+        }
+        return null;
+    }
+
+    function schedValidateAll() {
+        for (const [date, ranges] of Object.entries(schedWeekData)) {
+            const err = schedValidateRanges(ranges);
+            if (err) return `${date}: ${err}`;
+        }
+        return null;
+    }
+
+    function saveScheduleWeek() {
+        const validErr = schedValidateAll();
+        if (validErr) { alert('Błąd walidacji: ' + validErr); return; }
+
+        const dates     = schedGetWeekDates(schedWeekOffset);
+        const weekStart = schedFmtDate(dates[0]);
+        const weekEnd   = schedFmtDate(dates[4]);
+
+        const allRanges = [];
+        Object.entries(schedWeekData).forEach(([date, ranges]) => {
+            ranges.forEach(r => allRanges.push({date, start_time: r.start, end_time: r.end}));
+        });
+
+        const btn = document.getElementById('sched-save-btn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Zapisywanie...';
+
+        fetch('/api-save-week-availability', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({week_start: weekStart, week_end: weekEnd, ranges: allRanges})
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                btn.innerHTML = '<i class="fa-solid fa-check"></i> Zapisano!';
+                btn.style.background = '#15803d';
+                setTimeout(() => {
+                    btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Zapisz harmonogram';
+                    btn.style.background = '#16a34a';
+                    btn.disabled = false;
+                }, 2000);
+            } else {
+                alert('Błąd: ' + (data.error || 'Nie udało się zapisać.'));
+                btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Zapisz harmonogram';
+                btn.disabled = false;
+            }
+        })
+        .catch(() => {
+            alert('Błąd połączenia z serwerem.');
+            btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Zapisz harmonogram';
+            btn.disabled = false;
+        });
+    }
+
+    // ---- SZABLONY ----
+
+    function openTemplateModal() {
+        fetch('/api-get-schedule-templates')
+            .then(r => r.json())
+            .then(data => {
+                schedTemplates = data;
+                renderTemplateList();
+                const opts = generateTimeOpts().map(t => `<option value="${t}">${t}</option>`).join('');
+                document.getElementById('new-tmpl-start').innerHTML = opts;
+                document.getElementById('new-tmpl-end').innerHTML   = opts;
+                document.getElementById('new-tmpl-start').value = '08:00';
+                document.getElementById('new-tmpl-end').value   = '16:00';
+                document.getElementById('scheduleTemplateModal').classList.add('active');
+            });
+    }
+
+    function closeTemplateModal() {
+        document.getElementById('scheduleTemplateModal').classList.remove('active');
+    }
+
+    function renderTemplateList() {
+        const c = document.getElementById('sched-template-list');
+        if (!schedTemplates.length) {
+            c.innerHTML = '<p style="text-align:center; color:#94a3b8; font-size:0.9rem; padding:0.5rem;">Brak zapisanych szablonów.</p>';
+            return;
+        }
+        c.innerHTML = schedTemplates.map(t => `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:0.7rem 1rem; background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:0.5rem;">
+                <div>
+                    <span style="font-weight:700; color:#0f172a; font-size:0.9rem;">${escHtml(t.name)}</span>
+                    <span style="color:#64748b; font-size:0.82rem; margin-left:0.6rem;">${t.start_time.substring(0,5)} \u2013 ${t.end_time.substring(0,5)}</span>
+                </div>
+                <div style="display:flex; gap:0.4rem;">
+                    <button onclick="applySchedTemplate(${t.id})" style="background:#eff6ff; color:#2563eb; border:none; padding:0.35rem 0.8rem; border-radius:6px; font-size:0.82rem; font-weight:600; cursor:pointer; transition:0.15s;" onmouseover="this.style.background='#dbeafe'" onmouseout="this.style.background='#eff6ff'">Zastosuj</button>
+                    <button onclick="deleteSchedTemplate(${t.id})" style="background:#fef2f2; color:#dc2626; border:none; padding:0.35rem 0.6rem; border-radius:6px; cursor:pointer; transition:0.15s;" title="Usuń" onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='#fef2f2'"><i class="fa-solid fa-trash" style="font-size:0.75rem;"></i></button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function applySchedTemplate(templateId) {
+        const t = schedTemplates.find(x => x.id === templateId);
+        if (!t) return;
+        const dates = schedGetWeekDates(schedWeekOffset);
+        dates.forEach(d => {
+            schedWeekData[schedFmtDate(d)] = [{start: t.start_time.substring(0,5), end: t.end_time.substring(0,5)}];
+        });
+        closeTemplateModal();
+        renderScheduleGrid();
+    }
+
+    function deleteSchedTemplate(templateId) {
+        if (!confirm('Czy na pewno chcesz usunąć ten szablon?')) return;
+        fetch('/api-delete-schedule-template', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({id: templateId})
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                schedTemplates = schedTemplates.filter(x => x.id !== templateId);
+                renderTemplateList();
+            }
+        });
+    }
+
+    function saveNewTemplate() {
+        const name  = document.getElementById('new-tmpl-name').value.trim();
+        const start = document.getElementById('new-tmpl-start').value;
+        const end   = document.getElementById('new-tmpl-end').value;
+        if (!name)        { alert('Podaj nazwę szablonu.'); return; }
+        if (start >= end) { alert('Czas zakończenia musi być późniejszy niż czas rozpoczęcia.'); return; }
+
+        fetch('/api-save-schedule-template', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({name, start_time: start, end_time: end})
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                schedTemplates.push({id: data.id, name, start_time: start + ':00', end_time: end + ':00'});
+                renderTemplateList();
+                document.getElementById('new-tmpl-name').value = '';
+            } else {
+                alert('Błąd: ' + (data.error || 'Nie udało się zapisać szablonu.'));
+            }
+        });
+    }
+
+    function escHtml(str) {
+        return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // Responsive grid
+    function adjustSchedGrid() {
+        const grid = document.getElementById('sched-week-grid');
+        if (!grid) return;
+        grid.style.gridTemplateColumns = window.innerWidth < 700 ? '1fr' : 'repeat(5,1fr)';
+    }
+    window.addEventListener('resize', adjustSchedGrid);
+    adjustSchedGrid();
+    </script>
 
     <div id="statusModal" class="doctor-modal-overlay">
         <div class="doctor-modal-content" style="max-width: 500px; padding: 2rem;">
@@ -371,13 +861,16 @@
         function switchTab(tabName, element) {
             document.querySelectorAll('.nav-links a').forEach(link => link.classList.remove('active'));
             if (element) element.classList.add('active');
-            document.getElementById('tab-harmonogram').style.display = 'none';
-            document.getElementById('tab-historia').style.display = 'none';
-            document.getElementById('tab-opinie').style.display = 'none';
-            if (tabName === 'opinie') {
-                document.getElementById('tab-opinie').style.display = 'block';
-            } else {
-                document.getElementById('tab-' + tabName).style.display = 'block';
+            ['harmonogram', 'historia', 'opinie', 'dostepnosc'].forEach(t => {
+                const el = document.getElementById('tab-' + t);
+                if (el) el.style.display = 'none';
+            });
+            const header = document.getElementById('doctor-welcome-header');
+            if (header) header.style.display = (tabName === 'dostepnosc') ? 'none' : 'flex';
+            const target = document.getElementById('tab-' + tabName);
+            if (target) {
+                target.style.display = 'block';
+                if (tabName === 'dostepnosc') loadScheduleWeek();
             }
         }
 
