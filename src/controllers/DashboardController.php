@@ -132,6 +132,28 @@ class DashboardController extends AppController {
         exit();
     }
 
+    public function apiChangePassword() {
+        $this->requireLogin();
+        header('Content-Type: application/json');
+
+        $input = json_decode(file_get_contents('php://input'), true);
+        $password = trim($input['password'] ?? '');
+
+        if (strlen($password) < 6) {
+            echo json_encode(['success' => false, 'message' => 'Hasło musi mieć co najmniej 6 znaków']);
+            exit();
+        }
+
+        $hashed = password_hash($password, PASSWORD_BCRYPT);
+        $result = $this->userRepo->updateUserPassword($_SESSION['user_id'], $hashed);
+        if ($result) {
+            echo json_encode(['success' => true]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Błąd aktualizacji hasła']);
+        }
+        exit();
+    }
+
     public function apiUpdateProfile() {
         $this->requireLogin();
         header('Content-Type: application/json');

@@ -274,4 +274,15 @@ class UsersRepository extends Repository {
             return false;
         }
     }
+
+    public function updateUserPassword(int $userId, string $hashedPassword): bool {
+        $db = $this->database->connect();
+        try {
+            $stmt = $db->prepare("UPDATE users SET password = ? WHERE id = ?");
+            $stmt->execute([$hashedPassword, $userId]);
+            return true;
+        } catch (Exception $e) {
+            return false;
+        }
+    }
 }

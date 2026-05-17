@@ -90,15 +90,15 @@
             <form id="profileForm" onsubmit="handleProfileUpdate(event)">
                 <div style="margin-bottom: 1.25rem;">
                     <label style="display:block; font-size: 0.8rem; font-weight: 600; color: #4b5563; text-transform: uppercase; margin-bottom: 0.5rem;">Nazwa użytkownika</label>
-                    <input type="text" id="profile-username" required style="width: 100%; padding: 0.85rem; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box;">
+                    <input type="text" id="profile-username" required maxlength="30" style="width: 100%; padding: 0.85rem; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box;">
+                    <p id="profile-username-error" style="display:none; color:#dc2626; font-size:0.8rem; margin:0.35rem 0 0;">Nazwa użytkownika nie może przekraczać 50 znaków.</p>
                 </div>
                 <div style="margin-bottom: 1.25rem;">
                     <label style="display:block; font-size: 0.8rem; font-weight: 600; color: #4b5563; text-transform: uppercase; margin-bottom: 0.5rem;">Email</label>
                     <input type="email" id="profile-email" required style="width: 100%; padding: 0.85rem; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box;">
                 </div>
                 <div style="margin-bottom: 1.25rem;">
-                    <label style="display:block; font-size: 0.8rem; font-weight: 600; color: #4b5563; text-transform: uppercase; margin-bottom: 0.5rem;">Nowe Hasło (zostaw puste aby nie zmieniać)</label>
-                    <input type="password" id="profile-password" style="width: 100%; padding: 0.85rem; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box;">
+                    <button type="button" onclick="closeProfileModal(); openChangePasswordModal();" style="background: none; border: 1px solid #d1d5db; color: #374151; padding: 0.75rem 1rem; border-radius: 8px; width: 100%; font-weight: 600; cursor: pointer; text-align:left; display:flex; align-items:center; gap:0.5rem;"><i class="fa-solid fa-lock" style="color:#64748b;"></i> Zmień hasło</button>
                 </div>
                 <div id="profile-pesel-container" style="margin-bottom: 1.25rem; display:none;">
                     <label style="display:block; font-size: 0.8rem; font-weight: 600; color: #4b5563; text-transform: uppercase; margin-bottom: 0.5rem;">PESEL</label>
@@ -106,6 +106,30 @@
                     <p style="font-size: 0.75rem; color: #6b7280; margin-top: 0.5rem;">*Aby zmienić swój nr PESEL skontaktuj się z naszym wsparciem +48 123 456 789.</p>
                 </div>
                 <button type="submit" style="background-color: #125B46; color: white; border: none; padding: 0.85rem; border-radius: 8px; width: 100%; font-weight: 600; cursor: pointer;">Zapisz zmiany</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal zmiany hasła -->
+    <div id="changePasswordModal" class="modal-overlay" style="z-index: 2500;">
+        <div class="modal-content" style="padding: 2.5rem; max-width: 450px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h3 style="font-size: 1.25rem; color: #111827; margin: 0;">Zmień hasło</h3>
+                <button onclick="closeChangePasswordModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280; line-height: 1;">&times;</button>
+            </div>
+            <div id="change-password-message" style="display:none; padding: 0.75rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.9rem;"></div>
+            <form id="changePasswordForm" onsubmit="handleChangePassword(event)">
+                <div style="margin-bottom: 1.25rem;">
+                    <label style="display:block; font-size: 0.8rem; font-weight: 600; color: #4b5563; text-transform: uppercase; margin-bottom: 0.5rem;">Nowe hasło</label>
+                    <input type="password" id="change-password-new" required style="width: 100%; padding: 0.85rem; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box;">
+                </div>
+                <div style="margin-bottom: 1.5rem;">
+                    <label style="display:block; font-size: 0.8rem; font-weight: 600; color: #4b5563; text-transform: uppercase; margin-bottom: 0.5rem;">Powtórz nowe hasło</label>
+                    <input type="password" id="change-password-confirm" required style="width: 100%; padding: 0.85rem; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box;">
+                    <p id="change-password-match-error" style="display:none; color:#dc2626; font-size:0.8rem; margin:0.35rem 0 0;">Hasła nie są identyczne.</p>
+                </div>
+                <button type="submit" style="background-color: #125B46; color: white; border: none; padding: 0.85rem; border-radius: 8px; width: 100%; font-weight: 600; cursor: pointer;">Zapisz nowe hasło</button>
+                <button type="button" onclick="closeChangePasswordModal(); openProfileModal();" style="background: none; border: none; color: #64748b; padding: 0.75rem; width: 100%; cursor: pointer; margin-top: 0.5rem; font-size: 0.9rem;">← Wróć do profilu</button>
             </form>
         </div>
     </div>
@@ -356,7 +380,6 @@
                     if (data && !data.error) {
                         document.getElementById('profile-username').value = data.username || '';
                         document.getElementById('profile-email').value = data.email || '';
-                        document.getElementById('profile-password').value = '';
                         if (data.pesel) {
                             document.getElementById('profile-pesel-container').style.display = 'block';
                             document.getElementById('profile-pesel').value = data.pesel;
@@ -375,13 +398,21 @@
 
         function handleProfileUpdate(e) {
             e.preventDefault();
-            const username = document.getElementById('profile-username').value;
+            const username = document.getElementById('profile-username').value.trim();
             const email = document.getElementById('profile-email').value;
-            const password = document.getElementById('profile-password').value;
+
+            const usernameError = document.getElementById('profile-username-error');
+            if (username.length > 30) {
+                usernameError.style.display = 'block';
+                document.getElementById('profile-username').focus();
+                return;
+            }
+            usernameError.style.display = 'none';
+
             fetch('/api-update-profile', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, email, password })
+                body: JSON.stringify({ username, email })
             })
             .then(res => res.json())
             .then(data => {
@@ -399,6 +430,57 @@
                 }
             })
             .catch(err => console.error(err));
+        }
+
+        // --- MODAL ZMIANY HASŁA ---
+        const changePasswordModal = document.getElementById('changePasswordModal');
+
+        function openChangePasswordModal() {
+            document.getElementById('changePasswordForm').reset();
+            document.getElementById('change-password-message').style.display = 'none';
+            document.getElementById('change-password-match-error').style.display = 'none';
+            changePasswordModal.classList.add('active');
+        }
+
+        function closeChangePasswordModal() {
+            changePasswordModal.classList.remove('active');
+        }
+
+        changePasswordModal.addEventListener('click', function(e) { if (e.target === changePasswordModal) closeChangePasswordModal(); });
+
+        function handleChangePassword(e) {
+            e.preventDefault();
+            const newPassword = document.getElementById('change-password-new').value;
+            const confirmPassword = document.getElementById('change-password-confirm').value;
+            const matchError = document.getElementById('change-password-match-error');
+            const msgBox = document.getElementById('change-password-message');
+
+            if (newPassword !== confirmPassword) {
+                matchError.style.display = 'block';
+                return;
+            }
+            matchError.style.display = 'none';
+
+            fetch('/api-change-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: newPassword })
+            })
+            .then(res => res.json())
+            .then(data => {
+                msgBox.style.display = 'block';
+                if (data.success) {
+                    msgBox.style.backgroundColor = '#d1fae5';
+                    msgBox.style.color = '#065f46';
+                    msgBox.textContent = 'Hasło zostało zmienione pomyślnie.';
+                    setTimeout(closeChangePasswordModal, 1500);
+                } else {
+                    msgBox.style.backgroundColor = '#fee2e2';
+                    msgBox.style.color = '#991b1b';
+                    msgBox.textContent = data.message || 'Wystąpił błąd.';
+                }
+            })
+            .catch(err => console.error('Error changing password:', err));
         }
 
         // Mobile menu

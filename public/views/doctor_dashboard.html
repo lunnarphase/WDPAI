@@ -157,14 +157,27 @@
         </div>
 
         <div id="tab-historia" style="display: none; background: white; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; margin-bottom: 2rem;">
-            <div style="padding: 1.5rem; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
-                <h2 style="margin: 0; display: flex; align-items: center; gap: 10px; font-size: 1.3rem;">
+            <div style="padding: 1.5rem; border-bottom: 1px solid #e2e8f0;">
+                <h2 style="margin: 0 0 1rem; display: flex; align-items: center; gap: 10px; font-size: 1.3rem;">
                     <span style="display: inline-block; width: 6px; height: 24px; background-color: #64748b; border-radius: 4px;"></span>
                     Historia i archiwalne wizyty
                 </h2>
-                <div style="position: relative;">
-                    <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
-                    <input type="text" id="searchHistory" onkeyup="searchAppointments('history-table', 'searchHistory')" placeholder="Szukaj (pacjent, PESEL)..." style="padding: 0.5rem 0.5rem 0.5rem 2.2rem; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; font-size: 0.9rem; min-width: 250px;">
+                <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+                    <div style="position: relative; flex: 2; min-width: 180px;">
+                        <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
+                        <input type="text" id="historySearchPatient" oninput="filterHistoryTable()" placeholder="Szukaj pacjenta (imię, PESEL)..." style="width: 100%; padding: 0.5rem 0.5rem 0.5rem 2.2rem; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; font-size: 0.9rem; box-sizing: border-box;">
+                    </div>
+                    <div style="position: relative; min-width: 160px;">
+                        <i class="fa-regular fa-calendar" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events:none;"></i>
+                        <input type="date" id="historyFilterDate" onchange="filterHistoryTable()" style="padding: 0.5rem 0.5rem 0.5rem 2.2rem; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; font-size: 0.9rem; color: #374151;">
+                    </div>
+                    <select id="historyFilterStatus" onchange="filterHistoryTable()" style="padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; font-size: 0.9rem; color: #374151; min-width: 150px;">
+                        <option value="">Wszystkie statusy</option>
+                        <option value="completed">Zakończona</option>
+                        <option value="cancelled">Anulowana</option>
+                        <option value="noshow">Nieobecność</option>
+                    </select>
+                    <button onclick="clearHistoryFilters()" style="padding: 0.5rem 0.9rem; border-radius: 8px; border: 1px solid #e2e8f0; background: #f8fafc; color: #64748b; font-size: 0.85rem; cursor: pointer; white-space: nowrap;" title="Wyczyść filtry"><i class="fa-solid fa-xmark"></i> Wyczyść</button>
                 </div>
             </div>
             <div style="overflow-x: auto;">
@@ -188,7 +201,7 @@
                                     if($app['status'] === 'noshow') { $statusClass = 'status-noshow'; $statusText = 'Nieobecność'; }
                                     if($app['status'] === 'cancelled') { $statusClass = 'status-cancelled'; $statusText = 'Anulowana'; }
                                 ?>
-                                <tr class="searchable-row" style="border-bottom: 1px solid #e2e8f0; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
+                                <tr class="searchable-row history-row" data-status="<?= $app['status'] ?>" data-date="<?= $app['appointment_date'] ?>" style="border-bottom: 1px solid #e2e8f0; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
                                     <td style="padding: 1.25rem 1.5rem;">
                                         <strong style="display: block; color: #0f172a; font-size: 1.1rem;"><?= date('H:i', strtotime($app['appointment_time'])) ?></strong>
                                         <span style="font-size: 0.85rem; color: #64748b;"><?= date('d M Y', strtotime($app['appointment_date'])) ?></span>
@@ -236,11 +249,20 @@
                 <?php else: ?>
                 <p style="color:#94a3b8; margin:0;">Nie masz jeszcze żadnych opinii.</p>
                 <?php endif; ?>
+                <?php if (!empty($doctorReviews)): ?>
+                <div style="margin-top:1rem; display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+                    <span style="font-size:0.85rem; color:#64748b; font-weight:600; margin-right:0.25rem;">Filtruj:</span>
+                    <button onclick="filterReviewsByStars(0)" id="review-filter-all" class="review-star-filter active" style="padding:0.35rem 0.85rem; border-radius:20px; border:1px solid #e2e8f0; background:#125B46; color:white; font-size:0.85rem; font-weight:600; cursor:pointer;">Wszystkie</button>
+                    <?php for ($s = 5; $s >= 1; $s--): ?>
+                    <button onclick="filterReviewsByStars(<?= $s ?>)" id="review-filter-<?= $s ?>" class="review-star-filter" style="padding:0.35rem 0.85rem; border-radius:20px; border:1px solid #e2e8f0; background:white; color:#374151; font-size:0.85rem; cursor:pointer;"><?= $s ?> <i class="fa-solid fa-star" style="color:#f59e0b; font-size:0.8rem;"></i></button>
+                    <?php endfor; ?>
+                </div>
+                <?php endif; ?>
             </div>
-            <div>
+            <div id="reviews-list">
                 <?php if (!empty($doctorReviews)): ?>
                     <?php foreach ($doctorReviews as $rev): ?>
-                    <div style="padding:1.25rem 1.5rem; border-bottom:1px solid #f1f5f9;">
+                    <div class="review-item" data-rating="<?= (int)$rev['rating'] ?>" style="padding:1.25rem 1.5rem; border-bottom:1px solid #f1f5f9;">
                         <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:0.5rem;">
                             <div>
                                 <span style="font-weight:700; color:#0f172a;"><?= htmlspecialchars($rev['patient_display_name']) ?></span>
@@ -886,6 +908,57 @@
                 } else {
                     row.style.display = 'none';
                 }
+            });
+        }
+
+        // FILTRY HISTORII WIZYT
+        function filterHistoryTable() {
+            const patientQuery = (document.getElementById('historySearchPatient')?.value || '').toLowerCase();
+            const filterDate = document.getElementById('historyFilterDate')?.value || '';
+            const filterStatus = document.getElementById('historyFilterStatus')?.value || '';
+
+            const rows = document.querySelectorAll('#history-table .history-row');
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                const rowDate = row.getAttribute('data-date') || '';
+                const rowStatus = row.getAttribute('data-status') || '';
+
+                const matchesPatient = !patientQuery || text.includes(patientQuery);
+                const matchesDate = !filterDate || rowDate === filterDate;
+                const matchesStatus = !filterStatus || rowStatus === filterStatus;
+
+                row.style.display = (matchesPatient && matchesDate && matchesStatus) ? '' : 'none';
+            });
+        }
+
+        function clearHistoryFilters() {
+            const p = document.getElementById('historySearchPatient');
+            const d = document.getElementById('historyFilterDate');
+            const s = document.getElementById('historyFilterStatus');
+            if (p) p.value = '';
+            if (d) d.value = '';
+            if (s) s.value = '';
+            filterHistoryTable();
+        }
+
+        // FILTR GWIAZDEK W OPINIACH
+        function filterReviewsByStars(rating) {
+            document.querySelectorAll('.review-star-filter').forEach(btn => {
+                btn.style.background = 'white';
+                btn.style.color = '#374151';
+                btn.style.borderColor = '#e2e8f0';
+            });
+            const activeBtn = rating === 0
+                ? document.getElementById('review-filter-all')
+                : document.getElementById('review-filter-' + rating);
+            if (activeBtn) {
+                activeBtn.style.background = '#125B46';
+                activeBtn.style.color = 'white';
+                activeBtn.style.borderColor = '#125B46';
+            }
+            document.querySelectorAll('#reviews-list .review-item').forEach(item => {
+                const itemRating = parseInt(item.getAttribute('data-rating'), 10);
+                item.style.display = (rating === 0 || itemRating === rating) ? '' : 'none';
             });
         }
 

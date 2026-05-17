@@ -150,6 +150,10 @@ class Routing {
             "controller" => "DashboardController",
             "action" => "apiUpdateProfile"
         ],
+        "api-change-password" => [
+            "controller" => "DashboardController",
+            "action" => "apiChangePassword"
+        ],
         "submit-review" => [
             "controller" => "ReviewController",
             "action" => "submitReview"
