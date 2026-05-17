@@ -526,6 +526,36 @@
         const allAdminNotifications = <?= json_encode($notifications ?? []) ?>;
         const allReviewsData = <?= json_encode($reviews ?? []) ?>;
         let currentReviewId = null;
+        let adminNotifBadgeCount = <?= (int)($unreadNotifCount ?? 0) ?>;
+
+        function removeReviewNotifications(reviewId) {
+            const toRemove = allAdminNotifications.filter(n => n.related_id == reviewId && n.type === 'report');
+            if (toRemove.length === 0) return;
+            toRemove.forEach(n => {
+                fetch('/api-delete-notification', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({id: n.id})
+                }).catch(() => {});
+                const idx = allAdminNotifications.findIndex(x => x.id === n.id);
+                if (idx !== -1) allAdminNotifications.splice(idx, 1);
+                const el = document.querySelector(`[data-notif-id="${n.id}"]`);
+                if (el) el.remove();
+                adminNotifBadgeCount = Math.max(0, adminNotifBadgeCount - 1);
+            });
+            const badge = document.getElementById('admin-notif-badge');
+            if (badge) {
+                if (adminNotifBadgeCount <= 0) {
+                    badge.style.display = 'none';
+                } else {
+                    badge.style.display = 'flex';
+                    badge.textContent = adminNotifBadgeCount > 9 ? '9+' : String(adminNotifBadgeCount);
+                }
+            }
+            const list = document.getElementById('admin-notif-list');
+            if (list && allAdminNotifications.length === 0) {
+                list.innerHTML = '<p style="text-align:center; color:#64748b; padding:2rem;">Brak powiadomień.</p>';
+            }
+        }
 
         function renderStarsStatic(rating) {
             let html = '';
@@ -768,6 +798,20 @@
             }
 
             document.getElementById('review-manage-body').innerHTML = html;
+
+            // Sync the badge in the table row with the current pending report count
+            const manageBtn = document.querySelector(`.review-row button[onclick="openReviewManageModal(${reviewId})"]`);
+            if (manageBtn) {
+                const row = manageBtn.closest('tr');
+                const existingBadge = row.querySelector('span[title$="zgłoszenie(a)"]');
+                const pendingCount = reports ? reports.length : 0;
+                if (pendingCount === 0) {
+                    if (existingBadge) existingBadge.remove();
+                } else if (existingBadge) {
+                    existingBadge.textContent = pendingCount;
+                    existingBadge.title = `${pendingCount} oczekujące zgłoszenie(a)`;
+                }
+            }
         }
 
         function closeReviewManageModal() {
@@ -788,6 +832,7 @@
                     msg.textContent = 'Opinia usunięta i zgłaszający powiadomieni.';
                     const row = document.querySelector(`.review-row button[onclick="openReviewManageModal(${currentReviewId})"]`)?.closest('tr');
                     if (row) row.remove();
+                    removeReviewNotifications(currentReviewId);
                     setTimeout(closeReviewManageModal, 1500);
                 } else {
                     msg.style.display = 'block'; msg.style.background = '#fee2e2'; msg.style.color = '#991b1b';
@@ -808,6 +853,7 @@
                 if (data.success) {
                     msg.style.display = 'block'; msg.style.background = '#d1fae5'; msg.style.color = '#065f46';
                     msg.textContent = 'Zgłoszenie odrzucone, zgłaszający powiadomiony.';
+                    removeReviewNotifications(currentReviewId);
                     if (currentReviewId) openReviewManageModal(currentReviewId);
                 } else {
                     msg.style.display = 'block'; msg.style.background = '#fee2e2'; msg.style.color = '#991b1b';
