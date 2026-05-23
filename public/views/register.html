@@ -7,6 +7,30 @@
     <link rel="stylesheet" href="/public/styles/main.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .password-help {
+            margin-top: -0.5rem;
+            margin-bottom: 1.25rem;
+            font-size: 0.82rem;
+            line-height: 1.45;
+            color: #64748b;
+        }
+        .password-help.error {
+            color: #b91c1c;
+            font-weight: 600;
+        }
+        .password-help.success {
+            color: #166534;
+            font-weight: 600;
+        }
+        .field-inline-error {
+            display: none;
+            margin-top: 0.4rem;
+            color: #b91c1c;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+    </style>
 </head>
 <body>
 
@@ -32,7 +56,7 @@
                 </div>
             <?php } ?>
 
-            <form action="/register" method="POST">
+            <form id="register-form" action="/register" method="POST">
                 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token ?? '') ?>">
                 
                 <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
@@ -59,15 +83,16 @@
                 <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
                     <div class="form-group" style="flex: 1; margin-bottom: 0;">
                         <label for="password">Hasło</label>
-                        <input name="password" id="password" type="password" placeholder="........" minlength="9" required>
+                        <input name="password" id="password" type="password" placeholder="........" required>
                     </div>
                     <div class="form-group" style="flex: 1; margin-bottom: 0;">
                         <label for="password_confirm">Powtórz hasło</label>
-                        <input name="password_confirm" id="password_confirm" type="password" placeholder="........" minlength="9" required>
+                        <input name="password_confirm" id="password_confirm" type="password" placeholder="........" required>
+                        <p id="password-match-error" class="field-inline-error">Hasła muszą być identyczne.</p>
                     </div>
                 </div>
 
-                <p style="margin-top: -0.5rem; margin-bottom: 1.25rem; color: var(--text-muted); font-size: 0.82rem;">
+                <p id="password-help" class="password-help">
                     Hasło musi mieć minimum 9 znaków oraz zawierać małą literę, wielką literę, cyfrę i znak specjalny.
                 </p>
 
@@ -92,6 +117,73 @@
             <a href="#">Regulamin</a>
         </footer>
     </div>
+
+    <script>
+        const registerForm = document.getElementById('register-form');
+        const passwordInput = document.getElementById('password');
+        const passwordConfirmInput = document.getElementById('password_confirm');
+        const passwordHelp = document.getElementById('password-help');
+        const passwordMatchError = document.getElementById('password-match-error');
+
+        function getPasswordIssues(password) {
+            const issues = [];
+            if (password.length < 9) issues.push('co najmniej 9 znaków');
+            if (!/[a-z]/.test(password)) issues.push('przynajmniej jedna mała litera');
+            if (!/[A-Z]/.test(password)) issues.push('przynajmniej jedna wielka litera');
+            if (!/[0-9]/.test(password)) issues.push('przynajmniej jedna cyfra');
+            if (!/[^a-zA-Z0-9]/.test(password)) issues.push('przynajmniej jeden znak specjalny');
+            return issues;
+        }
+
+        function updatePasswordFeedback() {
+            const password = passwordInput.value || '';
+            const issues = getPasswordIssues(password);
+
+            passwordHelp.classList.remove('error', 'success');
+
+            if (password.length === 0) {
+                passwordHelp.textContent = 'Hasło musi mieć minimum 9 znaków oraz zawierać małą literę, wielką literę, cyfrę i znak specjalny.';
+                return false;
+            }
+
+            if (issues.length > 0) {
+                passwordHelp.classList.add('error');
+                passwordHelp.textContent = 'Hasło wymaga: ' + issues.join(', ') + '.';
+                return false;
+            }
+
+            passwordHelp.classList.add('success');
+            passwordHelp.textContent = 'Hasło spełnia wymagania bezpieczeństwa.';
+            return true;
+        }
+
+        function updatePasswordMatchFeedback() {
+            const password = passwordInput.value || '';
+            const confirm = passwordConfirmInput.value || '';
+            const shouldValidate = confirm.length > 0 || password.length > 0;
+            const mismatch = shouldValidate && password !== confirm;
+
+            passwordMatchError.style.display = mismatch ? 'block' : 'none';
+            return !mismatch;
+        }
+
+        passwordInput.addEventListener('input', () => {
+            updatePasswordFeedback();
+            updatePasswordMatchFeedback();
+        });
+        passwordConfirmInput.addEventListener('input', updatePasswordMatchFeedback);
+
+        if (registerForm) {
+            registerForm.addEventListener('submit', function(e) {
+                const passwordValid = updatePasswordFeedback();
+                const passwordsMatch = updatePasswordMatchFeedback();
+
+                if (!passwordValid || !passwordsMatch) {
+                    e.preventDefault();
+                }
+            });
+        }
+    </script>
 
 </body>
 </html>

@@ -35,10 +35,10 @@
                 <i class="fa-solid fa-briefcase-medical"></i> MediSchedule <span style="font-size: 0.8rem; color: #64748b; margin-left: 10px; text-transform: uppercase;">Admin</span>
             </a>
             <div class="nav-links">
-                <a href="#" class="active" onclick="switchTab('wizyty')">Wizyty</a>
-                <a href="#" onclick="switchTab('uzytkownicy')">Użytkownicy</a>
-                <a href="#" onclick="switchTab('opinie')">Wystawione opinie</a>
-                <a href="#" onclick="switchTab('bezpieczenstwo')">Bezpieczeństwo</a>
+                <a href="#" data-tab="wizyty" class="active" onclick="switchTab('wizyty', this)">Wizyty</a>
+                <a href="#" data-tab="uzytkownicy" onclick="switchTab('uzytkownicy', this)">Użytkownicy</a>
+                <a href="#" data-tab="opinie" onclick="switchTab('opinie', this)">Wystawione opinie</a>
+                <a href="#" data-tab="bezpieczenstwo" onclick="switchTab('bezpieczenstwo', this)">Bezpieczeństwo</a>
             </div>
         </div>
         <button class="hamburger-btn" onclick="toggleAdminMobileMenu()" style="display:none;">
@@ -46,7 +46,7 @@
         </button>
         <div class="nav-right">
             <div style="position:relative; display:inline-block;">
-                <button id="notifBellBtn" onclick="openNotificationsModal()" title="Powiadomienia" style="background:none; border:1px solid #e2e8f0; border-radius:8px; padding:8px 12px; cursor:pointer; color:#64748b; font-size:1.1rem; transition:0.2s;" onmouseover="this.style.color='#0f172a'" onmouseout="this.style.color='#64748b'"><i class="fa-regular fa-bell"></i></button>
+                <button id="notifBellBtn" onclick="openNotificationsModal()" title="Powiadomienia" style="background:none; border:1px solid #e2e8f0; border-radius:8px; padding:8px 12px; cursor:pointer; color:#64748b; font-size:1.1rem; transition:0.2s;"><i class="fa-regular fa-bell"></i></button>
                 <?php $unreadNotifCount = count(array_filter($notifications ?? [], fn($n) => !$n['is_read'])); ?>
                 <?php if ($unreadNotifCount > 0): ?>
                 <span id="admin-notif-badge" style="position:absolute; top:-5px; right:-5px; background:#dc2626; color:white; border-radius:50%; width:18px; height:18px; font-size:0.65rem; font-weight:700; display:flex; align-items:center; justify-content:center; pointer-events:none;"><?= min($unreadNotifCount, 9) ?><?= $unreadNotifCount > 9 ? '+' : '' ?></span>
@@ -55,10 +55,10 @@
             <a href="/logout" class="logout-link-admin"><i class="fa-solid fa-arrow-right-from-bracket"></i> Wyloguj</a>
         </div>
         <div class="mobile-menu" id="adminMobileMenu">
-            <a href="#" onclick="switchTab('wizyty'); toggleAdminMobileMenu();"><i class="fa-regular fa-calendar-check"></i> Wizyty</a>
-            <a href="#" onclick="switchTab('uzytkownicy'); toggleAdminMobileMenu();"><i class="fa-solid fa-users"></i> Użytkownicy</a>
-            <a href="#" onclick="switchTab('opinie'); toggleAdminMobileMenu();"><i class="fa-regular fa-star"></i> Wystawione opinie</a>
-            <a href="#" onclick="switchTab('bezpieczenstwo'); toggleAdminMobileMenu();"><i class="fa-solid fa-shield-halved"></i> Bezpieczeństwo</a>
+            <a href="#" onclick="switchTab('wizyty', this); toggleAdminMobileMenu();"><i class="fa-regular fa-calendar-check"></i> Wizyty</a>
+            <a href="#" onclick="switchTab('uzytkownicy', this); toggleAdminMobileMenu();"><i class="fa-solid fa-users"></i> Użytkownicy</a>
+            <a href="#" onclick="switchTab('opinie', this); toggleAdminMobileMenu();"><i class="fa-regular fa-star"></i> Wystawione opinie</a>
+            <a href="#" onclick="switchTab('bezpieczenstwo', this); toggleAdminMobileMenu();"><i class="fa-solid fa-shield-halved"></i> Bezpieczeństwo</a>
             <a href="#" onclick="openNotificationsModal(); toggleAdminMobileMenu();"><i class="fa-regular fa-bell"></i> Powiadomienia</a>
             <a href="/logout"><i class="fa-solid fa-arrow-right-from-bracket"></i> Wyloguj</a>
         </div>
@@ -125,7 +125,7 @@
                             <th style="padding: 1.2rem 1.5rem; text-align: right; border-bottom: 2px solid #e2e8f0;">Akcje</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="appointments-table-body">
                         <?php if (empty($appointments)): ?>
                             <tr><td colspan="5" style="text-align: center; padding: 3rem; color: #64748b;">Brak wizyt w systemie.</td></tr>
                         <?php else: ?>
@@ -302,7 +302,7 @@
                     <span style="display:inline-block; width:6px; height:24px; background:#dc2626; border-radius:4px;"></span>
                     Podejrzana aktywność logowania
                 </h2>
-                <button onclick="refreshLoginLogs()" style="padding:0.5rem 1rem; background:#0f172a; color:white; border:none; border-radius:8px; cursor:pointer; font-size:0.9rem;"><i class="fa-solid fa-rotate"></i> Odśwież</button>
+                <button onclick="refreshLoginLogs(false)" style="padding:0.5rem 1rem; background:#0f172a; color:white; border:none; border-radius:8px; cursor:pointer; font-size:0.9rem;"><i class="fa-solid fa-rotate"></i> Odśwież</button>
             </div>
             <div style="overflow-x:auto;">
                 <table style="width:100%; border-collapse:collapse;">
@@ -320,6 +320,34 @@
                     <tbody id="login-logs-tbody">
                         <?php if (!empty($login_logs)): ?>
                         <?php foreach ($login_logs as $log): ?>
+                        <?php
+                            $tempRemaining = isset($log['temporary_lock_remaining_seconds']) ? (int)$log['temporary_lock_remaining_seconds'] : 0;
+                            $ipRemaining = isset($log['ip_block_remaining_seconds']) ? (int)$log['ip_block_remaining_seconds'] : 0;
+
+                            $tempRemainingText = '';
+                            if ($tempRemaining > 0) {
+                                $h = intdiv($tempRemaining, 3600);
+                                $m = intdiv($tempRemaining % 3600, 60);
+                                $s = $tempRemaining % 60;
+                                $tempRemainingText = $h > 0
+                                    ? sprintf('%dh %02dm %02ds', $h, $m, $s)
+                                    : sprintf('%dm %02ds', $m, $s);
+                            }
+
+                            $ipRemainingText = '';
+                            if ($ipRemaining !== 0) {
+                                if ($ipRemaining < 0) {
+                                    $ipRemainingText = 'do odwołania';
+                                } else {
+                                    $ih = intdiv($ipRemaining, 3600);
+                                    $im = intdiv($ipRemaining % 3600, 60);
+                                    $is = $ipRemaining % 60;
+                                    $ipRemainingText = $ih > 0
+                                        ? sprintf('%dh %02dm %02ds', $ih, $im, $is)
+                                        : sprintf('%dm %02ds', $im, $is);
+                                }
+                            }
+                        ?>
                         <tr class="login-log-row" data-user-id="<?= (int)($log['user_id'] ?? 0) ?>" data-blocked="<?= !empty($log['is_blocked']) ? '1' : '0' ?>">
                             <td style="padding:0.75rem 1rem; font-size:0.9rem; border-bottom:1px solid #f1f5f9;"><?= htmlspecialchars($log['email'] ?? '') ?></td>
                             <td style="padding:0.75rem 1rem; font-size:0.9rem; border-bottom:1px solid #f1f5f9;"><?= htmlspecialchars($log['username'] ?? '—') ?></td>
@@ -331,6 +359,19 @@
                             <td style="padding:0.75rem 1rem; font-size:0.9rem; border-bottom:1px solid #f1f5f9;">
                                 <?php if (!empty($log['is_blocked'])): ?>
                                 <span style="background:#fee2e2; color:#b91c1c; padding:2px 10px; border-radius:999px; font-size:0.8rem; font-weight:600;">Zablokowane</span>
+                                <?php if (!empty($ipRemainingText)): ?>
+                                <div style="margin-top:0.3rem; font-size:0.76rem; color:#991b1b;">Pozostało: <?= htmlspecialchars($ipRemainingText) ?></div>
+                                <?php endif; ?>
+                                <?php elseif (!empty($log['is_temporarily_locked'])): ?>
+                                <span style="background:#fef3c7; color:#92400e; padding:2px 10px; border-radius:999px; font-size:0.8rem; font-weight:600;">Tymczasowo zablokowane</span>
+                                <?php if (!empty($tempRemainingText)): ?>
+                                <div style="margin-top:0.3rem; font-size:0.76rem; color:#92400e;">Pozostało: <?= htmlspecialchars($tempRemainingText) ?></div>
+                                <?php endif; ?>
+                                <?php elseif (!empty($log['is_ip_blocked'])): ?>
+                                <span style="background:#fee2e2; color:#b91c1c; padding:2px 10px; border-radius:999px; font-size:0.8rem; font-weight:600;">IP zablokowane</span>
+                                <?php if (!empty($ipRemainingText)): ?>
+                                <div style="margin-top:0.3rem; font-size:0.76rem; color:#991b1b;">Pozostało: <?= htmlspecialchars($ipRemainingText) ?></div>
+                                <?php endif; ?>
                                 <?php elseif (empty($log['user_id'])): ?>
                                 <span style="background:#f1f5f9; color:#64748b; padding:2px 10px; border-radius:999px; font-size:0.8rem;">Brak konta</span>
                                 <?php else: ?>
@@ -339,7 +380,7 @@
                             </td>
                             <td style="padding:0.75rem 1rem; font-size:0.9rem; border-bottom:1px solid #f1f5f9;">
                                 <?php if (!empty($log['user_id'])): ?>
-                                    <?php if (!empty($log['is_blocked'])): ?>
+                                    <?php if (!empty($log['is_blocked']) || !empty($log['is_temporarily_locked']) || !empty($log['is_ip_blocked'])): ?>
                                     <button onclick="toggleUserBlock(<?= (int)$log['user_id'] ?>, false, this)" style="padding:4px 12px; background:#16a34a; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem;">Odblokuj</button>
                                     <?php else: ?>
                                     <button onclick="toggleUserBlock(<?= (int)$log['user_id'] ?>, true, this)" style="padding:4px 12px; background:#dc2626; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem;">Zablokuj</button>
@@ -558,6 +599,20 @@
         </div>
     </div>
 
+    <div id="userBlockConfirmModal" class="admin-modal-overlay" style="z-index: 5100;">
+        <div class="admin-modal-content" style="max-width: 430px; padding: 2rem; text-align: center;">
+            <div id="user-block-icon" style="width: 62px; height: 62px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.7rem; margin: 0 auto 1.2rem auto; background: #fee2e2; color: #dc2626;">
+                <i class="fa-solid fa-user-lock"></i>
+            </div>
+            <h3 id="user-block-title" style="margin: 0 0 0.7rem 0; font-size: 1.3rem; color: #0f172a;">Potwierdzenie operacji</h3>
+            <p id="user-block-text" style="color: #64748b; font-size: 0.92rem; margin: 0 0 1.4rem 0; line-height: 1.5;">Czy na pewno chcesz wykonać tę operację?</p>
+            <div style="display:flex; gap:0.8rem;">
+                <button type="button" class="btn-secondary" style="flex:1;" onclick="closeUserBlockConfirmModal()">Anuluj</button>
+                <button type="button" id="user-block-confirm-btn" class="btn-primary-small" style="flex:1; background:#dc2626; border:none;" onclick="confirmUserBlockToggle()">Potwierdź</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal zarządzania opinią -->
     <div id="reviewManageModal" class="admin-modal-overlay" style="z-index:5000;">
         <div class="admin-modal-content" style="max-width:580px; max-height:90vh; overflow-y:auto; padding:2rem;">
@@ -588,92 +643,400 @@
     </div>
 
     <script>
-        const allAdminNotifications = <?= json_encode($notifications ?? []) ?>;
-        const allReviewsData = <?= json_encode($reviews ?? []) ?>;
+        let allAdminNotifications = <?= json_encode($notifications ?? []) ?>;
+        let allReviewsData = <?= json_encode($reviews ?? []) ?>;
+        let allAppointmentsData = <?= json_encode($appointments ?? []) ?>;
+        let allLoginLogsData = <?= json_encode($login_logs ?? []) ?>;
         let currentReviewId = null;
         let adminNotifBadgeCount = <?= (int)($unreadNotifCount ?? 0) ?>;
+        let pendingUserBlockAction = null;
+        let isNotificationsModalOpen = false;
+        let realtimeRefreshHandle = null;
+        let isRealtimeRefreshRunning = false;
 
-        function removeReviewNotifications(reviewId) {
-            const toRemove = allAdminNotifications.filter(n => n.related_id == reviewId && n.type === 'report');
-            if (toRemove.length === 0) return;
-            toRemove.forEach(n => {
-                fetch('/api-delete-notification', {
-                    method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({id: n.id})
-                }).catch(() => {});
-                const idx = allAdminNotifications.findIndex(x => x.id === n.id);
-                if (idx !== -1) allAdminNotifications.splice(idx, 1);
-                const el = document.querySelector(`[data-notif-id="${n.id}"]`);
-                if (el) el.remove();
-                adminNotifBadgeCount = Math.max(0, adminNotifBadgeCount - 1);
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function escHtml(str) {
+            return escapeHtml(str);
+        }
+
+        function toBool(value) {
+            return value === true || value === 1 || value === '1' || value === 't' || value === 'true';
+        }
+
+        function isUnreadNotification(notification) {
+            const isRead = notification?.is_read;
+            return isRead === false || isRead === 0 || isRead === '0' || isRead === 'f' || isRead === null || typeof isRead === 'undefined';
+        }
+
+        function parseDateToTimestamp(value) {
+            if (!value) {
+                return 0;
+            }
+            const asString = String(value).trim();
+            const normalized = asString.includes('T') ? asString : asString.replace(' ', 'T');
+            const date = new Date(normalized);
+            return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+        }
+
+        function normalizeDateKey(value) {
+            if (!value) {
+                return '';
+            }
+            const asString = String(value);
+            if (asString.length >= 10) {
+                return asString.slice(0, 10);
+            }
+            return '';
+        }
+
+        function buildDayGroupMeta(dateKey) {
+            if (!dateKey) {
+                return {
+                    relativeLabel: null,
+                    fullLabel: 'Bez daty',
+                };
+            }
+
+            const target = new Date(`${dateKey}T00:00:00`);
+            if (Number.isNaN(target.getTime())) {
+                return {
+                    relativeLabel: null,
+                    fullLabel: dateKey,
+                };
+            }
+
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const tomorrow = new Date(today);
+            tomorrow.setDate(today.getDate() + 1);
+
+            const fullLabel = target.toLocaleDateString('pl-PL', {
+                weekday: 'long',
+                day: '2-digit',
+                month: 'long',
+                year: 'numeric'
             });
-            const badge = document.getElementById('admin-notif-badge');
-            if (badge) {
-                if (adminNotifBadgeCount <= 0) {
-                    badge.style.display = 'none';
-                } else {
-                    badge.style.display = 'flex';
-                    badge.textContent = adminNotifBadgeCount > 9 ? '9+' : String(adminNotifBadgeCount);
+
+            if (target.getTime() === today.getTime()) {
+                return {relativeLabel: 'Dzisiaj', fullLabel};
+            }
+            if (target.getTime() === tomorrow.getTime()) {
+                return {relativeLabel: 'Jutro', fullLabel};
+            }
+            return {relativeLabel: null, fullLabel};
+        }
+
+        function renderDayGroupLabel(dateKey) {
+            const meta = buildDayGroupMeta(dateKey);
+            if (!meta.relativeLabel) {
+                return `<span>${escapeHtml(meta.fullLabel)}</span>`;
+            }
+
+            return `<strong style="font-weight:800; color:#0f172a;">${escapeHtml(meta.relativeLabel)}</strong><span style="margin-left:0.5rem; opacity:0.88;">${escapeHtml(meta.fullLabel)}</span>`;
+        }
+
+        function formatRemainingSeconds(seconds) {
+            const parsed = Number(seconds);
+            if (!Number.isFinite(parsed) || parsed === 0) {
+                return '';
+            }
+            if (parsed < 0) {
+                return 'do odwolania';
+            }
+
+            const safe = Math.max(0, Math.floor(parsed));
+            const hours = Math.floor(safe / 3600);
+            const minutes = Math.floor((safe % 3600) / 60);
+            const secs = safe % 60;
+
+            if (hours > 0) {
+                return `${hours}h ${String(minutes).padStart(2, '0')}m ${String(secs).padStart(2, '0')}s`;
+            }
+            return `${minutes}m ${String(secs).padStart(2, '0')}s`;
+        }
+
+        function formatDateForUi(value) {
+            if (!value) {
+                return '—';
+            }
+            const dateKey = normalizeDateKey(value);
+            if (!dateKey) {
+                return escapeHtml(String(value));
+            }
+            const date = new Date(`${dateKey}T00:00:00`);
+            if (Number.isNaN(date.getTime())) {
+                return escapeHtml(dateKey);
+            }
+            return date.toLocaleDateString('pl-PL');
+        }
+
+        function formatDateTimeForUi(value) {
+            if (!value) {
+                return '—';
+            }
+            const ts = parseDateToTimestamp(value);
+            if (!ts) {
+                return escapeHtml(String(value));
+            }
+            return new Date(ts).toLocaleString('pl-PL');
+        }
+
+        function formatTimeForUi(value) {
+            if (!value) {
+                return '—';
+            }
+            const text = String(value);
+            if (text.length >= 5) {
+                return text.slice(0, 5);
+            }
+            return text;
+        }
+
+        function updateGroupSeparatorVisibility(tbodyId, rowSelector, separatorSelector, gapSelector = null) {
+            const tbody = document.getElementById(tbodyId);
+            if (!tbody) {
+                return;
+            }
+
+            const visibleGroups = new Set();
+            tbody.querySelectorAll(rowSelector).forEach(row => {
+                if (row.style.display !== 'none') {
+                    visibleGroups.add(row.dataset.group || '');
+                }
+            });
+
+            const applyForSelector = selector => {
+                if (!selector) {
+                    return;
+                }
+                tbody.querySelectorAll(selector).forEach(element => {
+                    const group = element.dataset.group || '';
+                    element.style.display = visibleGroups.has(group) ? '' : 'none';
+                });
+            };
+
+            applyForSelector(separatorSelector);
+            applyForSelector(gapSelector);
+
+            if (gapSelector) {
+                const firstVisibleRow = Array.from(tbody.querySelectorAll(rowSelector)).find(row => row.style.display !== 'none');
+                if (firstVisibleRow) {
+                    const firstGroup = firstVisibleRow.dataset.group || '';
+                    const firstGroupGap = Array.from(tbody.querySelectorAll(gapSelector)).find(gap => (gap.dataset.group || '') === firstGroup);
+                    if (firstGroupGap) {
+                        firstGroupGap.style.display = 'none';
+                    }
                 }
             }
-            const list = document.getElementById('admin-notif-list');
-            if (list && allAdminNotifications.length === 0) {
-                list.innerHTML = '<p style="text-align:center; color:#64748b; padding:2rem;">Brak powiadomień.</p>';
+        }
+
+        function updateAdminNotifBadge(count) {
+            adminNotifBadgeCount = Math.max(0, Number(count) || 0);
+
+            const bellBtn = document.getElementById('notifBellBtn');
+            const bellContainer = bellBtn ? bellBtn.parentElement : null;
+            let badge = document.getElementById('admin-notif-badge');
+
+            if (adminNotifBadgeCount <= 0) {
+                if (badge) {
+                    badge.style.display = 'none';
+                }
+                if (bellBtn) {
+                    bellBtn.style.color = '#64748b';
+                    bellBtn.style.borderColor = '#e2e8f0';
+                }
+                return;
+            }
+
+            if (!badge && bellContainer) {
+                badge = document.createElement('span');
+                badge.id = 'admin-notif-badge';
+                badge.style.cssText = 'position:absolute; top:-5px; right:-5px; background:#dc2626; color:white; border-radius:50%; width:18px; height:18px; font-size:0.65rem; font-weight:700; display:flex; align-items:center; justify-content:center; pointer-events:none;';
+                bellContainer.appendChild(badge);
+            }
+
+            if (badge) {
+                badge.style.display = 'flex';
+                badge.textContent = adminNotifBadgeCount > 9 ? '9+' : String(adminNotifBadgeCount);
+            }
+
+            if (bellBtn) {
+                bellBtn.style.color = '#dc2626';
+                bellBtn.style.borderColor = '#fecaca';
+            }
+        }
+
+        function recalculateAdminNotifBadge() {
+            const unread = Array.isArray(allAdminNotifications)
+                ? allAdminNotifications.reduce((sum, notification) => sum + (isUnreadNotification(notification) ? 1 : 0), 0)
+                : 0;
+            updateAdminNotifBadge(unread);
+        }
+
+        function removeReviewNotifications(reviewId) {
+            const targetId = Number(reviewId);
+            if (!targetId || !Array.isArray(allAdminNotifications)) {
+                return;
+            }
+
+            const notificationsToDelete = allAdminNotifications.filter(n => n.type === 'report' && Number(n.related_id) === targetId);
+            if (notificationsToDelete.length === 0) {
+                return;
+            }
+
+            notificationsToDelete.forEach(notification => {
+                fetch('/api-delete-notification', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({id: Number(notification.id) || 0})
+                }).catch(() => {});
+            });
+
+            allAdminNotifications = allAdminNotifications.filter(n => !(n.type === 'report' && Number(n.related_id) === targetId));
+            recalculateAdminNotifBadge();
+
+            if (isNotificationsModalOpen) {
+                renderAdminNotificationsList();
             }
         }
 
         function renderStarsStatic(rating) {
+            const safeRating = Math.max(0, Math.min(5, parseInt(rating, 10) || 0));
             let html = '';
             for (let i = 1; i <= 5; i++) {
-                html += i <= rating
+                html += i <= safeRating
                     ? '<i class="fa-solid fa-star" style="color:#f59e0b; font-size:0.85rem;"></i>'
                     : '<i class="fa-regular fa-star" style="color:#f59e0b; font-size:0.85rem;"></i>';
             }
             return html;
         }
 
-        document.querySelectorAll('.rev-stars').forEach(el => {
-            el.innerHTML = renderStarsStatic(parseInt(el.dataset.rating) || 0);
-        });
+        function renderReviewStarsInRows() {
+            document.querySelectorAll('.rev-stars').forEach(element => {
+                element.innerHTML = renderStarsStatic(element.dataset.rating);
+            });
+        }
 
-        // -- WIZYTY I ZAKŁADKI --
         function toggleAdminMobileMenu() {
             document.getElementById('adminMobileMenu').classList.toggle('active');
         }
 
-        function switchTab(tabName) {
+        function switchTab(tabName, _triggerEl = null) {
             document.querySelectorAll('.nav-links a').forEach(link => link.classList.remove('active'));
-            event.target.classList.add('active');
+            const activeDesktopLink = document.querySelector(`.nav-links a[data-tab="${tabName}"]`);
+            if (activeDesktopLink) {
+                activeDesktopLink.classList.add('active');
+            }
+
             document.getElementById('tab-wizyty').style.display = 'none';
             document.getElementById('tab-uzytkownicy').style.display = 'none';
             document.getElementById('tab-opinie').style.display = 'none';
             document.getElementById('tab-bezpieczenstwo').style.display = 'none';
-            document.getElementById('tab-' + tabName).style.display = 'block';
+            document.getElementById(`tab-${tabName}`).style.display = 'block';
         }
 
         function filterAppointments() {
-            const statusFilter = document.getElementById('appointmentFilter').value;
+            const statusFilter = document.getElementById('appointmentFilter')?.value || 'all';
             const patientQuery = (document.getElementById('appointmentSearchPatient')?.value || '').toLowerCase().trim();
             const doctorQuery = (document.getElementById('appointmentSearchDoctor')?.value || '').toLowerCase().trim();
             const dateFilter = document.getElementById('appointmentSearchDate')?.value || '';
 
             document.querySelectorAll('.app-row').forEach(row => {
-                const status = row.getAttribute('data-status');
+                const status = row.getAttribute('data-status') || '';
                 const patient = row.getAttribute('data-patient') || '';
                 const doctor = row.getAttribute('data-doctor') || '';
                 const date = row.getAttribute('data-date') || '';
 
-                const matchesStatus = statusFilter === 'all' ||
-                    (statusFilter === 'active' && status !== 'cancelled') ||
-                    (statusFilter === 'cancelled' && status === 'cancelled');
+                const matchesStatus = statusFilter === 'all'
+                    || (statusFilter === 'active' && status !== 'cancelled')
+                    || (statusFilter === 'cancelled' && status === 'cancelled');
                 const matchesPatient = !patientQuery || patient.includes(patientQuery);
                 const matchesDoctor = !doctorQuery || doctor.includes(doctorQuery);
                 const matchesDate = !dateFilter || date === dateFilter;
 
                 row.style.display = (matchesStatus && matchesPatient && matchesDoctor && matchesDate) ? '' : 'none';
             });
+
+            updateGroupSeparatorVisibility('appointments-table-body', '.app-row', '.app-separator-row', '.app-group-gap-row');
         }
-        document.addEventListener('DOMContentLoaded', filterAppointments);
+
+        function renderAppointmentsTable() {
+            const tbody = document.getElementById('appointments-table-body');
+            if (!tbody) {
+                return;
+            }
+
+            const sortedAppointments = [...(allAppointmentsData || [])].sort((a, b) => {
+                const aTs = parseDateToTimestamp(`${a.appointment_date || ''} ${a.appointment_time || ''}`);
+                const bTs = parseDateToTimestamp(`${b.appointment_date || ''} ${b.appointment_time || ''}`);
+                return aTs - bTs;
+            });
+
+            if (sortedAppointments.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:3rem; color:#64748b;">Brak wizyt w systemie.</td></tr>';
+                return;
+            }
+
+            let html = '';
+            let currentGroup = null;
+
+            sortedAppointments.forEach(app => {
+                const dateKey = normalizeDateKey(app.appointment_date);
+                if (dateKey !== currentGroup) {
+                    if (currentGroup !== null) {
+                        html += `<tr class="app-group-gap-row" data-group="${escapeHtml(dateKey)}"><td colspan="5" style="padding:0; height:14px; background:#f8fafc; border:none;"></td></tr>`;
+                    }
+                    currentGroup = dateKey;
+                    html += `<tr class="app-separator-row" data-group="${escapeHtml(dateKey)}"><td colspan="5" style="padding:0.7rem 1.15rem; background:#eef2ff; color:#312e81; font-size:0.78rem; letter-spacing:0.03em; text-transform:uppercase; font-weight:700; border:1px solid #dbeafe; border-bottom:none;">${renderDayGroupLabel(dateKey)}</td></tr>`;
+                }
+
+                const status = String(app.status || 'confirmed').toLowerCase();
+                const isCancelled = status === 'cancelled';
+                const statusHtml = isCancelled
+                    ? '<span style="background:#fee2e2; color:#991b1b; padding:0.35rem 0.75rem; border-radius:20px; font-size:0.8rem; font-weight:600;">Anulowana</span>'
+                    : '<span style="background:#bbf7d0; color:#166534; padding:0.35rem 0.75rem; border-radius:20px; font-size:0.8rem; font-weight:600;">Zarezerwowana</span>';
+
+                const id = Number(app.id) || 0;
+                const patientId = Number(app.id_patient) || 0;
+                const doctorId = Number(app.id_doctor) || 0;
+                const dateValue = String(app.appointment_date || '');
+                const timeValue = formatTimeForUi(app.appointment_time);
+                const statusValue = String(app.status || 'confirmed');
+
+                html += `
+                    <tr class="app-row"
+                        data-group="${escapeHtml(dateKey)}"
+                        data-status="${escapeHtml(status)}"
+                        data-patient="${escapeHtml(String(app.patient_name || '').toLowerCase())}"
+                        data-doctor="${escapeHtml(String(app.doctor_name || '').toLowerCase())}"
+                        data-date="${escapeHtml(dateValue)}"
+                        style="border-bottom:1px solid #e2e8f0; transition:background 0.2s;"
+                        onmouseover="this.style.background='#f8fafc'"
+                        onmouseout="this.style.background='white'">
+                        <td style="padding:1.25rem 1.5rem; font-weight:600; color:#0f172a;">${escapeHtml(app.patient_name || '—')}</td>
+                        <td style="padding:1.25rem 1.5rem; color:#475569;">dr ${escapeHtml(app.doctor_name || '—')}</td>
+                        <td style="padding:1.25rem 1.5rem;">
+                            <strong style="display:block; color:#0f172a;">${formatDateForUi(dateValue)}</strong>
+                            <span style="font-size:0.85rem; color:#64748b;">${escapeHtml(timeValue)}</span>
+                        </td>
+                        <td style="padding:1.25rem 1.5rem;">${statusHtml}</td>
+                        <td style="padding:1.25rem 1.5rem; text-align:right;">
+                            <button class="admin-action-btn btn-edit" onclick='openAdminEditModal(${id}, ${patientId}, ${doctorId}, ${JSON.stringify(dateValue)}, ${JSON.stringify(timeValue)}, ${JSON.stringify(statusValue)})' title="Zarządzaj wizytą"><i class="fa-solid fa-pen-to-square"></i> Edytuj</button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = html;
+            filterAppointments();
+        }
 
         function openAdminEditModal(id, patientId, doctorId, date, time, status) {
             document.getElementById('modal_app_id').value = id;
@@ -684,32 +1047,53 @@
             document.getElementById('modal_status').value = status;
             document.getElementById('adminEditModal').classList.add('active');
         }
-        function closeAdminEditModal() { document.getElementById('adminEditModal').classList.remove('active'); }
-        function openConfirmModal() { document.getElementById('adminEditModal').classList.remove('active'); document.getElementById('customConfirmModal').classList.add('active'); }
-        function closeConfirmModal() { document.getElementById('customConfirmModal').classList.remove('active'); document.getElementById('adminEditModal').classList.add('active'); }
-        function executeDelete() { const form = document.getElementById('adminEditForm'); form.action = '/admin-delete-appointment'; form.submit(); }
 
-        // -- UŻYTKOWNICY --
+        function closeAdminEditModal() {
+            document.getElementById('adminEditModal').classList.remove('active');
+        }
+
+        function openConfirmModal() {
+            document.getElementById('adminEditModal').classList.remove('active');
+            document.getElementById('customConfirmModal').classList.add('active');
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('customConfirmModal').classList.remove('active');
+            document.getElementById('adminEditModal').classList.add('active');
+        }
+
+        function executeDelete() {
+            const form = document.getElementById('adminEditForm');
+            form.action = '/admin-delete-appointment';
+            form.submit();
+        }
+
         function filterUsers() {
-            const searchQuery = document.getElementById('userSearchInput').value.toLowerCase();
-            const roleFilter = document.getElementById('userRoleFilter').value;
+            const searchQuery = (document.getElementById('userSearchInput')?.value || '').toLowerCase();
+            const roleFilter = document.getElementById('userRoleFilter')?.value || 'all';
             const rows = document.querySelectorAll('.user-row');
             let visibleCount = 0;
 
             rows.forEach(row => {
-                const role = row.getAttribute('data-role');
-                const username = row.querySelector('.searchable-name').textContent.toLowerCase();
-                const email = row.querySelector('.searchable-email').textContent.toLowerCase();
+                const role = row.getAttribute('data-role') || '';
+                const username = row.querySelector('.searchable-name')?.textContent.toLowerCase() || '';
+                const email = row.querySelector('.searchable-email')?.textContent.toLowerCase() || '';
 
                 const matchesSearch = username.includes(searchQuery) || email.includes(searchQuery);
                 const matchesRole = roleFilter === 'all' || role === roleFilter;
 
-                if (matchesSearch && matchesRole) { row.style.display = ''; visibleCount++; } 
-                else { row.style.display = 'none'; }
+                if (matchesSearch && matchesRole) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
             });
 
             const noResultsMsg = document.getElementById('noUsersMessage');
-            if(noResultsMsg) noResultsMsg.style.display = visibleCount === 0 ? 'block' : 'none';
+            if (noResultsMsg) {
+                noResultsMsg.style.display = visibleCount === 0 ? 'block' : 'none';
+            }
         }
 
         function openUserEditModal(id, username, email, role, pesel, spec) {
@@ -717,15 +1101,15 @@
             document.getElementById('modal_username').value = username;
             document.getElementById('modal_user_email').value = email;
             document.getElementById('modal_user_role').value = role;
-            document.getElementById('modal_password').value = ''; 
-
+            document.getElementById('modal_password').value = '';
             document.getElementById('modal_pesel').value = pesel || '';
-            
-            if(spec) {
+
+            if (spec) {
                 const specSelect = document.getElementById('modal_specialization');
-                for(let i=0; i<specSelect.options.length; i++) {
-                    if(specSelect.options[i].text.toLowerCase() === spec.toLowerCase() || specSelect.options[i].value.toLowerCase() === spec.toLowerCase()) {
-                        specSelect.selectedIndex = i; break;
+                for (let i = 0; i < specSelect.options.length; i++) {
+                    if (specSelect.options[i].text.toLowerCase() === spec.toLowerCase() || specSelect.options[i].value.toLowerCase() === spec.toLowerCase()) {
+                        specSelect.selectedIndex = i;
+                        break;
                     }
                 }
             }
@@ -734,15 +1118,16 @@
             document.getElementById('userEditModal').classList.add('active');
         }
 
-        function closeUserEditModal() { document.getElementById('userEditModal').classList.remove('active'); }
+        function closeUserEditModal() {
+            document.getElementById('userEditModal').classList.remove('active');
+        }
 
         function toggleRoleFields() {
             const role = document.getElementById('modal_user_role').value;
             const peselGroup = document.getElementById('pesel_group');
             peselGroup.style.display = role === 'patient' ? 'block' : 'none';
             document.getElementById('spec_group').style.display = role === 'doctor' ? 'block' : 'none';
-            
-            // Required only if visible
+
             const peselInput = document.getElementById('modal_pesel');
             if (role === 'patient') {
                 peselInput.setAttribute('required', 'required');
@@ -755,7 +1140,7 @@
             const role = document.getElementById('add_user_role').value;
             const peselGroup = document.getElementById('add_pesel_group');
             const peselInput = document.getElementById('add_pesel');
-            
+
             if (role === 'patient') {
                 peselGroup.style.display = 'block';
                 peselInput.setAttribute('required', 'required');
@@ -766,11 +1151,9 @@
             }
         }
 
-        // -- DODANE FUNKCJE USUWANIA UŻYTKOWNIKA --
         function openUserDeleteConfirmModal() {
             document.getElementById('delete_modal_user_id').value = document.getElementById('modal_user_id').value;
             document.getElementById('delete_modal_user_role').value = document.getElementById('modal_user_role').value;
-            
             document.getElementById('userEditModal').classList.remove('active');
             document.getElementById('userConfirmDeleteModal').classList.add('active');
         }
@@ -780,38 +1163,115 @@
             document.getElementById('userEditModal').classList.add('active');
         }
 
-        function openAddUserModal() { document.getElementById('addUserModal').classList.add('active'); }
-        function closeAddUserModal() { document.getElementById('addUserModal').classList.remove('active'); }
-
-        // -- OPINIE --
-        function filterReviews() {
-            const patient = document.getElementById('reviewSearchPatient').value.toLowerCase();
-            const doctor = document.getElementById('reviewSearchDoctor').value.toLowerCase();
-            const rating = document.getElementById('reviewSearchRating').value;
-            const date = document.getElementById('reviewSearchDate').value;
-
-            document.querySelectorAll('.review-row').forEach(row => {
-                const matchP = row.dataset.patient.includes(patient);
-                const matchD = row.dataset.doctor.includes(doctor);
-                const matchR = !rating || row.dataset.rating === rating;
-                const matchDate = !date || row.dataset.date === date;
-                row.style.display = (matchP && matchD && matchR && matchDate) ? '' : 'none';
-            });
+        function openAddUserModal() {
+            document.getElementById('addUserModal').classList.add('active');
         }
 
-        function quickDeleteReview(reviewId, btn) {
-            if (!confirm('Na pewno usunąć tę opinię?')) return;
-            fetch('/admin-delete-review', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({review_id: reviewId})
-            }).then(r => r.json()).then(data => {
-                if (data.success) {
-                    const row = btn.closest('tr');
-                    if (row) row.remove();
-                } else {
-                    alert(data.error || 'Błąd usuwania.');
-                }
+        function closeAddUserModal() {
+            document.getElementById('addUserModal').classList.remove('active');
+        }
+
+        function filterReviews() {
+            const patientQuery = (document.getElementById('reviewSearchPatient')?.value || '').toLowerCase().trim();
+            const doctorQuery = (document.getElementById('reviewSearchDoctor')?.value || '').toLowerCase().trim();
+            const ratingFilter = document.getElementById('reviewSearchRating')?.value || '';
+            const dateFilter = document.getElementById('reviewSearchDate')?.value || '';
+
+            document.querySelectorAll('.review-row').forEach(row => {
+                const patient = row.dataset.patient || '';
+                const doctor = row.dataset.doctor || '';
+                const rating = row.dataset.rating || '';
+                const date = row.dataset.date || '';
+
+                const matchPatient = !patientQuery || patient.includes(patientQuery);
+                const matchDoctor = !doctorQuery || doctor.includes(doctorQuery);
+                const matchRating = !ratingFilter || rating === ratingFilter;
+                const matchDate = !dateFilter || date === dateFilter;
+
+                row.style.display = (matchPatient && matchDoctor && matchRating && matchDate) ? '' : 'none';
             });
+
+            updateGroupSeparatorVisibility('reviews-table-body', '.review-row', '.review-separator-row', '.review-group-gap-row');
+        }
+
+        function renderReviewsTable() {
+            const tbody = document.getElementById('reviews-table-body');
+            if (!tbody) {
+                return;
+            }
+
+            const sortedReviews = [...(allReviewsData || [])].sort((a, b) => parseDateToTimestamp(b.created_at) - parseDateToTimestamp(a.created_at));
+
+            if (sortedReviews.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:3rem; color:#64748b;">Brak opinii w systemie.</td></tr>';
+                return;
+            }
+
+            let html = '';
+            let currentGroup = null;
+
+            sortedReviews.forEach(review => {
+                const dateKey = normalizeDateKey(review.created_at);
+                if (dateKey !== currentGroup) {
+                    if (currentGroup !== null) {
+                        html += `<tr class="review-group-gap-row" data-group="${escapeHtml(dateKey)}"><td colspan="6" style="padding:0; height:14px; background:#f8fafc; border:none;"></td></tr>`;
+                    }
+                    currentGroup = dateKey;
+                    html += `<tr class="review-separator-row" data-group="${escapeHtml(dateKey)}"><td colspan="6" style="padding:0.7rem 1.15rem; background:#fff7ed; color:#9a3412; font-size:0.78rem; letter-spacing:0.03em; text-transform:uppercase; font-weight:700; border:1px solid #fed7aa; border-bottom:none;">${renderDayGroupLabel(dateKey)}</td></tr>`;
+                }
+
+                const reviewId = Number(review.id) || 0;
+                const pendingReports = Number(review.pending_reports) || 0;
+
+                html += `
+                    <tr class="review-row"
+                        data-review-id="${reviewId}"
+                        data-group="${escapeHtml(dateKey)}"
+                        data-patient="${escapeHtml(String(review.patient_name || '').toLowerCase())}"
+                        data-doctor="${escapeHtml(String(review.doctor_name || '').toLowerCase())}"
+                        data-rating="${Number(review.rating) || 0}"
+                        data-date="${escapeHtml(dateKey)}"
+                        style="border-bottom:1px solid #e2e8f0; transition:background 0.2s;"
+                        onmouseover="this.style.background='#f8fafc'"
+                        onmouseout="this.style.background='white'">
+                        <td style="padding:1.25rem 1.5rem; font-weight:600; color:#0f172a;">${escapeHtml(review.patient_name || '—')}</td>
+                        <td style="padding:1.25rem 1.5rem; color:#475569;">dr ${escapeHtml(review.doctor_name || '—')}</td>
+                        <td style="padding:1.25rem 1.5rem;"><span class="rev-stars" data-rating="${Number(review.rating) || 0}"></span></td>
+                        <td style="padding:1.25rem 1.5rem; color:#475569; max-width:250px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(review.comment || '')}</td>
+                        <td style="padding:1.25rem 1.5rem; color:#64748b; font-size:0.9rem;">${formatDateForUi(review.created_at)}</td>
+                        <td style="padding:1.25rem 1.5rem; text-align:right;">
+                            ${pendingReports > 0 ? `<span title="${pendingReports} oczekujące zgłoszenie(a)" style="display:inline-flex; align-items:center; justify-content:center; background:#dc2626; color:white; border-radius:50%; width:22px; height:22px; font-size:0.72rem; font-weight:700; margin-right:6px; vertical-align:middle; cursor:default;">${pendingReports}</span>` : ''}
+                            <button class="admin-action-btn btn-edit" onclick="openReviewManageModal(${reviewId})"><i class="fa-solid fa-flag"></i> Zarządzaj</button>
+                            <button class="btn-delete" style="padding:8px 12px; font-size:0.85rem;" onclick="quickDeleteReview(${reviewId}, this)"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = html;
+            renderReviewStarsInRows();
+            filterReviews();
+        }
+
+        function quickDeleteReview(reviewId) {
+            if (!confirm('Na pewno usunąć tę opinię?')) {
+                return;
+            }
+
+            fetch('/admin-delete-review', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({review_id: reviewId})
+            }).then(response => response.json()).then(data => {
+                if (!data.success) {
+                    alert(data.error || 'Błąd usuwania.');
+                    return;
+                }
+
+                allReviewsData = (allReviewsData || []).filter(review => Number(review.id) !== Number(reviewId));
+                renderReviewsTable();
+                removeReviewNotifications(reviewId);
+            }).catch(() => alert('Błąd połączenia z serwerem.'));
         }
 
         function openReviewManageModal(reviewId) {
@@ -821,25 +1281,27 @@
             document.getElementById('reviewManageModal').classList.add('active');
 
             fetch(`/api-get-review-reports?review_id=${reviewId}`)
-                .then(r => r.json())
+                .then(response => response.json())
                 .then(reports => renderReviewManageBody(reviewId, reports))
-                .catch(() => { document.getElementById('review-manage-body').innerHTML = '<p style="color:red; text-align:center; padding:2rem;">Błąd wczytywania.</p>'; });
+                .catch(() => {
+                    document.getElementById('review-manage-body').innerHTML = '<p style="color:red; text-align:center; padding:2rem;">Błąd wczytywania.</p>';
+                });
         }
 
         function renderReviewManageBody(reviewId, reports) {
-            const rev = allReviewsData.find(r => r.id == reviewId);
+            const review = (allReviewsData || []).find(item => String(item.id) === String(reviewId));
             let html = '';
 
-            if (rev) {
+            if (review) {
                 html += `<div style="background:#f8fafc; padding:1rem; border-radius:8px; margin-bottom:1.25rem;">
                     <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:0.5rem;">
                         <div>
-                            <span style="font-weight:700; color:#0f172a;">${escHtml(rev.patient_name)}</span>
-                            <span style="color:#94a3b8; font-size:0.8rem; margin-left:0.5rem;">→ dr ${escHtml(rev.doctor_name)}</span>
+                            <span style="font-weight:700; color:#0f172a;">${escHtml(review.patient_name)}</span>
+                            <span style="color:#94a3b8; font-size:0.8rem; margin-left:0.5rem;">→ dr ${escHtml(review.doctor_name)}</span>
                         </div>
-                        <span style="font-size:0.85rem;">${renderStarsStatic(rev.rating)}</span>
+                        <span style="font-size:0.85rem;">${renderStarsStatic(review.rating)}</span>
                     </div>
-                    ${rev.comment ? `<p style="margin:0.5rem 0 0; color:#475569; font-size:0.9rem;">${escHtml(rev.comment)}</p>` : ''}
+                    ${review.comment ? `<p style="margin:0.5rem 0 0; color:#475569; font-size:0.9rem;">${escHtml(review.comment)}</p>` : ''}
                 </div>`;
             }
 
@@ -847,200 +1309,328 @@
                 html += '<p style="color:#94a3b8; text-align:center; padding:1.5rem;">Brak zgłoszeń dla tej opinii.</p>';
             } else {
                 html += `<h4 style="margin:0 0 0.75rem; color:#0f172a;">Zgłoszenia (${reports.length})</h4>`;
-                reports.forEach(rep => {
-                    const date = new Date(rep.created_at).toLocaleDateString('pl-PL');
+                reports.forEach(report => {
+                    const categoryLabel = {
+                        inappropriate: 'Nieodpowiednia treść',
+                        spam: 'Spam',
+                        fake: 'Fałszywa opinia'
+                    }[report.category] || report.category;
+
                     html += `<div style="border:1px solid #e2e8f0; border-radius:8px; padding:1rem; margin-bottom:0.75rem;">
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
-                            <span style="font-size:0.8rem; font-weight:700; background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:4px;">${escHtml({'inappropriate':'Nieodpowiednia treść','spam':'Spam','fake':'Fałszywa opinia'}[rep.category] || rep.category)}</span>
-                            <span style="color:#94a3b8; font-size:0.8rem;">${date}</span>
+                            <span style="font-size:0.8rem; font-weight:700; background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:4px;">${escHtml(categoryLabel)}</span>
+                            <span style="color:#94a3b8; font-size:0.8rem;">${formatDateTimeForUi(report.created_at)}</span>
                         </div>
-                        <p style="margin:0 0 0.75rem; color:#374151; font-size:0.9rem;">${escHtml(rep.reason)}</p>
+                        <p style="margin:0 0 0.75rem; color:#374151; font-size:0.9rem;">${escHtml(report.reason)}</p>
                         <div style="display:flex; gap:0.5rem; align-items:flex-end; flex-wrap:wrap;">
-                            <textarea id="dismiss-reason-${rep.id}" rows="2" placeholder="Uzasadnienie odrzucenia (dla zgłaszającego)..." style="flex:1; min-width:180px; padding:0.5rem; border:1px solid #d1d5db; border-radius:6px; font-family:inherit; font-size:0.85rem; resize:none;"></textarea>
-                            <button onclick="adminDismissReport(${rep.id})" style="background:#eff6ff; color:#2563eb; border:none; padding:0.5rem 0.9rem; border-radius:6px; font-weight:600; cursor:pointer; font-size:0.85rem;">Odrzuć</button>
+                            <textarea id="dismiss-reason-${report.id}" rows="2" placeholder="Uzasadnienie odrzucenia (dla zgłaszającego)..." style="flex:1; min-width:180px; padding:0.5rem; border:1px solid #d1d5db; border-radius:6px; font-family:inherit; font-size:0.85rem; resize:none;"></textarea>
+                            <button onclick="adminDismissReport(${Number(report.id) || 0})" style="background:#eff6ff; color:#2563eb; border:none; padding:0.5rem 0.9rem; border-radius:6px; font-weight:600; cursor:pointer; font-size:0.85rem;">Odrzuć</button>
                         </div>
                     </div>`;
                 });
             }
 
             document.getElementById('review-manage-body').innerHTML = html;
-
-            // Sync the badge in the table row with the current pending report count
-            const manageBtn = document.querySelector(`.review-row button[onclick="openReviewManageModal(${reviewId})"]`);
-            if (manageBtn) {
-                const row = manageBtn.closest('tr');
-                const existingBadge = row.querySelector('span[title$="zgłoszenie(a)"]');
-                const pendingCount = reports ? reports.length : 0;
-                if (pendingCount === 0) {
-                    if (existingBadge) existingBadge.remove();
-                } else if (existingBadge) {
-                    existingBadge.textContent = pendingCount;
-                    existingBadge.title = `${pendingCount} oczekujące zgłoszenie(a)`;
-                }
-            }
         }
 
         function closeReviewManageModal() {
             document.getElementById('reviewManageModal').classList.remove('active');
             currentReviewId = null;
         }
-        document.getElementById('reviewManageModal').addEventListener('click', e => { if (e.target === document.getElementById('reviewManageModal')) closeReviewManageModal(); });
 
         function adminDeleteCurrentReview() {
-            if (!currentReviewId || !confirm('Na pewno usunąć tę opinię i powiadomić zgłaszających?')) return;
+            if (!currentReviewId || !confirm('Na pewno usunąć tę opinię i powiadomić zgłaszających?')) {
+                return;
+            }
+
             fetch('/admin-resolve-report', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({review_id: currentReviewId})
-            }).then(r => r.json()).then(data => {
-                const msg = document.getElementById('review-manage-message');
-                if (data.success) {
-                    msg.style.display = 'block'; msg.style.background = '#d1fae5'; msg.style.color = '#065f46';
-                    msg.textContent = 'Opinia usunięta i zgłaszający powiadomieni.';
-                    const row = document.querySelector(`.review-row button[onclick="openReviewManageModal(${currentReviewId})"]`)?.closest('tr');
-                    if (row) row.remove();
-                    removeReviewNotifications(currentReviewId);
-                    setTimeout(closeReviewManageModal, 1500);
-                } else {
-                    msg.style.display = 'block'; msg.style.background = '#fee2e2'; msg.style.color = '#991b1b';
-                    msg.textContent = data.error || 'Wystąpił błąd.';
+            }).then(response => response.json()).then(data => {
+                const message = document.getElementById('review-manage-message');
+                if (!data.success) {
+                    message.style.display = 'block';
+                    message.style.background = '#fee2e2';
+                    message.style.color = '#991b1b';
+                    message.textContent = data.error || 'Wystąpił błąd.';
+                    return;
                 }
-            });
+
+                message.style.display = 'block';
+                message.style.background = '#d1fae5';
+                message.style.color = '#065f46';
+                message.textContent = 'Opinia usunięta i zgłaszający powiadomieni.';
+
+                allReviewsData = (allReviewsData || []).filter(review => Number(review.id) !== Number(currentReviewId));
+                renderReviewsTable();
+                removeReviewNotifications(currentReviewId);
+                setTimeout(closeReviewManageModal, 1200);
+            }).catch(() => alert('Błąd połączenia z serwerem.'));
         }
 
         function adminDismissReport(reportId) {
-            const reason = document.getElementById(`dismiss-reason-${reportId}`).value.trim();
-            if (!reason) { alert('Wpisz uzasadnienie odrzucenia.'); return; }
+            const reasonField = document.getElementById(`dismiss-reason-${reportId}`);
+            const reason = (reasonField?.value || '').trim();
+            if (!reason) {
+                alert('Wpisz uzasadnienie odrzucenia.');
+                return;
+            }
 
             fetch('/admin-dismiss-report', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({report_id: reportId, admin_response: reason})
-            }).then(r => r.json()).then(data => {
-                const msg = document.getElementById('review-manage-message');
-                if (data.success) {
-                    msg.style.display = 'block'; msg.style.background = '#d1fae5'; msg.style.color = '#065f46';
-                    msg.textContent = 'Zgłoszenie odrzucone, zgłaszający powiadomiony.';
-                    removeReviewNotifications(currentReviewId);
-                    if (currentReviewId) openReviewManageModal(currentReviewId);
-                } else {
-                    msg.style.display = 'block'; msg.style.background = '#fee2e2'; msg.style.color = '#991b1b';
-                    msg.textContent = data.error || 'Wystąpił błąd.';
+            }).then(response => response.json()).then(data => {
+                const message = document.getElementById('review-manage-message');
+                if (!data.success) {
+                    message.style.display = 'block';
+                    message.style.background = '#fee2e2';
+                    message.style.color = '#991b1b';
+                    message.textContent = data.error || 'Wystąpił błąd.';
+                    return;
                 }
-            });
+
+                message.style.display = 'block';
+                message.style.background = '#d1fae5';
+                message.style.color = '#065f46';
+                message.textContent = 'Zgłoszenie odrzucone, zgłaszający powiadomiony.';
+
+                removeReviewNotifications(currentReviewId);
+                refreshReviews(true);
+
+                if (currentReviewId) {
+                    openReviewManageModal(currentReviewId);
+                }
+            }).catch(() => alert('Błąd połączenia z serwerem.'));
         }
 
-        function escHtml(str) {
-            return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-        }
-
-        // -- POWIADOMIENIA ADMINA --
-        function openNotificationsModal() {
-            // Oznacz powiadomienia jako przeczytane i ukryj badge
-            fetch('/api-mark-notifications-read', {method:'POST'}).then(() => {
-                const badge = document.getElementById('admin-notif-badge');
-                if (badge) badge.style.display = 'none';
-            });
+        function renderAdminNotificationsList() {
             const list = document.getElementById('admin-notif-list');
-            list.innerHTML = '';
-            if (!allAdminNotifications || allAdminNotifications.length === 0) {
-                list.innerHTML = '<p style="text-align:center; color:#64748b; padding:2rem;">Brak powiadomień.</p>';
-            } else {
-                allAdminNotifications.forEach(n => {
-                    const isReport = n.type === 'report';
-                    const div = document.createElement('div');
-                    div.setAttribute('data-notif-id', n.id);
-                    div.style.cssText = 'padding:1rem; border-bottom:1px solid #e2e8f0; display:flex; align-items:flex-start; gap:0.75rem;';
-                    let actionsHtml = '';
-                    if (isReport && n.related_id) {
-                        actionsHtml = `<div style="display:flex; gap:0.5rem; margin-top:0.6rem;">
-                            <button onclick="closeNotificationsModal(); openReviewManageModal(${n.related_id})" style="display:flex; align-items:center; gap:0.4rem; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; border-radius:6px; padding:0.35rem 0.75rem; font-size:0.8rem; font-weight:600; cursor:pointer;" title="Zarządzaj opinią"><i class="fa-solid fa-pen-to-square"></i> Zarządzaj</button>
-                            <button onclick="quickDeleteFromNotif(${n.related_id}, this.closest('div[data-notif-id]'))" style="display:flex; align-items:center; gap:0.4rem; background:#fef2f2; color:#dc2626; border:1px solid #fecaca; border-radius:6px; padding:0.35rem 0.75rem; font-size:0.8rem; font-weight:600; cursor:pointer;" title="Usuń opinię"><i class="fa-solid fa-trash"></i> Usuń opinię</button>
-                        </div>`;
-                    }
-                    const msgLines = n.message.split('\n');
-                    const firstLine = escHtml(msgLines[0]);
-                    const restLines = msgLines.slice(1).map(l => {
-                        const colonIdx = l.indexOf(':');
-                        if (colonIdx !== -1 && l.trimStart().startsWith('Powód')) {
-                            const label = escHtml(l.substring(0, colonIdx + 1));
-                            const value = escHtml(l.substring(colonIdx + 2).trim());
-                            return `<span style="display:block; font-size:0.85rem; color:#475569; margin-top:0.25rem;">${label} <em>&ldquo;${value}&rdquo;</em></span>`;
-                        }
-                        return `<span style="display:block; font-size:0.85rem; color:#475569; margin-top:0.25rem;">${escHtml(l)}</span>`;
-                    }).join('');
-                    div.innerHTML = `
-                        ${isReport ? '<i class="fa-solid fa-flag" style="color:#f59e0b; margin-top:3px; flex-shrink:0;"></i>' : '<i class="fa-regular fa-bell" style="color:#64748b; margin-top:3px; flex-shrink:0;"></i>'}
-                        <div style="flex:1; min-width:0;">
-                            <p style="margin:0; color:#111827; font-size:0.95rem;"><span style="font-size:0.72rem; color:#94a3b8; font-family:monospace; margin-right:0.4rem;">#${n.id}</span><strong>${firstLine}</strong></p>
-                            ${restLines}
-                            <p style="margin:0.4rem 0 0; color:#9ca3af; font-size:0.8rem;">${new Date(n.created_at).toLocaleString('pl-PL')}</p>
-                            ${actionsHtml}
-                        </div>
-                        <button onclick="dismissAdminNotification(${n.id}, this)" style="background:none; border:none; color:#9ca3af; font-size:1.1rem; cursor:pointer; padding:0 0 0 0.5rem; flex-shrink:0; line-height:1;" title="Usuń powiadomienie">&times;</button>
-                    `;
-                    list.appendChild(div);
-                });
+            if (!list) {
+                return;
             }
-            document.getElementById('adminNotifModal').classList.add('active');
+
+            list.innerHTML = '';
+            if (!Array.isArray(allAdminNotifications) || allAdminNotifications.length === 0) {
+                list.innerHTML = '<p style="text-align:center; color:#64748b; padding:2rem;">Brak powiadomień.</p>';
+                return;
+            }
+
+            const sortedNotifications = [...allAdminNotifications].sort((a, b) => {
+                const priorityA = a.type === 'global_ip_attack' ? 0 : 1;
+                const priorityB = b.type === 'global_ip_attack' ? 0 : 1;
+                if (priorityA !== priorityB) {
+                    return priorityA - priorityB;
+                }
+                return parseDateToTimestamp(b.created_at) - parseDateToTimestamp(a.created_at);
+            });
+
+            sortedNotifications.forEach(notification => {
+                const notifId = Number(notification.id) || 0;
+                const relatedId = Number(notification.related_id) || 0;
+                const isReport = notification.type === 'report';
+                const isSecurityAlert = notification.type === 'security_alert';
+                const isGlobalAttack = notification.type === 'global_ip_attack';
+
+                const msg = String(notification.message || '');
+                const msgLines = msg.split('\n');
+                const firstLine = escHtml(msgLines[0] || 'Powiadomienie');
+                const restLines = msgLines.slice(1).map(line => {
+                    const colonIdx = line.indexOf(':');
+                    if (colonIdx !== -1 && line.trimStart().startsWith('Powód')) {
+                        const label = escHtml(line.substring(0, colonIdx + 1));
+                        const value = escHtml(line.substring(colonIdx + 2).trim());
+                        return `<span style="display:block; font-size:0.85rem; color:#475569; margin-top:0.25rem;">${label} <em>&ldquo;${value}&rdquo;</em></span>`;
+                    }
+                    return `<span style="display:block; font-size:0.85rem; color:#475569; margin-top:0.25rem;">${escHtml(line)}</span>`;
+                }).join('');
+
+                const targetAccounts = Array.isArray(notification.target_accounts) ? notification.target_accounts : [];
+                const targetsHtml = isGlobalAttack && targetAccounts.length > 0
+                    ? `<span style="display:block; font-size:0.83rem; color:#991b1b; margin-top:0.35rem;"><strong>Cele ataku:</strong> ${targetAccounts.map(target => `${escHtml(target.email || '-')} (${Number(target.failure_count) || 0})`).join(', ')}</span>`
+                    : '';
+
+                const blockUntilHtml = isGlobalAttack && notification.ip_blocked_until
+                    ? `<span style="display:block; font-size:0.83rem; color:#991b1b; margin-top:0.25rem;"><strong>Blokada do:</strong> ${escHtml(notification.ip_blocked_until)}</span>`
+                    : '';
+
+                const remainingTime = formatRemainingSeconds(notification.ip_block_remaining_seconds);
+                const remainingHtml = isGlobalAttack && remainingTime
+                    ? `<span style="display:block; font-size:0.83rem; color:#991b1b; margin-top:0.25rem;"><strong>Pozostalo:</strong> ${escHtml(remainingTime)}</span>`
+                    : '';
+
+                const iconHtml = isGlobalAttack
+                    ? '<i class="fa-solid fa-shield-virus" style="color:#dc2626; margin-top:3px; flex-shrink:0;"></i>'
+                    : (isSecurityAlert
+                        ? '<i class="fa-solid fa-triangle-exclamation" style="color:#f59e0b; margin-top:3px; flex-shrink:0;"></i>'
+                        : (isReport
+                            ? '<i class="fa-solid fa-flag" style="color:#f59e0b; margin-top:3px; flex-shrink:0;"></i>'
+                            : '<i class="fa-regular fa-bell" style="color:#64748b; margin-top:3px; flex-shrink:0;"></i>'));
+
+                const alertBadge = isGlobalAttack
+                    ? '<span style="display:inline-block; margin:0 0 0.35rem 0; background:#dc2626; color:white; font-size:0.68rem; letter-spacing:0.04em; font-weight:800; padding:0.18rem 0.45rem; border-radius:999px;">KRYTYCZNY ALERT</span>'
+                    : (isSecurityAlert
+                        ? '<span style="display:inline-block; margin:0 0 0.35rem 0; background:#fef3c7; color:#92400e; font-size:0.68rem; letter-spacing:0.04em; font-weight:800; padding:0.18rem 0.45rem; border-radius:999px;">ALERT BEZPIECZEŃSTWA</span>'
+                        : '');
+
+                const actionsHtml = (isReport && relatedId > 0)
+                    ? `<div style="display:flex; gap:0.5rem; margin-top:0.6rem;">
+                        <button onclick="closeNotificationsModal(); openReviewManageModal(${relatedId})" style="display:flex; align-items:center; gap:0.4rem; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; border-radius:6px; padding:0.35rem 0.75rem; font-size:0.8rem; font-weight:600; cursor:pointer;" title="Zarządzaj opinią"><i class="fa-solid fa-pen-to-square"></i> Zarządzaj</button>
+                        <button onclick="quickDeleteFromNotif(${relatedId}, this.closest('div[data-notif-id]'))" style="display:flex; align-items:center; gap:0.4rem; background:#fef2f2; color:#dc2626; border:1px solid #fecaca; border-radius:6px; padding:0.35rem 0.75rem; font-size:0.8rem; font-weight:600; cursor:pointer;" title="Usuń opinię"><i class="fa-solid fa-trash"></i> Usuń opinię</button>
+                    </div>`
+                    : '';
+
+                const wrapper = document.createElement('div');
+                wrapper.setAttribute('data-notif-id', String(notifId));
+                wrapper.style.cssText = `padding:1rem; border-bottom:1px solid #e2e8f0; display:flex; align-items:flex-start; gap:0.75rem;${isGlobalAttack ? ' background:linear-gradient(90deg,#fff1f2,#ffffff); border-left:4px solid #dc2626;' : ''}`;
+
+                wrapper.innerHTML = `
+                    ${iconHtml}
+                    <div style="flex:1; min-width:0;">
+                        ${alertBadge}
+                        <p style="margin:0; color:${isGlobalAttack ? '#991b1b' : '#111827'}; font-size:0.95rem;"><span style="font-size:0.72rem; color:#94a3b8; font-family:monospace; margin-right:0.4rem;">#${notifId}</span><strong>${firstLine}</strong></p>
+                        ${restLines}
+                        ${targetsHtml}
+                        ${blockUntilHtml}
+                        ${remainingHtml}
+                        <p style="margin:0.4rem 0 0; color:#9ca3af; font-size:0.8rem;">${formatDateTimeForUi(notification.created_at)}</p>
+                        ${actionsHtml}
+                    </div>
+                    <button onclick="dismissAdminNotification(${notifId})" style="background:none; border:none; color:#9ca3af; font-size:1.1rem; cursor:pointer; padding:0 0 0 0.5rem; flex-shrink:0; line-height:1;" title="Usuń powiadomienie">&times;</button>
+                `;
+
+                list.appendChild(wrapper);
+            });
         }
 
-        function dismissAdminNotification(id, btn) {
+        function openNotificationsModal() {
+            isNotificationsModalOpen = true;
+
+            if (Array.isArray(allAdminNotifications)) {
+                allAdminNotifications = allAdminNotifications.map(notification => ({...notification, is_read: true}));
+            }
+
+            updateAdminNotifBadge(0);
+            renderAdminNotificationsList();
+            document.getElementById('adminNotifModal').classList.add('active');
+
+            fetch('/api-mark-notifications-read', {method: 'POST'})
+                .then(() => refreshAdminNotifications(true))
+                .catch(() => {});
+        }
+
+        function closeNotificationsModal() {
+            isNotificationsModalOpen = false;
+            document.getElementById('adminNotifModal').classList.remove('active');
+        }
+
+        function dismissAdminNotification(id) {
             fetch('/api-delete-notification', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({id: id})
-            }).then(r => r.json()).then(data => {
-                if (data.success) {
-                    const idx = allAdminNotifications.findIndex(n => n.id === id);
-                    if (idx !== -1) allAdminNotifications.splice(idx, 1);
-                    const el = btn.closest('[data-notif-id]');
-                    if (el) el.remove();
-                    const list = document.getElementById('admin-notif-list');
-                    if (allAdminNotifications.length === 0) {
-                        list.innerHTML = '<p style="text-align:center; color:#64748b; padding:2rem;">Brak powiadomień.</p>';
-                    }
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({id: Number(id) || 0})
+            }).then(response => response.json()).then(data => {
+                if (!data.success) {
+                    return;
                 }
-            }).catch(err => console.error(err));
+
+                allAdminNotifications = (allAdminNotifications || []).filter(notification => Number(notification.id) !== Number(id));
+                recalculateAdminNotifBadge();
+
+                if (isNotificationsModalOpen) {
+                    renderAdminNotificationsList();
+                }
+            }).catch(() => {});
         }
 
         function clearAllAdminNotifications() {
-            if (!confirm('Wyczyścić wszystkie powiadomienia?')) return;
-            fetch('/api-clear-notifications', {method:'POST'})
-                .then(r => r.json())
+            if (!confirm('Wyczyścić wszystkie powiadomienia?')) {
+                return;
+            }
+
+            fetch('/api-clear-notifications', {method: 'POST'})
+                .then(response => response.json())
                 .then(() => {
-                    allAdminNotifications.splice(0);
-                    document.getElementById('admin-notif-list').innerHTML = '<p style="text-align:center; color:#64748b; padding:2rem;">Brak powiadomień.</p>';
-                    const badge = document.getElementById('admin-notif-badge');
-                    if (badge) badge.style.display = 'none';
-                }).catch(err => console.error(err));
+                    allAdminNotifications = [];
+                    updateAdminNotifBadge(0);
+                    if (isNotificationsModalOpen) {
+                        renderAdminNotificationsList();
+                    }
+                }).catch(() => {});
         }
 
-        function quickDeleteFromNotif(reviewId, notifEl) {
-            if (!confirm('Na pewno usunąć tę opinię?')) return;
+        function quickDeleteFromNotif(reviewId) {
+            if (!confirm('Na pewno usunąć tę opinię?')) {
+                return;
+            }
+
             fetch('/admin-delete-review', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({review_id: reviewId})
-            }).then(r => r.json()).then(data => {
-                if (data.success) {
-                    if (notifEl) notifEl.remove();
-                    // Usuń z tabeli opinii jeśli widoczny
-                    document.querySelectorAll('.review-row').forEach(row => {
-                        if (row.querySelector(`[onclick*="openReviewManageModal(${reviewId})"]`)) row.remove();
-                    });
-                } else {
+            }).then(response => response.json()).then(data => {
+                if (!data.success) {
                     alert(data.error || 'Błąd usuwania.');
+                    return;
                 }
-            });
+
+                allReviewsData = (allReviewsData || []).filter(review => Number(review.id) !== Number(reviewId));
+                renderReviewsTable();
+                removeReviewNotifications(reviewId);
+            }).catch(() => alert('Błąd połączenia z serwerem.'));
         }
 
-        function closeNotificationsModal() { document.getElementById('adminNotifModal').classList.remove('active'); }
-        document.addEventListener('DOMContentLoaded', () => {
-            const nm = document.getElementById('adminNotifModal');
-            if (nm) nm.addEventListener('click', e => { if (e.target === nm) closeNotificationsModal(); });
-        });
-
-        // -- BEZPIECZENSTWO (blokowanie kont) --
         function toggleUserBlock(userId, block, btn) {
-            const action = block ? 'Zablokować' : 'Odblokować';
-            if (!confirm(action + ' to konto?')) return;
+            const modal = document.getElementById('userBlockConfirmModal');
+            const title = document.getElementById('user-block-title');
+            const text = document.getElementById('user-block-text');
+            const iconWrap = document.getElementById('user-block-icon');
+            const confirmBtn = document.getElementById('user-block-confirm-btn');
+
+            pendingUserBlockAction = {userId, block, btn};
+
+            if (block) {
+                title.textContent = 'Zablokować konto?';
+                text.textContent = 'Użytkownik zostanie zablokowany i nie zaloguje się do czasu odblokowania.';
+                iconWrap.style.background = '#fee2e2';
+                iconWrap.style.color = '#dc2626';
+                iconWrap.innerHTML = '<i class="fa-solid fa-user-lock"></i>';
+                confirmBtn.textContent = 'Tak, zablokuj';
+                confirmBtn.style.background = '#dc2626';
+            } else {
+                title.textContent = 'Odblokować konto?';
+                text.textContent = 'Konto zostanie natychmiast odblokowane, a licznik prób logowania wyzerowany.';
+                iconWrap.style.background = '#dcfce7';
+                iconWrap.style.color = '#16a34a';
+                iconWrap.innerHTML = '<i class="fa-solid fa-user-check"></i>';
+                confirmBtn.textContent = 'Tak, odblokuj';
+                confirmBtn.style.background = '#16a34a';
+            }
+
+            modal.classList.add('active');
+        }
+
+        function closeUserBlockConfirmModal() {
+            pendingUserBlockAction = null;
+            document.getElementById('userBlockConfirmModal').classList.remove('active');
+        }
+
+        function confirmUserBlockToggle() {
+            if (!pendingUserBlockAction) {
+                return;
+            }
+
+            const {userId, block, btn} = pendingUserBlockAction;
+            pendingUserBlockAction = null;
+            document.getElementById('userBlockConfirmModal').classList.remove('active');
+            executeUserBlockToggle(userId, block, btn);
+        }
+
+        function executeUserBlockToggle(userId, block, btn) {
+            if (!btn) {
+                return;
+            }
 
             const endpoint = block ? '/admin-block-user' : '/admin-unblock-user';
             btn.disabled = true;
@@ -1049,68 +1639,244 @@
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({user_id: userId})
-            }).then(r => r.json()).then(data => {
-                if (data.success) {
-                    const row = btn.closest('.login-log-row');
-                    if (row) {
-                        const statusCell = row.cells[5];
-                        const actionCell = row.cells[6];
-                        if (block) {
-                            statusCell.innerHTML = '<span style="background:#fee2e2; color:#b91c1c; padding:2px 10px; border-radius:999px; font-size:0.8rem; font-weight:600;">Zablokowane</span>';
-                            actionCell.innerHTML = '<button onclick="toggleUserBlock(' + userId + ', false, this)" style="padding:4px 12px; background:#16a34a; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem;">Odblokuj</button>';
-                        } else {
-                            statusCell.innerHTML = '<span style="background:#dcfce7; color:#16a34a; padding:2px 10px; border-radius:999px; font-size:0.8rem; font-weight:600;">Aktywne</span>';
-                            actionCell.innerHTML = '<button onclick="toggleUserBlock(' + userId + ', true, this)" style="padding:4px 12px; background:#dc2626; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem;">Zablokuj</button>';
-                        }
-                    }
-                } else {
-                    alert(data.error || 'Błąd operacji.');
-                    btn.disabled = false;
-                }
-            }).catch(() => {
-                alert('Błąd połączenia z serwerem.');
+            }).then(response => response.json()).then(data => {
                 btn.disabled = false;
+                if (!data.success) {
+                    alert(data.error || 'Błąd operacji.');
+                    return;
+                }
+                refreshLoginLogs(true);
+            }).catch(() => {
+                btn.disabled = false;
+                alert('Błąd połączenia z serwerem.');
             });
         }
 
-        function refreshLoginLogs() {
-            fetch('/api-get-login-logs')
-                .then(r => r.json())
-                .then(logs => {
-                    const tbody = document.getElementById('login-logs-tbody');
-                    if (!tbody) return;
-                    if (!logs || logs.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:3rem; color:#64748b;">Brak podejrzanej aktywności logowania.</td></tr>';
-                        return;
+        function renderLoginLogsTable() {
+            const tbody = document.getElementById('login-logs-tbody');
+            if (!tbody) {
+                return;
+            }
+
+            const sortedLogs = [...(allLoginLogsData || [])].sort((a, b) => parseDateToTimestamp(b.last_attempt) - parseDateToTimestamp(a.last_attempt));
+            if (sortedLogs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:3rem; color:#64748b;">Brak podejrzanej aktywności logowania.</td></tr>';
+                return;
+            }
+
+            let html = '';
+            let currentGroup = null;
+
+            sortedLogs.forEach(log => {
+                const dateKey = normalizeDateKey(log.last_attempt);
+                if (dateKey !== currentGroup) {
+                    if (currentGroup !== null) {
+                        html += `<tr class="login-group-gap-row" data-group="${escapeHtml(dateKey)}"><td colspan="7" style="padding:0; height:14px; background:#f8fafc; border:none;"></td></tr>`;
                     }
-                    tbody.innerHTML = logs.map(log => {
-                        const uid = parseInt(log.user_id) || 0;
-                        const blocked = log.is_blocked;
-                        const statusHtml = blocked
-                            ? '<span style="background:#fee2e2; color:#b91c1c; padding:2px 10px; border-radius:999px; font-size:0.8rem; font-weight:600;">Zablokowane</span>'
-                            : uid ? '<span style="background:#dcfce7; color:#16a34a; padding:2px 10px; border-radius:999px; font-size:0.8rem; font-weight:600;">Aktywne</span>'
-                                  : '<span style="background:#f1f5f9; color:#64748b; padding:2px 10px; border-radius:999px; font-size:0.8rem;">Brak konta</span>';
-                        const actionHtml = uid
-                            ? (blocked
-                                ? `<button onclick="toggleUserBlock(${uid}, false, this)" style="padding:4px 12px; background:#16a34a; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem;">Odblokuj</button>`
-                                : `<button onclick="toggleUserBlock(${uid}, true, this)" style="padding:4px 12px; background:#dc2626; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem;">Zablokuj</button>`)
-                            : '<span style="color:#94a3b8; font-size:0.8rem;">—</span>';
-                        return `<tr class="login-log-row" data-user-id="${uid}">
-                            <td style="padding:0.75rem 1rem; font-size:0.9rem; border-bottom:1px solid #f1f5f9;">${escapeHtml(log.email || '')}</td>
-                            <td style="padding:0.75rem 1rem; font-size:0.9rem; border-bottom:1px solid #f1f5f9;">${escapeHtml(log.username || '—')}</td>
-                            <td style="padding:0.75rem 1rem; font-size:0.9rem; border-bottom:1px solid #f1f5f9;"><span style="background:#fef2f2; color:#dc2626; padding:2px 10px; border-radius:999px; font-weight:600;">${parseInt(log.failure_count) || 0}</span></td>
-                            <td style="padding:0.75rem 1rem; font-size:0.9rem; border-bottom:1px solid #f1f5f9; color:#64748b;">${escapeHtml(log.last_attempt || '—')}</td>
-                            <td style="padding:0.75rem 1rem; font-size:0.9rem; border-bottom:1px solid #f1f5f9; color:#64748b; font-family:monospace;">${escapeHtml(log.last_ip || '—')}</td>
-                            <td style="padding:0.75rem 1rem; font-size:0.9rem; border-bottom:1px solid #f1f5f9;">${statusHtml}</td>
-                            <td style="padding:0.75rem 1rem; font-size:0.9rem; border-bottom:1px solid #f1f5f9;">${actionHtml}</td>
-                        </tr>`;
-                    }).join('');
-                }).catch(() => alert('Błąd pobierania logów.'));
+                    currentGroup = dateKey;
+                    html += `<tr class="login-separator-row" data-group="${escapeHtml(dateKey)}"><td colspan="7" style="padding:0.7rem 1rem; background:#fef2f2; color:#991b1b; font-size:0.78rem; letter-spacing:0.03em; text-transform:uppercase; font-weight:700; border:1px solid #fecaca; border-bottom:none;">${renderDayGroupLabel(dateKey)}</td></tr>`;
+                }
+
+                const uid = Number(log.user_id) || 0;
+                const isBlocked = toBool(log.is_blocked);
+                const isTempLocked = toBool(log.is_temporarily_locked);
+                const isIpBlocked = toBool(log.is_ip_blocked);
+                const tempRemainingText = formatRemainingSeconds(log.temporary_lock_remaining_seconds);
+                const ipRemainingText = formatRemainingSeconds(log.ip_block_remaining_seconds);
+
+                let statusHtml = '<span style="background:#f1f5f9; color:#64748b; padding:2px 10px; border-radius:999px; font-size:0.8rem;">Brak konta</span>';
+                if (uid > 0 && isBlocked) {
+                    statusHtml = `<span style="background:#fee2e2; color:#b91c1c; padding:2px 10px; border-radius:999px; font-size:0.8rem; font-weight:600;">Zablokowane</span>${ipRemainingText ? `<div style="margin-top:0.3rem; font-size:0.76rem; color:#991b1b;">Pozostalo: ${escapeHtml(ipRemainingText)}</div>` : ''}`;
+                } else if (uid > 0 && isTempLocked) {
+                    statusHtml = `<span style="background:#fef3c7; color:#92400e; padding:2px 10px; border-radius:999px; font-size:0.8rem; font-weight:600;">Tymczasowo zablokowane</span>${tempRemainingText ? `<div style="margin-top:0.3rem; font-size:0.76rem; color:#92400e;">Pozostalo: ${escapeHtml(tempRemainingText)}</div>` : ''}`;
+                } else if (uid > 0 && isIpBlocked) {
+                    statusHtml = `<span style="background:#fee2e2; color:#b91c1c; padding:2px 10px; border-radius:999px; font-size:0.8rem; font-weight:600;">IP zablokowane</span>${ipRemainingText ? `<div style="margin-top:0.3rem; font-size:0.76rem; color:#991b1b;">Pozostalo: ${escapeHtml(ipRemainingText)}</div>` : ''}`;
+                } else if (uid > 0) {
+                    statusHtml = '<span style="background:#dcfce7; color:#16a34a; padding:2px 10px; border-radius:999px; font-size:0.8rem; font-weight:600;">Aktywne</span>';
+                }
+
+                let actionHtml = '<span style="color:#94a3b8; font-size:0.8rem;">—</span>';
+                if (uid > 0) {
+                    if (isBlocked || isTempLocked || isIpBlocked) {
+                        actionHtml = `<button onclick="toggleUserBlock(${uid}, false, this)" style="padding:4px 12px; background:#16a34a; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem;">Odblokuj</button>`;
+                    } else {
+                        actionHtml = `<button onclick="toggleUserBlock(${uid}, true, this)" style="padding:4px 12px; background:#dc2626; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem;">Zablokuj</button>`;
+                    }
+                }
+
+                html += `
+                    <tr class="login-log-row" data-user-id="${uid}" data-group="${escapeHtml(dateKey)}">
+                        <td style="padding:0.75rem 1rem; font-size:0.9rem; border-bottom:1px solid #f1f5f9;">${escapeHtml(log.email || '')}</td>
+                        <td style="padding:0.75rem 1rem; font-size:0.9rem; border-bottom:1px solid #f1f5f9;">${escapeHtml(log.username || '—')}</td>
+                        <td style="padding:0.75rem 1rem; font-size:0.9rem; border-bottom:1px solid #f1f5f9;"><span style="background:#fef2f2; color:#dc2626; padding:2px 10px; border-radius:999px; font-weight:600;">${Number(log.failure_count) || 0}</span></td>
+                        <td style="padding:0.75rem 1rem; font-size:0.9rem; border-bottom:1px solid #f1f5f9; color:#64748b;">${escapeHtml(log.last_attempt || '—')}</td>
+                        <td style="padding:0.75rem 1rem; font-size:0.9rem; border-bottom:1px solid #f1f5f9; color:#64748b; font-family:monospace;">${escapeHtml(log.last_ip || '—')}</td>
+                        <td style="padding:0.75rem 1rem; font-size:0.9rem; border-bottom:1px solid #f1f5f9;">${statusHtml}</td>
+                        <td style="padding:0.75rem 1rem; font-size:0.9rem; border-bottom:1px solid #f1f5f9;">${actionHtml}</td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = html;
         }
 
-        function escapeHtml(str) {
-            return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        async function refreshAppointments(silent = true) {
+            try {
+                const response = await fetch('/api-admin-appointments', {headers: {'Accept': 'application/json'}});
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                const data = await response.json();
+                allAppointmentsData = Array.isArray(data) ? data : [];
+                renderAppointmentsTable();
+            } catch (error) {
+                console.error('refreshAppointments failed', error);
+                if (!silent) {
+                    alert('Błąd pobierania wizyt.');
+                }
+            }
         }
+
+        async function refreshReviews(silent = true) {
+            try {
+                const response = await fetch('/api-admin-reviews', {headers: {'Accept': 'application/json'}});
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                const data = await response.json();
+                allReviewsData = Array.isArray(data) ? data : [];
+                renderReviewsTable();
+            } catch (error) {
+                console.error('refreshReviews failed', error);
+                if (!silent) {
+                    alert('Błąd pobierania opinii.');
+                }
+            }
+        }
+
+        async function refreshLoginLogs(silent = true) {
+            try {
+                const response = await fetch('/api-get-login-logs', {headers: {'Accept': 'application/json'}});
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                const data = await response.json();
+                allLoginLogsData = Array.isArray(data) ? data : [];
+                renderLoginLogsTable();
+            } catch (error) {
+                console.error('refreshLoginLogs failed', error);
+                if (!silent) {
+                    alert('Błąd pobierania logów.');
+                }
+            }
+        }
+
+        async function refreshAdminNotifications(silent = true) {
+            try {
+                const response = await fetch('/api-admin-notifications', {headers: {'Accept': 'application/json'}});
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                const payload = await response.json();
+
+                if (Array.isArray(payload)) {
+                    allAdminNotifications = payload;
+                    recalculateAdminNotifBadge();
+                } else {
+                    allAdminNotifications = Array.isArray(payload.notifications) ? payload.notifications : [];
+                    const unread = Number(payload.unread_count);
+                    if (Number.isFinite(unread)) {
+                        updateAdminNotifBadge(unread);
+                    } else {
+                        recalculateAdminNotifBadge();
+                    }
+                }
+
+                if (isNotificationsModalOpen) {
+                    renderAdminNotificationsList();
+                }
+            } catch (error) {
+                console.error('refreshAdminNotifications failed', error);
+                if (!silent) {
+                    alert('Błąd pobierania powiadomień.');
+                }
+            }
+        }
+
+        async function refreshAllRealtimeData(silent = true) {
+            if (isRealtimeRefreshRunning) {
+                return;
+            }
+
+            isRealtimeRefreshRunning = true;
+            try {
+                await Promise.all([
+                    refreshAppointments(silent),
+                    refreshReviews(silent),
+                    refreshLoginLogs(silent),
+                    refreshAdminNotifications(silent)
+                ]);
+            } finally {
+                isRealtimeRefreshRunning = false;
+            }
+        }
+
+        function startRealtimeRefresh() {
+            if (realtimeRefreshHandle) {
+                clearInterval(realtimeRefreshHandle);
+            }
+
+            refreshAllRealtimeData(true);
+            realtimeRefreshHandle = setInterval(() => {
+                refreshAllRealtimeData(true);
+            }, 2000);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const reviewModal = document.getElementById('reviewManageModal');
+            if (reviewModal) {
+                reviewModal.addEventListener('click', event => {
+                    if (event.target === reviewModal) {
+                        closeReviewManageModal();
+                    }
+                });
+            }
+
+            const notificationsModal = document.getElementById('adminNotifModal');
+            if (notificationsModal) {
+                notificationsModal.addEventListener('click', event => {
+                    if (event.target === notificationsModal) {
+                        closeNotificationsModal();
+                    }
+                });
+            }
+
+            const blockModal = document.getElementById('userBlockConfirmModal');
+            if (blockModal) {
+                blockModal.addEventListener('click', event => {
+                    if (event.target === blockModal) {
+                        closeUserBlockConfirmModal();
+                    }
+                });
+            }
+
+            const bellBtn = document.getElementById('notifBellBtn');
+            if (bellBtn) {
+                bellBtn.addEventListener('mouseenter', () => {
+                    bellBtn.style.color = adminNotifBadgeCount > 0 ? '#b91c1c' : '#0f172a';
+                });
+                bellBtn.addEventListener('mouseleave', () => {
+                    bellBtn.style.color = adminNotifBadgeCount > 0 ? '#dc2626' : '#64748b';
+                });
+            }
+
+            renderAppointmentsTable();
+            renderReviewsTable();
+            renderLoginLogsTable();
+            recalculateAdminNotifBadge();
+            filterUsers();
+            startRealtimeRefresh();
+        });
     </script>
 </body>
 </html>

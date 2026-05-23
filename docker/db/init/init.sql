@@ -4,6 +4,7 @@ DROP TRIGGER IF EXISTS trg_review_request ON appointments;
 DROP FUNCTION IF EXISTS notify_patient_review_request();
 DROP TRIGGER IF EXISTS check_doctor_availability_trigger ON appointments;
 DROP FUNCTION IF EXISTS check_doctor_availability_func();
+DROP TABLE IF EXISTS blocked_ips CASCADE;
 DROP TABLE IF EXISTS login_attempts CASCADE;
 DROP TABLE IF EXISTS review_reports CASCADE;
 DROP TABLE IF EXISTS reviews CASCADE;
@@ -49,6 +50,15 @@ CREATE TABLE login_attempts (
 );
 CREATE INDEX idx_login_attempts_email ON login_attempts(email);
 CREATE INDEX idx_login_attempts_attempted_at ON login_attempts(attempted_at);
+
+CREATE TABLE blocked_ips (
+    ip_address VARCHAR(45) PRIMARY KEY,
+    blocked_until TIMESTAMP,
+    reason TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_blocked_ips_blocked_until ON blocked_ips(blocked_until);
 
 -- Profile szczegółowe (Relacja 1:1)
 CREATE TABLE patients (

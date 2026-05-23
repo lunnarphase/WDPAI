@@ -212,8 +212,9 @@
 
                     if (doctor.visit_price) {
                         const pl = clone.querySelector(".price-line");
+                        const duration = parseInt(doctor.visit_duration, 10) || 30;
                         pl.style.display = 'block';
-                        pl.innerHTML = `<i class="fa-solid fa-wallet"></i> ${parseFloat(doctor.visit_price).toFixed(0)} zł / ${doctor.visit_duration || 30} min`;
+                        pl.innerHTML = `<i class="fa-solid fa-wallet"></i> ${parseFloat(doctor.visit_price).toFixed(0)} zł / ${duration} min`;
                     }
 
                     if (doctor.next_slot) {
@@ -222,7 +223,7 @@
                         const dateObj = new Date(d + 'T00:00:00');
                         const dateStr = dateObj.toLocaleDateString('pl-PL', {day:'2-digit', month:'long'});
                         nsl.style.display = 'block';
-                        nsl.innerHTML = `<i class="fa-regular fa-calendar-check" style="color:#16a34a;"></i> Wolny termin: <strong>${dateStr} godz. ${t}</strong>`;
+                        nsl.innerHTML = `<i class="fa-regular fa-calendar-check" style="color:#16a34a;"></i> Wolny termin: <strong>${escHtml(dateStr)} godz. ${escHtml(t || '')}</strong>`;
                     }
 
                     const bookBtn = clone.querySelector(".btn-book");
@@ -409,14 +410,21 @@
             return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
         }
 
+        function buildBookingUrl(doctorId) {
+            const safeDoctorId = parseInt(doctorId, 10) || 0;
+            const returnTo = `${window.location.pathname}${window.location.search}`;
+            return `/book-appointment?id=${safeDoctorId}&return_to=${encodeURIComponent(returnTo)}`;
+        }
+
         function renderDoctorProfile(data, doctorId) {
             if (data.error) {
-                document.getElementById('doctor-profile-body').innerHTML = `<p style="color:red;text-align:center;padding:2rem;">${data.error}</p>`;
+                document.getElementById('doctor-profile-body').innerHTML = `<p style="color:red;text-align:center;padding:2rem;">${escHtml(data.error || '')}</p>`;
                 return;
             }
             const p = data.profile;
             const s = data.summary;
             const reviews = data.reviews || [];
+            const safeDoctorId = parseInt(doctorId, 10) || 0;
 
             document.getElementById('dp-name').textContent = `dr ${p.name}`;
             document.getElementById('dp-spec').textContent = p.specializations || 'Lekarz';
@@ -425,12 +433,13 @@
             if (data.next_slot) {
                 const [d, t] = data.next_slot.split(' ');
                 const dateObj = new Date(d + 'T00:00:00');
-                nextSlotHtml = dateObj.toLocaleDateString('pl-PL', {day:'2-digit',month:'long',year:'numeric'}) + ' godz. ' + t;
+                nextSlotHtml = dateObj.toLocaleDateString('pl-PL', {day:'2-digit',month:'long',year:'numeric'}) + ' godz. ' + escHtml(t || '');
             }
 
             let priceHtml = '<span style="color:#94a3b8;">Brak danych</span>';
             if (p.visit_price) {
-                priceHtml = `${parseFloat(p.visit_price).toFixed(0)} zł / ${p.visit_duration || 30} min`;
+                const duration = parseInt(p.visit_duration, 10) || 30;
+                priceHtml = `${parseFloat(p.visit_price).toFixed(0)} zł / ${duration} min`;
             }
 
             let bioHtml = p.bio ? `<div style="background:#f8fafc; padding:1rem; border-radius:8px; font-size:0.95rem; color:#374151; line-height:1.6;">${escHtml(p.bio)}</div>` : '';
@@ -441,6 +450,7 @@
             } else {
                 reviews.forEach(r => {
                     const date = new Date(r.created_at).toLocaleDateString('pl-PL');
+                    const reviewId = parseInt(r.id, 10) || 0;
                     reviewsHtml += `
                         <div style="border-bottom:1px solid #e2e8f0; padding:1rem 0;">
                             <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:0.5rem;">
@@ -450,7 +460,7 @@
                                 </div>
                                 <div style="display:flex; align-items:center; gap:0.75rem;">
                                     <div>${renderStarsStatic(r.rating)}</div>
-                                    <button onclick="openReportModal(${r.id})" style="background:none; border:none; color:#94a3b8; font-size:0.8rem; cursor:pointer; padding:0;" title="Zgłoś opinię"><i class="fa-solid fa-flag"></i></button>
+                                    <button onclick="openReportModal(${reviewId})" style="background:none; border:none; color:#94a3b8; font-size:0.8rem; cursor:pointer; padding:0;" title="Zgłoś opinię"><i class="fa-solid fa-flag"></i></button>
                                 </div>
                             </div>
                             ${r.comment ? `<p style="margin:0.5rem 0 0 0; color:#475569; font-size:0.9rem;">${escHtml(r.comment)}</p>` : ''}
@@ -477,7 +487,7 @@
                     <h4 style="margin:0 0 0.75rem; color:#0f172a;">Opinie pacjentów</h4>
                     ${reviewsHtml}
                 </div>
-                <a href="/book-appointment?id=${doctorId}" style="display:block; text-align:center; background:#125B46; color:white; padding:0.9rem; border-radius:8px; font-weight:700; text-decoration:none; font-size:1rem;">Umów wizytę &rarr;</a>
+                <a href="${buildBookingUrl(safeDoctorId)}" style="display:block; text-align:center; background:#125B46; color:white; padding:0.9rem; border-radius:8px; font-weight:700; text-decoration:none; font-size:1rem;">Umów wizytę &rarr;</a>
             `;
         }
 
@@ -517,6 +527,7 @@
 
         // --- POWIADOMIENIA ---
         const allNotifications = <?= json_encode($notifications ?? []) ?>;
+        const notificationsModal = document.getElementById('notificationsModal');
 
         function openNotificationsModal() {
             const notificationsModal = document.getElementById('notificationsModal');
@@ -551,16 +562,34 @@
                 return;
             }
             allNotifications.forEach(notification => {
+                const isReportNotification = notification.type === 'report_dismissed' || notification.type === 'report_resolved';
+                const isDismissedReport = notification.type === 'report_dismissed';
+                const notifId = parseInt(notification.id, 10) || 0;
                 const notifDiv = document.createElement('div');
-                notifDiv.setAttribute('data-notif-id', notification.id);
+                notifDiv.setAttribute('data-notif-id', notifId);
                 notifDiv.style.cssText = 'padding: 1rem; border-bottom: 1px solid #e2e8f0; background: white; display: flex; align-items: flex-start; gap: 0.75rem;';
+
+                const rawMessage = String(notification.message || '');
+                let mainMessage = rawMessage;
+                let adminResponse = '';
+                if (isDismissedReport && rawMessage.includes('Odpowiedź:')) {
+                    const chunks = rawMessage.split('Odpowiedź:');
+                    mainMessage = (chunks[0] || '').trim();
+                    adminResponse = (chunks.slice(1).join('Odpowiedź:') || '').trim();
+                }
+
+                const iconHtml = isReportNotification
+                    ? '<i class="fa-solid fa-flag" style="color:#dc2626; margin-top:3px; flex-shrink:0;"></i>'
+                    : '<i class="fa-regular fa-bell" style="color:#64748b; margin-top:3px; flex-shrink:0;"></i>';
+
                 notifDiv.innerHTML = `
-                    <i class="fa-regular fa-bell" style="color:#64748b; margin-top:3px; flex-shrink:0;"></i>
+                    ${iconHtml}
                     <div style="flex:1; min-width:0;">
-                        <p style="margin: 0; color: #111827; font-size: 0.95rem;">${notification.message}</p>
+                        <p style="margin: 0; color: #111827; font-size: 0.95rem;">${escHtml(mainMessage || rawMessage)}</p>
+                        ${adminResponse ? `<div style="margin-top:0.55rem; background:#fef2f2; border:1px solid #fecaca; border-left:4px solid #dc2626; border-radius:8px; padding:0.6rem 0.7rem;"><p style="margin:0; font-size:0.84rem; color:#991b1b;"><strong>Odpowiedź administratora:</strong> ${escHtml(adminResponse)}</p></div>` : ''}
                         <p style="margin: 0.5rem 0 0 0; color: #9ca3af; font-size: 0.8rem;">${new Date(notification.created_at).toLocaleString('pl-PL')}</p>
                     </div>
-                    <button onclick="dismissNotification(${notification.id}, this)" style="background:none; border:none; color:#9ca3af; font-size:1.1rem; cursor:pointer; padding:0 0 0 0.5rem; flex-shrink:0; line-height:1;" title="Usuń powiadomienie">&times;</button>
+                    <button onclick="dismissNotification(${notifId}, this)" style="background:none; border:none; color:#9ca3af; font-size:1.1rem; cursor:pointer; padding:0 0 0 0.5rem; flex-shrink:0; line-height:1;" title="Usuń powiadomienie">&times;</button>
                 `;
                 notificationsList.appendChild(notifDiv);
             });
@@ -582,7 +611,11 @@
             }).catch(err => console.error(err));
         }
 
-        notificationsModal.addEventListener('click', function(e) { if (e.target === notificationsModal) closeNotificationsModal(); });
+        if (notificationsModal) {
+            notificationsModal.addEventListener('click', function(e) {
+                if (e.target === notificationsModal) closeNotificationsModal();
+            });
+        }
     </script>
 
     <!-- Modal Profilu Lekarza -->

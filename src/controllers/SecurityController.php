@@ -15,7 +15,46 @@ class SecurityController extends AppController {
         $this->loginAttemptsRepository = new LoginAttemptsRepository();
     }
 
+    private function getClientIpAddress(): string
+    {
+        $forwarded = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '';
+        if (!empty($forwarded)) {
+            $parts = explode(',', $forwarded);
+            $candidate = trim($parts[0]);
+            if (filter_var($candidate, FILTER_VALIDATE_IP)) {
+                return $candidate;
+            }
+        }
+
+        $remoteAddr = $_SERVER['REMOTE_ADDR'] ?? '';
+        if (filter_var($remoteAddr, FILTER_VALIDATE_IP)) {
+            return $remoteAddr;
+        }
+
+        return 'unknown';
+    }
+
+    private function formatRemainingLockTime(int $seconds): string
+    {
+        if ($seconds < 0) {
+            return 'do odwolania';
+        }
+
+        $seconds = max(0, $seconds);
+        $hours = intdiv($seconds, 3600);
+        $minutes = intdiv($seconds % 3600, 60);
+        $secs = $seconds % 60;
+
+        if ($hours > 0) {
+            return sprintf('%dh %02dm %02ds', $hours, $minutes, $secs);
+        }
+
+        return sprintf('%dm %02ds', $minutes, $secs);
+    }
+
     public function login() {
+        $this->requireHttps();
+
         if (isset($_SESSION['user_id'])) {
             $url = $this->getBaseUrl();
             if (isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'admin') {
@@ -52,8 +91,26 @@ class SecurityController extends AppController {
             ]);
         }
 
-        $ip   = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+        $ip   = $this->getClientIpAddress();
         $user = $this->userRepository->getUserByEmail($email);
+
+        if ($ip !== 'unknown' && $this->loginAttemptsRepository->isIpBlocked($ip)) {
+            error_log("Blocked IP login attempt: {$ip} for email: {$email}");
+
+            $ipBlockInfo = $this->loginAttemptsRepository->getBlockedIpDetails($ip);
+            $remainingSeconds = (int)($ipBlockInfo['remaining_seconds'] ?? 0);
+            $remainingText = $remainingSeconds !== 0
+                ? ' Pozostaly czas blokady: ' . $this->formatRemainingLockTime($remainingSeconds) . '.'
+                : '';
+
+            return $this->render('login', [
+                'messages'   => [
+                    'Logowanie z tego adresu IP jest tymczasowo zablokowane.' . $remainingText,
+                    'Jesli to pomylka, skontaktuj sie z administratorem.'
+                ],
+                'csrf_token' => $this->generateCsrfToken(),
+            ]);
+        }
 
         if ($this->loginAttemptsRepository->isTemporarilyLocked($email, 5, 15)) {
             error_log("Temporary lockout for email: {$email} from IP: {$ip}");
@@ -81,9 +138,41 @@ class SecurityController extends AppController {
             if ($failures >= 2) {
                 $messages[] = 'Uwaga: Wykryto wiele nieudanych prób logowania. Po przekroczeniu limitu konto może zostać zablokowane przez administratora.';
 
-                // Powiadom adminów przy dokładnie 2 próbach (i co 5 kolejnych)
-                if ($user && ($failures == 2 || $failures % 5 === 0)) {
+                // Powiadamiaj adminów po przekroczeniu 3 prób (4, 6, 9, ...).
+                if ($user && $failures > 3 && ($failures === 4 || $failures % 3 === 0)) {
                     $this->loginAttemptsRepository->notifyAdmins($email, $failures);
+                }
+            }
+
+            if ($ip !== 'unknown' && !$this->loginAttemptsRepository->isIpBlocked($ip)) {
+                $attack = $this->loginAttemptsRepository->detectGlobalIpAttack($ip, 6, 2, 15);
+                if ($attack['detected']) {
+                    $blockApplied = $this->loginAttemptsRepository->blockIpAddress($ip, 60);
+                    if ($blockApplied) {
+                        $windowMinutes = (int)($attack['window_minutes'] ?? 15);
+                        $targetAccounts = $this->loginAttemptsRepository->getRecentFailedTargetsForIp($ip, $windowMinutes, 8);
+                        $ipBlockInfo = $this->loginAttemptsRepository->getBlockedIpDetails($ip);
+
+                        $this->loginAttemptsRepository->notifyAdminsAboutIpAttack(
+                            $ip,
+                            (int)$attack['total_failures'],
+                            (int)$attack['distinct_accounts'],
+                            $windowMinutes,
+                            $targetAccounts,
+                            $ipBlockInfo['blocked_until'] ?? null,
+                            isset($ipBlockInfo['remaining_seconds']) ? (int)$ipBlockInfo['remaining_seconds'] : null
+                        );
+
+                        $remainingSeconds = isset($ipBlockInfo['remaining_seconds'])
+                            ? (int)$ipBlockInfo['remaining_seconds']
+                            : 0;
+                        if ($remainingSeconds !== 0) {
+                            $messages[] = 'Ze wzgledow bezpieczenstwa logowanie z Twojego adresu IP zostalo zablokowane. Pozostaly czas: ' . $this->formatRemainingLockTime($remainingSeconds) . '.';
+                        } else {
+                            $messages[] = 'Ze wzgledow bezpieczenstwa logowanie z Twojego adresu IP zostalo zablokowane.';
+                        }
+                        error_log("Global attack detected and blocked for IP: {$ip}");
+                    }
                 }
             }
 
@@ -109,11 +198,10 @@ class SecurityController extends AppController {
         $this->loginAttemptsRepository->recordAttempt($email, $ip, true);
 
         if (isset($_POST['remember'])) {
-            $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
             setcookie('remember_email', $user->getEmail(), [
                 'expires'  => time() + (86400 * 30),
                 'path'     => '/',
-                'secure'   => $isHttps,
+                'secure'   => true,
                 'httponly' => true,
                 'samesite' => 'Lax',
             ]);
@@ -121,6 +209,7 @@ class SecurityController extends AppController {
             setcookie('remember_email', '', [
                 'expires'  => time() - 3600,
                 'path'     => '/',
+                'secure'   => true,
                 'httponly' => true,
                 'samesite' => 'Lax',
             ]);
@@ -169,6 +258,8 @@ class SecurityController extends AppController {
     }
 
     public function register() {
+        $this->requireHttps();
+
         if (isset($_SESSION['user_id'])) {
             $url = $this->getBaseUrl();
             header("Location: {$url}/dashboard");

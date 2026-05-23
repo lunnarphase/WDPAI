@@ -190,6 +190,18 @@ class Routing {
             "controller" => "AdminController",
             "action" => "apiGetLoginLogs"
         ],
+        "api-admin-appointments" => [
+            "controller" => "AdminController",
+            "action" => "apiGetAdminAppointments"
+        ],
+        "api-admin-reviews" => [
+            "controller" => "AdminController",
+            "action" => "apiGetAdminReviews"
+        ],
+        "api-admin-notifications" => [
+            "controller" => "AdminController",
+            "action" => "apiGetAdminNotifications"
+        ],
         "admin-block-user" => [
             "controller" => "AdminController",
             "action" => "adminBlockUser"
@@ -199,6 +211,26 @@ class Routing {
             "action" => "adminUnblockUser"
         ],
     ];
+
+    private static function isJsonRequest(string $path): bool
+    {
+        $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
+        $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+        $xrw = strtolower($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '');
+
+        return str_starts_with($path, 'api-')
+            || stripos($accept, 'application/json') !== false
+            || stripos($contentType, 'application/json') !== false
+            || $xrw === 'xmlhttprequest';
+    }
+
+    private static function emitJsonError(string $message, int $statusCode): void
+    {
+        header('Content-Type: application/json; charset=UTF-8');
+        http_response_code($statusCode);
+        echo json_encode(['error' => $message], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        exit();
+    }
 
     public static function run(string $path) {
         if (array_key_exists($path, self::$routes)) {
@@ -212,10 +244,19 @@ class Routing {
                 $controllerObj->$action($id);
             } catch (\Exception $e) {
                 error_log($e->getMessage());
+
+                if (self::isJsonRequest($path)) {
+                    self::emitJsonError('Wystąpił błąd serwera.', 500);
+                }
+
                 http_response_code(500);
                 include 'public/views/500.html';
             }
         } else {
+            if (self::isJsonRequest($path)) {
+                self::emitJsonError('Nie znaleziono zasobu.', 404);
+            }
+
             http_response_code(404);
             include 'public/views/404.html';
         }

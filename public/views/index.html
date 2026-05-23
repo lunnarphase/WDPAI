@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <?php include __DIR__ . '/partials/head.html'; ?>
-    <title><?= $title; ?></title>
+    <title><?= htmlspecialchars($title ?? '') ?></title>
   </head>
   <body>
     <?php include __DIR__ . '/partials/nav.html'; ?>

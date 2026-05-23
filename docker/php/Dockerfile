@@ -30,6 +30,11 @@ RUN apk add --upgrade --no-cache --virtual .build-deps $BUILD_DEPS \
 RUN apk add --no-cache --virtual .run-deps $RUN_DEPS
 
 RUN echo 'memory_limit = -1' >> /usr/local/etc/php/conf.d/docker-php-memlimit.ini;
+RUN echo 'display_errors = Off' > /usr/local/etc/php/conf.d/docker-php-security.ini \
+    && echo 'display_startup_errors = Off' >> /usr/local/etc/php/conf.d/docker-php-security.ini \
+    && echo 'log_errors = On' >> /usr/local/etc/php/conf.d/docker-php-security.ini \
+    && echo 'html_errors = Off' >> /usr/local/etc/php/conf.d/docker-php-security.ini \
+    && echo 'expose_php = Off' >> /usr/local/etc/php/conf.d/docker-php-security.ini;
 
 # Copy the application code
 COPY . /app

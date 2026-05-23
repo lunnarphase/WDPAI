@@ -52,29 +52,35 @@ class DoctorController extends AppController {
 
     public function updateDoctorProfile() {
         $this->requireDoctor();
-        header('Content-Type: application/json');
 
         if (!$this->isPost()) {
-            echo json_encode(['error' => 'Niedozwolona metoda.']);
-            exit();
+            $this->jsonResponse(['error' => 'Niedozwolona metoda.'], 405);
         }
 
         $input = json_decode(file_get_contents('php://input'), true);
+        if (!is_array($input)) {
+            $this->jsonResponse(['error' => 'Błędne dane wejściowe.'], 400);
+        }
+
         $bio = trim($input['bio'] ?? '');
         $visitPrice = isset($input['visit_price']) && $input['visit_price'] !== '' ? (float)$input['visit_price'] : null;
         $visitDuration = isset($input['visit_duration']) && (int)$input['visit_duration'] > 0
             ? (int)$input['visit_duration']
             : 30;
 
-        $this->reviewRepo->updateDoctorProfile(
-            $_SESSION['user_id'],
-            $bio,
-            $visitPrice,
-            $visitDuration
-        );
+        try {
+            $this->reviewRepo->updateDoctorProfile(
+                $_SESSION['user_id'],
+                $bio,
+                $visitPrice,
+                $visitDuration
+            );
 
-        echo json_encode(['success' => true]);
-        exit();
+            $this->jsonResponse(['success' => true]);
+        } catch (Exception $e) {
+            error_log('Doctor profile update error: ' . $e->getMessage());
+            $this->jsonResponse(['error' => 'Nie udało się zapisać zmian profilu.'], 500);
+        }
     }
 
     public function doctorUpdateStatus() {
@@ -113,50 +119,39 @@ class DoctorController extends AppController {
     }
 
     public function apiGetSlots() {
-        header('Content-Type: application/json');
-
         $doctorId = (int)($_GET['doctor_id'] ?? 0);
         $date = $_GET['date'] ?? '';
 
         if (!$doctorId || empty($date)) {
-            echo json_encode([]);
-            exit();
+            $this->jsonResponse([]);
         }
 
-        echo json_encode($this->appointmentRepo->getAvailableSlotsForDate($doctorId, $date));
-        exit();
+        $this->jsonResponse($this->appointmentRepo->getAvailableSlotsForDate($doctorId, $date));
     }
 
     public function apiGetDoctorAppointments() {
         $this->requireDoctor();
-        header('Content-Type: application/json');
         $appointments = $this->appointmentRepo->getDoctorAppointments($_SESSION['user_id']);
-        echo json_encode($appointments);
-        exit();
+        $this->jsonResponse($appointments);
     }
 
     public function apiGetWeekAvailability() {
         $this->requireDoctor();
-        header('Content-Type: application/json');
         $doctorId = $this->getDoctorIdForCurrentUser();
         $weekStart = $_GET['week_start'] ?? '';
         $weekEnd   = $_GET['week_end']   ?? '';
         if (!$doctorId || empty($weekStart) || empty($weekEnd)) {
-            echo json_encode([]);
-            exit();
+            $this->jsonResponse([]);
         }
-        echo json_encode($this->appointmentRepo->getDoctorAvailabilityForWeek($doctorId, $weekStart, $weekEnd));
-        exit();
+        $this->jsonResponse($this->appointmentRepo->getDoctorAvailabilityForWeek($doctorId, $weekStart, $weekEnd));
     }
 
     public function apiSaveWeekAvailability() {
         $this->requireDoctor();
-        header('Content-Type: application/json');
         $doctorId = $this->getDoctorIdForCurrentUser();
         $body = json_decode(file_get_contents('php://input'), true);
         if (!$doctorId || empty($body['week_start']) || empty($body['week_end'])) {
-            echo json_encode(['success' => false, 'error' => 'Brakujące dane.']);
-            exit();
+            $this->jsonResponse(['success' => false, 'error' => 'Brakujące dane.'], 400);
         }
         $ranges = $body['ranges'] ?? [];
         // Sanitise input
@@ -171,68 +166,63 @@ class DoctorController extends AppController {
         }
         try {
             $this->appointmentRepo->saveWeekAvailability($doctorId, $body['week_start'], $body['week_end'], $clean);
-            echo json_encode(['success' => true]);
+            $this->jsonResponse(['success' => true]);
         } catch (Exception $e) {
-            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+            error_log('Save week availability error: ' . $e->getMessage());
+            $this->jsonResponse(['success' => false, 'error' => 'Nie udało się zapisać grafiku.'], 500);
         }
-        exit();
     }
 
     public function apiGetScheduleTemplates() {
         $this->requireDoctor();
-        header('Content-Type: application/json');
         $doctorId = $this->getDoctorIdForCurrentUser();
-        echo json_encode($doctorId ? $this->appointmentRepo->getScheduleTemplates($doctorId) : []);
-        exit();
+        $this->jsonResponse($doctorId ? $this->appointmentRepo->getScheduleTemplates($doctorId) : []);
     }
 
     public function apiSaveScheduleTemplate() {
         $this->requireDoctor();
-        header('Content-Type: application/json');
         $doctorId = $this->getDoctorIdForCurrentUser();
         $body = json_decode(file_get_contents('php://input'), true);
         $name  = trim($body['name']       ?? '');
         $start = preg_replace('/[^0-9:]/', '', $body['start_time'] ?? '');
         $end   = preg_replace('/[^0-9:]/', '', $body['end_time']   ?? '');
         if (!$doctorId || !$name || !$start || !$end || $start >= $end) {
-            echo json_encode(['success' => false, 'error' => 'Nieprawidłowe dane.']);
-            exit();
+            $this->jsonResponse(['success' => false, 'error' => 'Nieprawidłowe dane.'], 400);
         }
         try {
             $id = $this->appointmentRepo->saveScheduleTemplate($doctorId, $name, $start, $end);
-            echo json_encode(['success' => true, 'id' => $id]);
+            $this->jsonResponse(['success' => true, 'id' => $id]);
         } catch (Exception $e) {
-            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+            error_log('Save schedule template error: ' . $e->getMessage());
+            $this->jsonResponse(['success' => false, 'error' => 'Nie udało się zapisać szablonu.'], 500);
         }
-        exit();
     }
 
     public function apiDeleteScheduleTemplate() {
         $this->requireDoctor();
-        header('Content-Type: application/json');
         $doctorId = $this->getDoctorIdForCurrentUser();
         $body = json_decode(file_get_contents('php://input'), true);
         $templateId = (int)($body['id'] ?? 0);
         if (!$doctorId || !$templateId) {
-            echo json_encode(['success' => false, 'error' => 'Brakujące dane.']);
-            exit();
+            $this->jsonResponse(['success' => false, 'error' => 'Brakujące dane.'], 400);
         }
-        $this->appointmentRepo->deleteScheduleTemplate($doctorId, $templateId);
-        echo json_encode(['success' => true]);
-        exit();
+        try {
+            $this->appointmentRepo->deleteScheduleTemplate($doctorId, $templateId);
+            $this->jsonResponse(['success' => true]);
+        } catch (Exception $e) {
+            error_log('Delete schedule template error: ' . $e->getMessage());
+            $this->jsonResponse(['success' => false, 'error' => 'Nie udało się usunąć szablonu.'], 500);
+        }
     }
 
     public function apiGetAvailableDates() {
-        header('Content-Type: application/json');
         $doctorId  = (int)($_GET['doctor_id']  ?? 0);
         $startDate = $_GET['start_date'] ?? '';
         $endDate   = $_GET['end_date']   ?? '';
         if (!$doctorId || empty($startDate) || empty($endDate)) {
-            echo json_encode([]);
-            exit();
+            $this->jsonResponse([]);
         }
-        echo json_encode($this->appointmentRepo->getAvailableDatesInRange($doctorId, $startDate, $endDate));
-        exit();
+        $this->jsonResponse($this->appointmentRepo->getAvailableDatesInRange($doctorId, $startDate, $endDate));
     }
 
     private function getDoctorIdForCurrentUser(): ?int {
@@ -255,15 +245,12 @@ class DoctorController extends AppController {
             $endDate = $decoded['end_date'] ?? '';
 
             if(!$doctorId || empty($startDate) || empty($endDate)) {
-                echo json_encode([]);
-                exit();
+                $this->jsonResponse([]);
             }
 
             $booked = $this->appointmentRepo->getAppointmentsInRange($doctorId, $startDate, $endDate);
 
-            header('Content-Type: application/json');
-            echo json_encode($booked);
-            exit();
+            $this->jsonResponse($booked);
         }
     }
 }

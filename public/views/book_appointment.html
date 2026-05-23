@@ -57,7 +57,7 @@
 <body style="background-color: var(--bg-color);">
 
     <div class="booking-container">
-        <a href="/dashboard" class="back-link"><i class="fa-solid fa-arrow-left"></i> Wróć do panelu</a>
+        <a href="<?= htmlspecialchars($returnTo ?? '/dashboard') ?>" id="booking-back-link" class="back-link"><i class="fa-solid fa-arrow-left"></i> Wróć do panelu</a>
         
         <?php if(isset($messages) && !empty($messages)): ?>
             <div class="error-messages" style="color: #b91c1c; background: #fef2f2; padding: 0.75rem; border-radius: 8px; margin-bottom: 1.5rem; text-align: center; font-size: 0.9rem; border: 1px solid #fee2e2;">
@@ -70,6 +70,7 @@
 
         <form id="bookingForm" action="/confirm-appointment" method="POST">
             <input type="hidden" name="doctor_id" id="doctor_id" value="<?= htmlspecialchars($doctorId) ?>">
+            <input type="hidden" name="return_to" value="<?= htmlspecialchars($returnTo ?? '/dashboard') ?>">
             <input type="hidden" name="appointment_date" id="selected_date">
             <input type="hidden" name="appointment_time" id="selected_time">
 
@@ -93,7 +94,9 @@
     <script>
         const doctorIdElement = document.getElementById('doctor_id');
         const doctorId = doctorIdElement ? doctorIdElement.value : null;
+        const defaultReturnTo = <?= json_encode($returnTo ?? '/dashboard') ?>;
         
+        const backLink = document.getElementById('booking-back-link');
         const calendarContainer = document.getElementById('calendar-container');
         const timeSection = document.getElementById('time-section');
         const timeContainer = document.getElementById('time-container');
@@ -102,6 +105,40 @@
 
         let selectedDate = null;
         let selectedTime = null;
+
+        function resetBookingStep() {
+            selectedDate = null;
+            selectedTime = null;
+
+            document.getElementById('selected_date').value = '';
+            document.getElementById('selected_time').value = '';
+
+            document.querySelectorAll('.date-card.selected').forEach(card => card.classList.remove('selected'));
+            document.querySelectorAll('.time-slot.selected').forEach(slot => slot.classList.remove('selected'));
+
+            timeSection.style.display = 'none';
+            timeContainer.innerHTML = '';
+            submitBtn.disabled = true;
+            submitBtn.classList.remove('active');
+
+            calendarContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        if (backLink) {
+            backLink.addEventListener('click', function(e) {
+                const hasStepToReset = selectedDate !== null || timeSection.style.display === 'block';
+                if (hasStepToReset) {
+                    e.preventDefault();
+                    resetBookingStep();
+                    return;
+                }
+
+                if (!backLink.getAttribute('href')) {
+                    e.preventDefault();
+                    window.location.href = defaultReturnTo || '/dashboard';
+                }
+            });
+        }
 
         const daysPl = ['Ndz', 'Pon', 'Wto', 'Śro', 'Czw', 'Pią', 'Sob'];
         const monthsPl = ['Sty', 'Lut', 'Mar', 'Kwi', 'Maj', 'Cze', 'Lip', 'Sie', 'Wrz', 'Paź', 'Lis', 'Gru'];
@@ -129,7 +166,7 @@
                 calendarContainer.innerHTML = '';
 
                 if (availableSet.size === 0) {
-                    calendarContainer.innerHTML = '<p style="color:#64748b; font-size:0.9rem; padding:0.5rem 0; width:100%; text-align:center;">Ten lekarz nie ma jeszcze ustawionego harmonogramu. Spróbuj ponownie później.</p>';
+                    calendarContainer.innerHTML = '<div style="width:100%; text-align:center;"><p style="color:#64748b; font-size:0.9rem; padding:0.5rem 0;">Ten lekarz nie ma jeszcze ustawionego harmonogramu. Spróbuj ponownie później.</p><a href="' + (defaultReturnTo || '/dashboard') + '" style="display:inline-block; margin-top:0.5rem; color:#125B46; font-weight:700; text-decoration:none;"><i class="fa-solid fa-arrow-left"></i> Wróć do poprzedniego widoku</a></div>';
                     return;
                 }
 

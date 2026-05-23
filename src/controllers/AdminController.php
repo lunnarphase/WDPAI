@@ -179,33 +179,32 @@ class AdminController extends AppController {
 
     public function adminDeleteReview() {
         $this->requireAdmin();
-        header('Content-Type: application/json');
 
         if (!$this->isPost()) {
-            echo json_encode(['error' => 'Niedozwolona metoda.']);
-            exit();
+            $this->jsonResponse(['error' => 'Niedozwolona metoda.'], 405);
         }
 
         $input = json_decode(file_get_contents('php://input'), true);
         $reviewId = (int)($input['review_id'] ?? 0);
 
         if (!$reviewId) {
-            echo json_encode(['error' => 'Brak ID opinii.']);
-            exit();
+            $this->jsonResponse(['error' => 'Brak ID opinii.'], 400);
         }
 
-        $this->reviewRepo->deleteReviewAdmin($reviewId);
-        echo json_encode(['success' => true]);
-        exit();
+        try {
+            $this->reviewRepo->deleteReviewAdmin($reviewId);
+            $this->jsonResponse(['success' => true]);
+        } catch (Exception $e) {
+            error_log('Admin delete review error: ' . $e->getMessage());
+            $this->jsonResponse(['error' => 'Nie udało się usunąć opinii.'], 500);
+        }
     }
 
     public function adminDismissReport() {
         $this->requireAdmin();
-        header('Content-Type: application/json');
 
         if (!$this->isPost()) {
-            echo json_encode(['error' => 'Niedozwolona metoda.']);
-            exit();
+            $this->jsonResponse(['error' => 'Niedozwolona metoda.'], 405);
         }
 
         $input = json_decode(file_get_contents('php://input'), true);
@@ -213,108 +212,217 @@ class AdminController extends AppController {
         $adminResponse = trim($input['admin_response'] ?? '');
 
         if (!$reportId || empty($adminResponse)) {
-            echo json_encode(['error' => 'Podaj uzasadnienie odrzucenia.']);
-            exit();
+            $this->jsonResponse(['error' => 'Podaj uzasadnienie odrzucenia.'], 400);
         }
 
-        $this->reviewRepo->dismissReport($reportId, $adminResponse);
-        echo json_encode(['success' => true]);
-        exit();
+        try {
+            $this->reviewRepo->dismissReport($reportId, $adminResponse);
+            $this->jsonResponse(['success' => true]);
+        } catch (Exception $e) {
+            error_log('Admin dismiss report error: ' . $e->getMessage());
+            $this->jsonResponse(['error' => 'Nie udało się odrzucić zgłoszenia.'], 500);
+        }
     }
 
     public function adminResolveReport() {
         $this->requireAdmin();
-        header('Content-Type: application/json');
 
         if (!$this->isPost()) {
-            echo json_encode(['error' => 'Niedozwolona metoda.']);
-            exit();
+            $this->jsonResponse(['error' => 'Niedozwolona metoda.'], 405);
         }
 
         $input = json_decode(file_get_contents('php://input'), true);
         $reviewId = (int)($input['review_id'] ?? 0);
 
         if (!$reviewId) {
-            echo json_encode(['error' => 'Brak ID opinii.']);
-            exit();
+            $this->jsonResponse(['error' => 'Brak ID opinii.'], 400);
         }
 
-        $this->reviewRepo->resolveReportByDeletion($reviewId);
-        echo json_encode(['success' => true]);
-        exit();
+        try {
+            $this->reviewRepo->resolveReportByDeletion($reviewId);
+            $this->jsonResponse(['success' => true]);
+        } catch (Exception $e) {
+            error_log('Admin resolve report error: ' . $e->getMessage());
+            $this->jsonResponse(['error' => 'Nie udało się rozwiązać zgłoszenia.'], 500);
+        }
     }
 
     public function apiGetReviewReports() {
         $this->requireAdmin();
-        header('Content-Type: application/json');
 
         $reviewId = (int)($_GET['review_id'] ?? 0);
         if (!$reviewId) {
-            echo json_encode([]);
-            exit();
+            $this->jsonResponse([]);
         }
 
-        $reports = $this->reviewRepo->getPendingReportsForReview($reviewId);
-        echo json_encode($reports);
-        exit();
+        try {
+            $reports = $this->reviewRepo->getPendingReportsForReview($reviewId);
+            $this->jsonResponse($reports);
+        } catch (Exception $e) {
+            error_log('Admin get reports error: ' . $e->getMessage());
+            $this->jsonResponse(['error' => 'Nie udało się pobrać zgłoszeń.'], 500);
+        }
     }
 
     public function apiGetLoginLogs() {
         $this->requireAdmin();
-        header('Content-Type: application/json');
 
-        $logs = $this->loginAttemptsRepo->getAccountsWithSuspiciousActivity(2);
-        echo json_encode($logs);
-        exit();
+        try {
+            $logs = $this->loginAttemptsRepo->getAccountsWithSuspiciousActivity(2);
+            $this->jsonResponse($logs);
+        } catch (Exception $e) {
+            error_log('Admin get login logs error: ' . $e->getMessage());
+            $this->jsonResponse(['error' => 'Nie udało się pobrać logów.'], 500);
+        }
+    }
+
+    public function apiGetAdminAppointments() {
+        $this->requireAdmin();
+
+        if (!$this->isGet()) {
+            $this->jsonResponse(['error' => 'Niedozwolona metoda.'], 405);
+        }
+
+        try {
+            $appointments = $this->appointmentRepo->getAllAppointmentsAdmin();
+            $this->jsonResponse($appointments);
+        } catch (Exception $e) {
+            error_log('Admin get appointments error: ' . $e->getMessage());
+            $this->jsonResponse(['error' => 'Nie udało się pobrać wizyt.'], 500);
+        }
+    }
+
+    public function apiGetAdminReviews() {
+        $this->requireAdmin();
+
+        if (!$this->isGet()) {
+            $this->jsonResponse(['error' => 'Niedozwolona metoda.'], 405);
+        }
+
+        try {
+            $reviews = $this->reviewRepo->getAllReviewsAdmin();
+            $this->jsonResponse($reviews);
+        } catch (Exception $e) {
+            error_log('Admin get reviews error: ' . $e->getMessage());
+            $this->jsonResponse(['error' => 'Nie udało się pobrać opinii.'], 500);
+        }
+    }
+
+    public function apiGetAdminNotifications() {
+        $this->requireAdmin();
+
+        if (!$this->isGet()) {
+            $this->jsonResponse(['error' => 'Niedozwolona metoda.'], 405);
+        }
+
+        try {
+            $notifications = $this->appointmentRepo->getUserNotifications((int)$_SESSION['user_id']);
+
+            foreach ($notifications as &$notification) {
+                if (($notification['type'] ?? '') !== 'global_ip_attack') {
+                    continue;
+                }
+
+                $message = (string)($notification['message'] ?? '');
+                $notification['ip_address'] = null;
+                $notification['ip_blocked_until'] = null;
+                $notification['ip_block_remaining_seconds'] = 0;
+                $notification['target_accounts'] = [];
+
+                if (!preg_match('/IP:\s*([0-9a-fA-F\.:]+)/', $message, $ipMatch)) {
+                    continue;
+                }
+
+                $ipAddress = $ipMatch[1];
+                $notification['ip_address'] = $ipAddress;
+
+                $windowMinutes = 15;
+                if (preg_match('/w ciagu\s+([0-9]+)\s+min/i', $message, $windowMatch)) {
+                    $windowMinutes = max(1, (int)$windowMatch[1]);
+                }
+
+                $blockInfo = $this->loginAttemptsRepo->getBlockedIpDetails($ipAddress);
+                $notification['ip_blocked_until'] = $blockInfo['blocked_until'] ?? null;
+                $notification['ip_block_remaining_seconds'] = isset($blockInfo['remaining_seconds'])
+                    ? (int)$blockInfo['remaining_seconds']
+                    : 0;
+                $notification['target_accounts'] = $this->loginAttemptsRepo->getRecentFailedTargetsForIp($ipAddress, $windowMinutes, 8);
+            }
+            unset($notification);
+
+            $unreadCount = 0;
+            foreach ($notifications as $notification) {
+                $isRead = $notification['is_read'] ?? false;
+                $isUnread = $isRead === false
+                    || $isRead === 0
+                    || $isRead === '0'
+                    || $isRead === 'f'
+                    || $isRead === null;
+
+                if ($isUnread) {
+                    $unreadCount++;
+                }
+            }
+
+            $this->jsonResponse([
+                'notifications' => $notifications,
+                'unread_count' => $unreadCount,
+            ]);
+        } catch (Exception $e) {
+            error_log('Admin get notifications error: ' . $e->getMessage());
+            $this->jsonResponse(['error' => 'Nie udało się pobrać powiadomień.'], 500);
+        }
     }
 
     public function adminBlockUser() {
         $this->requireAdmin();
 
         if (!$this->isPost()) {
-            $this->badRequest();
+            $this->jsonResponse(['success' => false, 'error' => 'Niedozwolona metoda.'], 405);
         }
-
-        header('Content-Type: application/json');
 
         $input  = json_decode(file_get_contents('php://input'), true);
         $userId = (int)($input['user_id'] ?? 0);
 
         if ($userId <= 0) {
-            echo json_encode(['success' => false, 'error' => 'Nieprawidłowe ID użytkownika.']);
-            exit();
+            $this->jsonResponse(['success' => false, 'error' => 'Nieprawidłowe ID użytkownika.'], 400);
         }
 
         // Nie można zablokować samego siebie
         if ($userId === (int)$_SESSION['user_id']) {
-            echo json_encode(['success' => false, 'error' => 'Nie możesz zablokować własnego konta.']);
-            exit();
+            $this->jsonResponse(['success' => false, 'error' => 'Nie możesz zablokować własnego konta.'], 409);
         }
 
-        $this->userRepo->blockUser($userId);
-        echo json_encode(['success' => true]);
-        exit();
+        try {
+            $this->userRepo->blockUser($userId);
+            $this->jsonResponse(['success' => true]);
+        } catch (Exception $e) {
+            error_log('Admin block user error: ' . $e->getMessage());
+            $this->jsonResponse(['success' => false, 'error' => 'Nie udało się zablokować konta.'], 500);
+        }
     }
 
     public function adminUnblockUser() {
         $this->requireAdmin();
 
         if (!$this->isPost()) {
-            $this->badRequest();
+            $this->jsonResponse(['success' => false, 'error' => 'Niedozwolona metoda.'], 405);
         }
-
-        header('Content-Type: application/json');
 
         $input  = json_decode(file_get_contents('php://input'), true);
         $userId = (int)($input['user_id'] ?? 0);
 
         if ($userId <= 0) {
-            echo json_encode(['success' => false, 'error' => 'Nieprawidłowe ID użytkownika.']);
-            exit();
+            $this->jsonResponse(['success' => false, 'error' => 'Nieprawidłowe ID użytkownika.'], 400);
         }
 
-        $this->userRepo->unblockUser($userId);
-        echo json_encode(['success' => true]);
-        exit();
+        try {
+            $this->userRepo->unblockUser($userId);
+            $this->loginAttemptsRepo->clearAttemptsForUserId($userId);
+            $this->jsonResponse(['success' => true]);
+        } catch (Exception $e) {
+            error_log('Admin unblock user error: ' . $e->getMessage());
+            $this->jsonResponse(['success' => false, 'error' => 'Nie udało się odblokować konta.'], 500);
+        }
     }
 }

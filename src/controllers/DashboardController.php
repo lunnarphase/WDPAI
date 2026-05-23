@@ -57,7 +57,11 @@ class DashboardController extends AppController {
     }
 
     public function apiSearchDoctors() {
-        header('Content-Type: application/json');
+        $this->requireLogin();
+
+        if (!$this->isGet()) {
+            $this->jsonResponse(['error' => 'Niedozwolona metoda.'], 405);
+        }
 
         $keyword = $_GET['q'] ?? '';
         $spec = $_GET['spec'] ?? 'all';
@@ -69,16 +73,14 @@ class DashboardController extends AppController {
         }
         unset($doctor);
 
-        echo json_encode($doctors);
-        exit();
+        $this->jsonResponse($doctors);
     }
 
     public function apiGetAppointments() {
-        header('Content-Type: application/json');
+        $this->requireLogin();
 
-        if (!isset($_SESSION['user_id'])) {
-            echo json_encode(['error' => 'Not logged in']);
-            exit();
+        if (!$this->isGet()) {
+            $this->jsonResponse(['error' => 'Niedozwolona metoda.'], 405);
         }
 
         $appointments = $this->appointmentRepo->getUpcomingAppointmentsForPatient($_SESSION['user_id']);
@@ -95,79 +97,106 @@ class DashboardController extends AppController {
             }
         }
 
-        echo json_encode($processedAppointments);
-        exit();
+        $this->jsonResponse($processedAppointments);
     }
 
     public function apiMarkNotificationsRead() {
         $this->requireLogin();
+
+        if (!$this->isPost()) {
+            $this->jsonResponse(['error' => 'Niedozwolona metoda.'], 405);
+        }
+
         $this->appointmentRepo->markNotificationsAsRead($_SESSION['user_id']);
-        echo json_encode(['status' => 'ok']);
-        exit();
+        $this->jsonResponse(['status' => 'ok']);
     }
 
     public function apiClearNotifications() {
         $this->requireLogin();
+
+        if (!$this->isPost()) {
+            $this->jsonResponse(['error' => 'Niedozwolona metoda.'], 405);
+        }
+
         $this->appointmentRepo->clearNotifications($_SESSION['user_id']);
-        echo json_encode(['status' => 'ok']);
-        exit();
+        $this->jsonResponse(['status' => 'ok']);
     }
 
     public function apiDeleteNotification() {
         $this->requireLogin();
-        header('Content-Type: application/json');
+
+        if (!$this->isPost()) {
+            $this->jsonResponse(['success' => false, 'error' => 'Niedozwolona metoda.'], 405);
+        }
+
         $input = json_decode(file_get_contents('php://input'), true);
         $notifId = (int)($input['id'] ?? 0);
-        if ($notifId <= 0) { echo json_encode(['success' => false, 'error' => 'Invalid id']); exit(); }
+        if ($notifId <= 0) {
+            $this->jsonResponse(['success' => false, 'error' => 'Invalid id'], 400);
+        }
+
         $this->appointmentRepo->deleteNotification($notifId, $_SESSION['user_id']);
-        echo json_encode(['success' => true]);
-        exit();
+        $this->jsonResponse(['success' => true]);
     }
 
     public function apiGetProfile() {
         $this->requireLogin();
-        header('Content-Type: application/json');
+
+        if (!$this->isGet()) {
+            $this->jsonResponse(['error' => 'Niedozwolona metoda.'], 405);
+        }
+
         $data = $this->userRepo->getUserProfileData($_SESSION['user_id']);
-        echo json_encode($data ?: ['error' => 'Not found']);
-        exit();
+
+        if (!$data) {
+            $this->jsonResponse(['error' => 'Not found'], 404);
+        }
+
+        $this->jsonResponse($data);
     }
 
     public function apiChangePassword() {
         $this->requireLogin();
-        header('Content-Type: application/json');
+
+        if (!$this->isPost()) {
+            $this->jsonResponse(['success' => false, 'message' => 'Niedozwolona metoda.'], 405);
+        }
 
         $input = json_decode(file_get_contents('php://input'), true);
+        if (!is_array($input)) {
+            $this->jsonResponse(['success' => false, 'message' => 'Błędne dane wejściowe.'], 400);
+        }
+
         $password = trim($input['password'] ?? '');
 
         if (strlen($password) > 1024) {
-            echo json_encode(['success' => false, 'message' => 'Hasło jest zbyt długie.']);
-            exit();
+            $this->jsonResponse(['success' => false, 'message' => 'Hasło jest zbyt długie.'], 400);
         }
 
         $passwordError = $this->validateStrongPassword($password);
         if ($passwordError !== null) {
-            echo json_encode(['success' => false, 'message' => $passwordError]);
-            exit();
+            $this->jsonResponse(['success' => false, 'message' => $passwordError], 400);
         }
 
         $hashed = password_hash($password, PASSWORD_BCRYPT);
         $result = $this->userRepo->updateUserPassword($_SESSION['user_id'], $hashed);
         if ($result) {
-            echo json_encode(['success' => true]);
+            $this->jsonResponse(['success' => true]);
         } else {
-            echo json_encode(['success' => false, 'message' => 'Błąd aktualizacji hasła']);
+            $this->jsonResponse(['success' => false, 'message' => 'Błąd aktualizacji hasła'], 500);
         }
-        exit();
     }
 
     public function apiUpdateProfile() {
         $this->requireLogin();
-        header('Content-Type: application/json');
+
+        if (!$this->isPost()) {
+            $this->jsonResponse(['success' => false, 'message' => 'Niedozwolona metoda.'], 405);
+        }
         
         $input = json_decode(file_get_contents('php://input'), true);
         if (!$input) {
-            echo json_encode(['success' => false, 'message' => 'Błędne dane']);
-            exit();
+            $this->jsonResponse(['success' => false, 'message' => 'Błędne dane'], 400);
         }
 
         $email = trim($input['email'] ?? '');
@@ -175,35 +204,30 @@ class DashboardController extends AppController {
         $password = !empty($input['password']) ? trim($input['password']) : null;
 
         if (empty($email) || empty($username)) {
-            echo json_encode(['success' => false, 'message' => 'Wypełnij wymagane pola (email, nazwa)']);
-            exit();
+            $this->jsonResponse(['success' => false, 'message' => 'Wypełnij wymagane pola (email, nazwa)'], 400);
         }
 
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            echo json_encode(['success' => false, 'message' => 'Podaj poprawny adres email.']);
-            exit();
+            $this->jsonResponse(['success' => false, 'message' => 'Podaj poprawny adres email.'], 400);
         }
 
         if ($password !== null) {
             if (strlen($password) > 1024) {
-                echo json_encode(['success' => false, 'message' => 'Hasło jest zbyt długie.']);
-                exit();
+                $this->jsonResponse(['success' => false, 'message' => 'Hasło jest zbyt długie.'], 400);
             }
 
             $passwordError = $this->validateStrongPassword($password);
             if ($passwordError !== null) {
-                echo json_encode(['success' => false, 'message' => $passwordError]);
-                exit();
+                $this->jsonResponse(['success' => false, 'message' => $passwordError], 400);
             }
         }
 
         $result = $this->userRepo->updateUserProfileData($_SESSION['user_id'], $email, $username, $password);
         if ($result) {
             $_SESSION['user_name'] = $username;
-            echo json_encode(['success' => true]);
+            $this->jsonResponse(['success' => true]);
         } else {
-            echo json_encode(['success' => false, 'message' => 'Błąd aktualizacji lub email jest zajęty']);
+            $this->jsonResponse(['success' => false, 'message' => 'Błąd aktualizacji lub email jest zajęty'], 409);
         }
-        exit();
     }
 }

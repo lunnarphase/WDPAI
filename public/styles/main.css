@@ -168,11 +168,13 @@ body:not(.dashboard-body) {
 .error-messages {
     color: #b91c1c;
     background: #fef2f2;
-    padding: 0.75rem;
+    border: 1px solid #fecaca;
+    padding: 0.85rem 1rem;
     border-radius: 8px;
     margin-bottom: 1.5rem;
-    font-size: 0.85rem;
-    text-align: center;
+    font-size: 0.9rem;
+    line-height: 1.45;
+    text-align: left;
 }
 
 .success-messages {
@@ -184,6 +186,11 @@ body:not(.dashboard-body) {
     margin-bottom: 1.5rem;
     font-size: 0.85rem;
     text-align: center;
+}
+
+.error-messages p,
+.success-messages p {
+    margin: 0;
 }
 
 .register-prompt-external {
@@ -387,6 +394,53 @@ body:not(.dashboard-body) {
     flex-direction: column;
     gap: 1rem;
     margin-bottom: 2.5rem;
+}
+
+.date-group-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.date-group-block {
+    background: white;
+    border: 1px solid #dbe4ef;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(15, 23, 42, 0.03);
+}
+
+.date-group-header {
+    padding: 0.72rem 1rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #334155;
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.date-group-header .relative {
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.date-group-header .full {
+    margin-left: 0.5rem;
+    opacity: 0.9;
+}
+
+.date-group-items {
+    padding: 0.65rem 0.75rem 0.75rem;
+}
+
+.date-group-items .appointment-card {
+    margin-top: 0.65rem;
+}
+
+.date-group-items .appointment-card:first-child {
+    margin-top: 0;
 }
 
 .appointment-card {

@@ -14,11 +14,9 @@ class ReviewController extends AppController {
 
     public function submitReview() {
         $this->requireLogin();
-        header('Content-Type: application/json');
 
         if (!$this->isPost()) {
-            echo json_encode(['error' => 'Niedozwolona metoda.']);
-            exit();
+            $this->jsonResponse(['error' => 'Niedozwolona metoda.'], 405);
         }
 
         $input = json_decode(file_get_contents('php://input'), true);
@@ -27,13 +25,11 @@ class ReviewController extends AppController {
         $comment = trim($input['comment'] ?? '');
 
         if (!$appointmentId || $rating < 1 || $rating > 5) {
-            echo json_encode(['error' => 'Nieprawidłowe dane formularza.']);
-            exit();
+            $this->jsonResponse(['error' => 'Nieprawidłowe dane formularza.'], 400);
         }
 
         if ($this->reviewRepo->isReviewSubmitted($appointmentId)) {
-            echo json_encode(['error' => 'Opinia dla tej wizyty została już wystawiona.']);
-            exit();
+            $this->jsonResponse(['error' => 'Opinia dla tej wizyty została już wystawiona.'], 409);
         }
 
         try {
@@ -43,20 +39,18 @@ class ReviewController extends AppController {
                 $rating,
                 $comment ?: null
             );
-            echo json_encode(['success' => true]);
+            $this->jsonResponse(['success' => true]);
         } catch (Exception $e) {
-            echo json_encode(['error' => $e->getMessage()]);
+            error_log('Review submit error: ' . $e->getMessage());
+            $this->jsonResponse(['error' => 'Nie udało się zapisać opinii. Spróbuj ponownie.'], 500);
         }
-        exit();
     }
 
     public function reportReview() {
         $this->requireLogin();
-        header('Content-Type: application/json');
 
         if (!$this->isPost()) {
-            echo json_encode(['error' => 'Niedozwolona metoda.']);
-            exit();
+            $this->jsonResponse(['error' => 'Niedozwolona metoda.'], 405);
         }
 
         $input = json_decode(file_get_contents('php://input'), true);
@@ -65,8 +59,7 @@ class ReviewController extends AppController {
         $reason = trim($input['reason'] ?? '');
 
         if (!$reviewId || empty($category) || empty($reason)) {
-            echo json_encode(['error' => 'Wypełnij wszystkie pola zgłoszenia.']);
-            exit();
+            $this->jsonResponse(['error' => 'Wypełnij wszystkie pola zgłoszenia.'], 400);
         }
 
         try {
@@ -76,39 +69,35 @@ class ReviewController extends AppController {
                 $category,
                 $reason
             );
-            echo json_encode(['success' => true]);
+            $this->jsonResponse(['success' => true]);
         } catch (Exception $e) {
-            echo json_encode(['error' => $e->getMessage()]);
+            error_log('Review report error: ' . $e->getMessage());
+            $this->jsonResponse(['error' => 'Nie udało się wysłać zgłoszenia.'], 500);
         }
-        exit();
     }
 
     public function apiGetDoctorProfile() {
         $this->requireLogin();
-        header('Content-Type: application/json');
 
         $doctorId = (int)($_GET['id'] ?? 0);
         if (!$doctorId) {
-            echo json_encode(['error' => 'Brak ID lekarza.']);
-            exit();
+            $this->jsonResponse(['error' => 'Brak ID lekarza.'], 400);
         }
 
         $profile = $this->reviewRepo->getDoctorProfileData($doctorId);
         if (!$profile) {
-            echo json_encode(['error' => 'Nie znaleziono lekarza.']);
-            exit();
+            $this->jsonResponse(['error' => 'Nie znaleziono lekarza.'], 404);
         }
 
         $summary = $this->reviewRepo->getReviewSummary($doctorId);
         $reviews = $this->reviewRepo->getDoctorReviews($doctorId, false);
         $nextSlot = $this->reviewRepo->getNextAvailableSlot($doctorId);
 
-        echo json_encode([
+        $this->jsonResponse([
             'profile' => $profile,
             'summary' => $summary,
             'reviews' => $reviews,
             'next_slot' => $nextSlot
         ]);
-        exit();
     }
 }

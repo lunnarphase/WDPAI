@@ -64,37 +64,33 @@
                     <span id="doctor-notif-badge" style="position:absolute; top:-5px; right:-5px; background:#ef4444; color:white; border-radius:50%; width:18px; height:18px; font-size:0.7rem; font-weight:700; display:flex; align-items:center; justify-content:center;"><?= $notifCount ?></span>
                 <?php endif; ?>
             </button>
-            <button onclick="openDoctorProfileEditModal()" title="Edytuj profil" style="background:none; border:1px solid #e2e8f0; border-radius:8px; padding:8px 12px; cursor:pointer; color:#64748b; font-size:1.1rem; transition:0.2s;" onmouseover="this.style.color='#0f172a'" onmouseout="this.style.color='#64748b'"><i class="fa-regular fa-user"></i></button>
             <a href="/logout" class="logout-link"><i class="fa-solid fa-arrow-right-from-bracket"></i> Wyloguj</a>
         </div>
+
         <div class="mobile-menu" id="doctorMobileMenu">
-            <a href="#" onclick="switchTab('harmonogram', this); toggleDoctorMobileMenu();"><i class="fa-regular fa-calendar-check"></i> Nadchodzące wizyty</a>
-            <a href="#" onclick="switchTab('dostepnosc', this); toggleDoctorMobileMenu();"><i class="fa-regular fa-calendar-days"></i> Mój harmonogram</a>
-            <a href="#" onclick="switchTab('historia', this); toggleDoctorMobileMenu();"><i class="fa-solid fa-clock-rotate-left"></i> Historia wizyt</a>
-            <a href="#" onclick="switchTab('opinie', this); toggleDoctorMobileMenu();"><i class="fa-regular fa-star"></i> Moje opinie</a>
+            <a href="#" class="active" onclick="switchTab('harmonogram', this); toggleDoctorMobileMenu();">Nadchodzące wizyty</a>
+            <a href="#" onclick="switchTab('dostepnosc', this); toggleDoctorMobileMenu();">Mój harmonogram</a>
+            <a href="#" onclick="switchTab('historia', this); toggleDoctorMobileMenu();">Historia wizyt</a>
+            <a href="#" onclick="switchTab('opinie', this); toggleDoctorMobileMenu();">Moje opinie</a>
             <a href="#" onclick="openNotificationsModal(); toggleDoctorMobileMenu();"><i class="fa-regular fa-bell"></i> Powiadomienia</a>
-            <a href="#" onclick="openDoctorProfileEditModal(); toggleDoctorMobileMenu();"><i class="fa-regular fa-user"></i> Edytuj profil</a>
-            <a href="/logout"><i class="fa-solid fa-arrow-right-from-bracket"></i> Wyloguj</a>
+            <a href="/logout">Wyloguj się</a>
         </div>
     </nav>
 
-    <main class="dashboard-container" style="max-width: 1100px; margin: 0 auto; padding-top: 2rem;">
-        
-        <div id="doctor-welcome-header" style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
-            <header class="dashboard-header" style="margin-bottom: 0;">
-                <h1 style="color: #0f172a; font-size: 2.2rem;">Witaj, dr <?= htmlspecialchars($_SESSION['user_name'] ?? 'Lekarzu') ?></h1>
-                <p>Zarządzaj swoimi pacjentami i wystawiaj zalecenia.</p>
-            </header>
+    <main class="dashboard-container">
+        <header id="doctor-welcome-header" class="dashboard-header">
+            <h1>Panel lekarza</h1>
+            <p>Zarządzaj wizytami, harmonogramem dostępności i opiniami pacjentów.</p>
+        </header>
 
-            <div style="display: flex; gap: 1rem;">
-                <div style="background: white; padding: 1rem 2rem; border-radius: 12px; border: 1px solid #e2e8f0; text-align: center; border-bottom: 4px solid #2563eb; min-width: 130px;">
-                    <p style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Wizyty Dzisiaj</p>
-                    <span style="font-size: 2rem; font-weight: 800; color: #2563eb;"><?= $todayCount ?? 0 ?></span>
-                </div>
-                <div style="background: white; padding: 1rem 2rem; border-radius: 12px; border: 1px solid #e2e8f0; text-align: center; border-bottom: 4px solid #16a34a; min-width: 130px;">
-                    <p style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Nadchodzące</p>
-                    <span style="font-size: 2rem; font-weight: 800; color: #16a34a;"><?= $upcomingCount ?? 0 ?></span>
-                </div>
+        <div style="display:flex; gap:1rem; margin-bottom:1.5rem; flex-wrap:wrap;">
+            <div style="background: white; padding: 1rem 2rem; border-radius: 12px; border: 1px solid #e2e8f0; text-align: center; border-bottom: 4px solid #2563eb; min-width: 130px;">
+                <p style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Wizyty Dzisiaj</p>
+                <span style="font-size: 2rem; font-weight: 800; color: #2563eb;"><?= $todayCount ?? 0 ?></span>
+            </div>
+            <div style="background: white; padding: 1rem 2rem; border-radius: 12px; border: 1px solid #e2e8f0; text-align: center; border-bottom: 4px solid #16a34a; min-width: 130px;">
+                <p style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Nadchodzące</p>
+                <span style="font-size: 2rem; font-weight: 800; color: #16a34a;"><?= $upcomingCount ?? 0 ?></span>
             </div>
         </div>
 
@@ -124,29 +120,66 @@
                         </tr>
                     </thead>
                     <tbody id="active-table">
+                        <?php
+                            $activeAppointments = array_values(array_filter($appointments, function ($item) {
+                                return ($item['status'] ?? '') === 'confirmed';
+                            }));
+                            usort($activeAppointments, function ($a, $b) {
+                                $aKey = ($a['appointment_date'] ?? '') . ' ' . ($a['appointment_time'] ?? '');
+                                $bKey = ($b['appointment_date'] ?? '') . ' ' . ($b['appointment_time'] ?? '');
+                                return strcmp($aKey, $bKey);
+                            });
+                        ?>
                         <?php $hasActive = false; ?>
-                        <?php foreach ($appointments as $app): ?>
-                            <?php if($app['status'] === 'confirmed'): ?>
-                                <?php $hasActive = true; ?>
-                                <tr class="searchable-row" style="border-bottom: 1px solid #e2e8f0; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
-                                    <td style="padding: 1.25rem 1.5rem;">
-                                        <strong style="display: block; color: #0f172a; font-size: 1.1rem;"><?= date('H:i', strtotime($app['appointment_time'])) ?></strong>
-                                        <span style="font-size: 0.85rem; color: #64748b;"><?= date('d M Y', strtotime($app['appointment_date'])) ?></span>
-                                    </td>
-                                    <td style="padding: 1.25rem 1.5rem; font-weight: 600; color: #0f172a; font-size: 1.05rem;">
-                                        <?= htmlspecialchars($app['patient_name']) ?>
-                                    </td>
-                                    <td style="padding: 1.25rem 1.5rem; color: #475569; font-family: monospace; font-size: 1rem;">
-                                        <?= htmlspecialchars($app['patient_pesel']) ?>
-                                    </td>
-                                    <td style="padding: 1.25rem 1.5rem;">
-                                        <span class="status-badge status-confirmed">Zarezerwowana</span>
-                                    </td>
-                                    <td style="padding: 1.25rem 1.5rem; text-align: right;">
-                                        <button class="btn-active-action" onclick="openStatusModal(<?= $app['id'] ?>, '<?= htmlspecialchars($app['patient_name'], ENT_QUOTES) ?>', '<?= date('H:i, d.m.Y', strtotime($app['appointment_date'].' '.$app['appointment_time'])) ?>', '<?= $app['status'] ?>', '<?= htmlspecialchars(str_replace(array("\r", "\n"), array('\r', '\n'), $app['recommendations'] ?? ''), ENT_QUOTES) ?>')" title="Zarządzaj wizytą"><i class="fa-solid fa-stethoscope"></i> Zarządzaj</button>
+                        <?php $lastActiveDate = null; ?>
+                        <?php foreach ($activeAppointments as $app): ?>
+                            <?php
+                                $hasActive = true;
+                                $groupDate = $app['appointment_date'];
+                                $groupDateDisplay = date('d.m.Y', strtotime($groupDate));
+                                $groupRelativeLabel = null;
+                                if ($groupDate === date('Y-m-d')) {
+                                    $groupRelativeLabel = 'Dzisiaj';
+                                } elseif ($groupDate === date('Y-m-d', strtotime('+1 day'))) {
+                                    $groupRelativeLabel = 'Jutro';
+                                }
+                            ?>
+                            <?php if ($lastActiveDate !== $groupDate): ?>
+                                <?php if ($lastActiveDate !== null): ?>
+                                    <tr class="day-gap" data-date="<?= htmlspecialchars($groupDate) ?>">
+                                        <td colspan="5" style="padding:0; height:12px; background:#f8fafc; border:none;"></td>
+                                    </tr>
+                                <?php endif; ?>
+                                <tr class="day-separator" data-date="<?= htmlspecialchars($groupDate) ?>">
+                                    <td colspan="5" style="padding:0.75rem 1.5rem; background:#f8fafc; color:#334155; font-size:0.78rem; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; border-top:1px solid #e2e8f0; border-bottom:1px solid #e2e8f0;">
+                                        <?php if ($groupRelativeLabel): ?>
+                                            <span style="font-weight:800; color:#0f172a;"><?= htmlspecialchars($groupRelativeLabel) ?></span>
+                                            <span style="margin-left:0.45rem;"><?= htmlspecialchars($groupDateDisplay) ?></span>
+                                        <?php else: ?>
+                                            <?= htmlspecialchars($groupDateDisplay) ?>
+                                        <?php endif; ?>
                                     </td>
                                 </tr>
+                                <?php $lastActiveDate = $groupDate; ?>
                             <?php endif; ?>
+                            <tr class="searchable-row" data-date="<?= htmlspecialchars($groupDate) ?>" style="border-bottom: 1px solid #e2e8f0; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
+                                <td style="padding: 1.25rem 1.5rem;">
+                                    <strong style="display: block; color: #0f172a; font-size: 1.1rem;"><?= date('H:i', strtotime($app['appointment_time'])) ?></strong>
+                                    <span style="font-size: 0.85rem; color: #64748b;"><?= date('d M Y', strtotime($app['appointment_date'])) ?></span>
+                                </td>
+                                <td style="padding: 1.25rem 1.5rem; font-weight: 600; color: #0f172a; font-size: 1.05rem;">
+                                    <?= htmlspecialchars($app['patient_name']) ?>
+                                </td>
+                                <td style="padding: 1.25rem 1.5rem; color: #475569; font-family: monospace; font-size: 1rem;">
+                                    <?= htmlspecialchars($app['patient_pesel']) ?>
+                                </td>
+                                <td style="padding: 1.25rem 1.5rem;">
+                                    <span class="status-badge status-confirmed">Zarezerwowana</span>
+                                </td>
+                                <td style="padding: 1.25rem 1.5rem; text-align: right;">
+                                    <button class="btn-active-action" onclick="openStatusModal(<?= $app['id'] ?>, '<?= htmlspecialchars($app['patient_name'], ENT_QUOTES) ?>', '<?= date('H:i, d.m.Y', strtotime($app['appointment_date'].' '.$app['appointment_time'])) ?>', '<?= $app['status'] ?>', '<?= htmlspecialchars(str_replace(array("\r", "\n"), array('\\r', '\\n'), $app['recommendations'] ?? ''), ENT_QUOTES) ?>')" title="Zarządzaj wizytą"><i class="fa-solid fa-stethoscope"></i> Zarządzaj</button>
+                                </td>
+                            </tr>
                         <?php endforeach; ?>
                         <?php if (!$hasActive): ?>
                             <tr><td colspan="5" style="text-align: center; padding: 3rem; color: #64748b;">Brak nadchodzących wizyt.</td></tr>
@@ -261,12 +294,37 @@
             </div>
             <div id="reviews-list">
                 <?php if (!empty($doctorReviews)): ?>
+                    <?php $lastReviewDate = null; ?>
                     <?php foreach ($doctorReviews as $rev): ?>
-                    <div class="review-item" data-rating="<?= (int)$rev['rating'] ?>" style="padding:1.25rem 1.5rem; border-bottom:1px solid #f1f5f9;">
+                    <?php
+                        $reviewDate = date('Y-m-d', strtotime($rev['created_at']));
+                        $reviewDateDisplay = date('d.m.Y', strtotime($rev['created_at']));
+                        $reviewRelativeLabel = null;
+                        if ($reviewDate === date('Y-m-d')) {
+                            $reviewRelativeLabel = 'Dzisiaj';
+                        } elseif ($reviewDate === date('Y-m-d', strtotime('+1 day'))) {
+                            $reviewRelativeLabel = 'Jutro';
+                        }
+                    ?>
+                    <?php if ($lastReviewDate !== $reviewDate): ?>
+                        <?php if ($lastReviewDate !== null): ?>
+                        <div class="review-day-gap" data-date="<?= htmlspecialchars($reviewDate) ?>" style="height:12px; background:#f8fafc; border-top:1px solid #f1f5f9; border-bottom:1px solid #f1f5f9;"></div>
+                        <?php endif; ?>
+                        <div class="review-day-separator" data-date="<?= htmlspecialchars($reviewDate) ?>" style="padding:0.72rem 1.5rem; background:#f8fafc; color:#334155; font-size:0.78rem; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; border-top:1px solid #e2e8f0; border-bottom:1px solid #e2e8f0;">
+                            <?php if ($reviewRelativeLabel): ?>
+                                <span style="font-weight:800; color:#0f172a;"><?= htmlspecialchars($reviewRelativeLabel) ?></span>
+                                <span style="margin-left:0.45rem;"><?= htmlspecialchars($reviewDateDisplay) ?></span>
+                            <?php else: ?>
+                                <?= htmlspecialchars($reviewDateDisplay) ?>
+                            <?php endif; ?>
+                        </div>
+                        <?php $lastReviewDate = $reviewDate; ?>
+                    <?php endif; ?>
+                    <div class="review-item" data-rating="<?= (int)$rev['rating'] ?>" data-date="<?= htmlspecialchars($reviewDate) ?>" style="padding:1.25rem 1.5rem; border-bottom:1px solid #f1f5f9;">
                         <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:0.5rem;">
                             <div>
                                 <span style="font-weight:700; color:#0f172a;"><?= htmlspecialchars($rev['patient_display_name']) ?></span>
-                                <span style="color:#94a3b8; font-size:0.8rem; margin-left:0.75rem;"><?= date('d.m.Y', strtotime($rev['created_at'])) ?></span>
+                                <span style="color:#94a3b8; font-size:0.8rem; margin-left:0.75rem;"><?= htmlspecialchars($reviewDateDisplay) ?></span>
                             </div>
                             <div style="display:flex; align-items:center; gap:0.75rem;">
                                 <div class="review-stars-display" data-rating="<?= (int)$rev['rating'] ?>"></div>
@@ -888,7 +946,7 @@
                 if (el) el.style.display = 'none';
             });
             const header = document.getElementById('doctor-welcome-header');
-            if (header) header.style.display = (tabName === 'dostepnosc') ? 'none' : 'flex';
+            if (header) header.style.display = (tabName === 'dostepnosc') ? 'none' : '';
             const target = document.getElementById('tab-' + tabName);
             if (target) {
                 target.style.display = 'block';
@@ -908,6 +966,27 @@
                 } else {
                     row.style.display = 'none';
                 }
+            });
+
+            const separators = document.querySelectorAll(`#${tableBodyId} .day-separator`);
+            const visibleDates = [];
+            separators.forEach(separator => {
+                const dateKey = separator.getAttribute('data-date') || '';
+                const hasVisibleRows = Array.from(document.querySelectorAll(`#${tableBodyId} .searchable-row[data-date="${dateKey}"]`))
+                    .some(row => row.style.display !== 'none');
+                separator.style.display = hasVisibleRows ? '' : 'none';
+                if (hasVisibleRows) {
+                    visibleDates.push(dateKey);
+                }
+            });
+
+            const firstVisibleDate = visibleDates.length > 0 ? visibleDates[0] : null;
+            const visibleDateSet = new Set(visibleDates);
+            const gaps = document.querySelectorAll(`#${tableBodyId} .day-gap`);
+            gaps.forEach(gap => {
+                const dateKey = gap.getAttribute('data-date') || '';
+                const shouldShow = visibleDateSet.has(dateKey) && dateKey !== firstVisibleDate;
+                gap.style.display = shouldShow ? '' : 'none';
             });
         }
 
@@ -960,6 +1039,25 @@
                 const itemRating = parseInt(item.getAttribute('data-rating'), 10);
                 item.style.display = (rating === 0 || itemRating === rating) ? '' : 'none';
             });
+
+            const visibleDates = [];
+            document.querySelectorAll('#reviews-list .review-day-separator').forEach(separator => {
+                const dateKey = separator.getAttribute('data-date') || '';
+                const hasVisibleItems = Array.from(document.querySelectorAll(`#reviews-list .review-item[data-date="${dateKey}"]`))
+                    .some(item => item.style.display !== 'none');
+                separator.style.display = hasVisibleItems ? '' : 'none';
+                if (hasVisibleItems) {
+                    visibleDates.push(dateKey);
+                }
+            });
+
+            const firstVisibleDate = visibleDates.length > 0 ? visibleDates[0] : null;
+            const visibleDateSet = new Set(visibleDates);
+            document.querySelectorAll('#reviews-list .review-day-gap').forEach(gap => {
+                const dateKey = gap.getAttribute('data-date') || '';
+                const shouldShow = visibleDateSet.has(dateKey) && dateKey !== firstVisibleDate;
+                gap.style.display = shouldShow ? '' : 'none';
+            });
         }
 
         // --- AUTO-REFRESH HARMONOGRAMU ---
@@ -972,9 +1070,38 @@
             return `${t}, ${day}.${month}.${year}`;
         }
         function formatScheduleDisplayDate(dateStr) {
-            const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
             const d = new Date(dateStr + 'T00:00:00');
-            return `${String(d.getDate()).padStart(2,'0')} ${months[d.getMonth()]} ${d.getFullYear()}`;
+            if (Number.isNaN(d.getTime())) return dateStr;
+            return d.toLocaleDateString('pl-PL', { day: '2-digit', month: 'short', year: 'numeric' });
+        }
+        function getScheduleDayMeta(dateStr) {
+            const d = new Date(dateStr + 'T00:00:00');
+            if (Number.isNaN(d.getTime())) {
+                return { relativeLabel: null, fullLabel: dateStr || 'Bez daty' };
+            }
+
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const tomorrow = new Date(today);
+            tomorrow.setDate(today.getDate() + 1);
+
+            const fullLabel = d.toLocaleDateString('pl-PL', {
+                weekday: 'long',
+                day: '2-digit',
+                month: 'long',
+                year: 'numeric'
+            });
+
+            if (d.getTime() === today.getTime()) return { relativeLabel: 'Dzisiaj', fullLabel };
+            if (d.getTime() === tomorrow.getTime()) return { relativeLabel: 'Jutro', fullLabel };
+            return { relativeLabel: null, fullLabel };
+        }
+        function renderScheduleDayHeader(dateStr) {
+            const meta = getScheduleDayMeta(dateStr);
+            if (!meta.relativeLabel) {
+                return escHtml(meta.fullLabel);
+            }
+            return `<span style="font-weight:800; color:#0f172a;">${escHtml(meta.relativeLabel)}</span><span style="margin-left:0.45rem;">${escHtml(meta.fullLabel)}</span>`;
         }
         function safeAttr(str) {
             return String(str || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r/g, '\\r').replace(/\n/g, '\\n');
@@ -987,17 +1114,35 @@
                 .then(r => r.json())
                 .then(data => {
                     const tbody = document.getElementById('active-table');
-                    const confirmed = data.filter(a => a.status === 'confirmed');
+                    const confirmed = data
+                        .filter(a => a.status === 'confirmed')
+                        .sort((a, b) => {
+                            const ad = new Date(`${a.appointment_date}T${(a.appointment_time || '00:00:00').substring(0, 8)}`);
+                            const bd = new Date(`${b.appointment_date}T${(b.appointment_time || '00:00:00').substring(0, 8)}`);
+                            return ad - bd;
+                        });
+
                     if (confirmed.length === 0) {
                         tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 3rem; color: #64748b;">Brak nadchodzących wizyt.</td></tr>';
                     } else {
+                        let lastDate = '';
                         tbody.innerHTML = confirmed.map(a => {
                             const displayTime = a.appointment_time.substring(0, 5);
                             const displayDate = formatScheduleDisplayDate(a.appointment_date);
                             const modalDateTime = safeAttr(formatScheduleModalDateTime(a.appointment_date, a.appointment_time));
                             const patientName = safeAttr(a.patient_name);
                             const recom = safeAttr(a.recommendations || '');
-                            return `<tr class="searchable-row" style="border-bottom:1px solid #e2e8f0; transition:background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
+                            const shouldPrintSeparator = lastDate !== a.appointment_date;
+                            const shouldPrintGap = shouldPrintSeparator && lastDate !== '';
+                            lastDate = a.appointment_date;
+                            const gapHtml = shouldPrintGap
+                                ? `<tr class="day-gap" data-date="${escHtml(a.appointment_date)}"><td colspan="5" style="padding:0; height:12px; background:#f8fafc; border:none;"></td></tr>`
+                                : '';
+                            const separatorHtml = shouldPrintSeparator
+                                ? `<tr class="day-separator" data-date="${escHtml(a.appointment_date)}"><td colspan="5" style="padding:0.75rem 1.5rem; background:#f8fafc; color:#334155; font-size:0.78rem; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; border-top:1px solid #e2e8f0; border-bottom:1px solid #e2e8f0;">${renderScheduleDayHeader(a.appointment_date)}</td></tr>`
+                                : '';
+
+                            return `${gapHtml}${separatorHtml}<tr class="searchable-row" data-date="${escHtml(a.appointment_date)}" style="border-bottom:1px solid #e2e8f0; transition:background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
                                 <td style="padding:1.25rem 1.5rem;"><strong style="display:block; color:#0f172a; font-size:1.1rem;">${escHtml(displayTime)}</strong><span style="font-size:0.85rem; color:#64748b;">${escHtml(displayDate)}</span></td>
                                 <td style="padding:1.25rem 1.5rem; font-weight:600; color:#0f172a; font-size:1.05rem;">${escHtml(a.patient_name)}</td>
                                 <td style="padding:1.25rem 1.5rem; color:#475569; font-family:monospace; font-size:1rem;">${escHtml(a.patient_pesel)}</td>
@@ -1190,6 +1335,7 @@
             if (nm) nm.addEventListener('click', e => { if (e.target === nm) closeNotificationsModal(); });
             const rm = document.getElementById('docReportModal');
             if (rm) rm.addEventListener('click', e => { if (e.target === rm) closeReportModal(); });
+            refreshSchedule(false);
         });
     </script>
 

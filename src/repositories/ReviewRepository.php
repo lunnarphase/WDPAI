@@ -230,7 +230,7 @@ class ReviewRepository extends Repository {
         $stmt = $db->prepare("UPDATE review_reports SET status = 'dismissed', admin_response = ? WHERE id = ?");
         $stmt->execute([$adminResponse, $reportId]);
 
-        $msg = 'Twoje zgłoszenie opinii zostało rozpatrzone przez administratora. Odpowiedź: ' . $adminResponse;
+        $msg = "Twoje zgłoszenie opinii zostało rozpatrzone przez administratora.\nOdpowiedź: " . $adminResponse;
         $stmt = $db->prepare("INSERT INTO notifications (id_user, message, type) VALUES (?, ?, 'report_dismissed')");
         $stmt->execute([$report['id_reporter'], $msg]);
 

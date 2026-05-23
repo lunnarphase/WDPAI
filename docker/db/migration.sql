@@ -11,6 +11,15 @@ CREATE TABLE IF NOT EXISTS login_attempts (
 CREATE INDEX IF NOT EXISTS idx_login_attempts_email ON login_attempts(email);
 CREATE INDEX IF NOT EXISTS idx_login_attempts_attempted_at ON login_attempts(attempted_at);
 
+CREATE TABLE IF NOT EXISTS blocked_ips (
+    ip_address VARCHAR(45) PRIMARY KEY,
+    blocked_until TIMESTAMP,
+    reason TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_blocked_ips_blocked_until ON blocked_ips(blocked_until);
+
 -- Migration: add trigger for review requests
 CREATE OR REPLACE FUNCTION notify_patient_review_request()
 RETURNS TRIGGER AS $$

@@ -145,14 +145,14 @@
                         ?>
                             <div class="appointment-card" style="<?= $opacity ?>">
                                 <div class="app-date">
-                                    <span class="day"><?= $app['day'] ?></span>
-                                    <span class="month"><?= $app['month'] ?></span>
-                                    <span class="time"><?= $app['time_formatted'] ?></span>
+                                    <span class="day"><?= htmlspecialchars($app['day']) ?></span>
+                                    <span class="month"><?= htmlspecialchars($app['month']) ?></span>
+                                    <span class="time"><?= htmlspecialchars($app['time_formatted']) ?></span>
                                 </div>
                                 <div class="app-details">
                                     <p class="spec"><?= htmlspecialchars($app['specializations'] ?? '') ?></p>
                                     <h3>dr <?= htmlspecialchars($app['doctor_name']) ?></h3>
-                                    <p class="status"><span class="dot" style="background-color: <?= $dotColor ?>;"></span> <?= $statusText ?></p>
+                                    <p class="status"><span class="dot" style="background-color: <?= htmlspecialchars($dotColor) ?>;"></span> <?= htmlspecialchars($statusText) ?></p>
                                     <?php if (!empty($app['recommendations'])): ?>
                                         <div style="margin-top: 0.75rem; padding: 0.75rem; background: #f3f4f6; border-radius: 6px; font-size: 0.9rem; color: #374151;">
                                             <strong>Zalecenia:</strong><br><?= htmlspecialchars($app['recommendations']) ?>
@@ -161,10 +161,10 @@
                                 </div>
                                 <div class="app-actions" style="display:flex; flex-direction:column; align-items:flex-end; gap:0.25rem;">
                                     <?php if($status !== 'cancelled' && $status !== 'completed'): ?>
-                                        <button class="btn-secondary" onclick="openCancelModal(<?= $app['appointment_id'] ?>)">Anuluj</button>
+                                        <button class="btn-secondary" onclick="openCancelModal(<?= (int)$app['appointment_id'] ?>)">Anuluj</button>
                                     <?php endif; ?>
                                     <?php if($status === 'completed' && $app['review_submitted'] !== 't' && $app['review_submitted'] !== true): ?>
-                                        <button class="btn-secondary" style="background:#fefce8; color:#92400e; border-color:#fde68a; font-size:0.85rem;" onclick="openReviewModal(<?= $app['appointment_id'] ?>)"><i class="fa-regular fa-star"></i> Wystaw opinię</button>
+                                        <button class="btn-secondary" style="background:#fefce8; color:#92400e; border-color:#fde68a; font-size:0.85rem;" onclick="openReviewModal(<?= (int)$app['appointment_id'] ?>)"><i class="fa-regular fa-star"></i> Wystaw opinię</button>
                                     <?php endif; ?>
                                 </div>
                             </div>
@@ -303,6 +303,12 @@
             const q = searchInput ? searchInput.value.trim() : '';
             const spec = specSelect ? specSelect.value : 'all';
             window.location.href = `/find-doctor?q=${encodeURIComponent(q)}&spec=${encodeURIComponent(spec)}`;
+        }
+
+        function buildBookingUrl(doctorId) {
+            const safeDoctorId = parseInt(doctorId, 10) || 0;
+            const returnTo = `${window.location.pathname}${window.location.search}`;
+            return `/book-appointment?id=${safeDoctorId}&return_to=${encodeURIComponent(returnTo)}`;
         }
 
         const profileModal = document.getElementById('profileModal');
@@ -480,25 +486,39 @@
 
             allNotifications.forEach(notification => {
                 const isReviewReq = notification.type === 'review_request';
+                const isReportNotification = notification.type === 'report_dismissed' || notification.type === 'report_resolved';
+                const isDismissedReport = notification.type === 'report_dismissed';
+                const notifId = parseInt(notification.id, 10) || 0;
                 const notifDiv = document.createElement('div');
-                notifDiv.setAttribute('data-notif-id', notification.id);
+                notifDiv.setAttribute('data-notif-id', notifId);
                 notifDiv.style.cssText = `padding: 1rem; border-bottom: 1px solid #e2e8f0; background: white; display: flex; align-items: flex-start; gap: 0.75rem;${isReviewReq ? ' cursor:pointer;' : ''}`;
                 if (isReviewReq) {
                     notifDiv.onmouseover = () => notifDiv.style.background = '#f0fdf4';
                     notifDiv.onmouseout  = () => notifDiv.style.background = 'white';
                     notifDiv.onclick = () => handleNotificationClick(notification);
                 }
+                const rawMessage = String(notification.message || '');
+                let mainMessage = rawMessage;
+                let adminResponse = '';
+                if (isDismissedReport && rawMessage.includes('Odpowiedź:')) {
+                    const chunks = rawMessage.split('Odpowiedź:');
+                    mainMessage = (chunks[0] || '').trim();
+                    adminResponse = (chunks.slice(1).join('Odpowiedź:') || '').trim();
+                }
                 const icon = isReviewReq
                     ? '<i class="fa-solid fa-star" style="color:#f59e0b; margin-top:3px; flex-shrink:0;"></i>'
-                    : '<i class="fa-regular fa-bell" style="color:#64748b; margin-top:3px; flex-shrink:0;"></i>';
+                    : (isReportNotification
+                        ? '<i class="fa-solid fa-flag" style="color:#dc2626; margin-top:3px; flex-shrink:0;"></i>'
+                        : '<i class="fa-regular fa-bell" style="color:#64748b; margin-top:3px; flex-shrink:0;"></i>');
                 notifDiv.innerHTML = `
                     ${icon}
                     <div style="flex:1; min-width:0;">
-                        <p style="margin: 0; color: #111827; font-size: 0.95rem;">${notification.message}</p>
+                        <p style="margin: 0; color: #111827; font-size: 0.95rem;">${escHtml(mainMessage || rawMessage)}</p>
+                        ${adminResponse ? `<div style="margin-top:0.55rem; background:#fef2f2; border:1px solid #fecaca; border-left:4px solid #dc2626; border-radius:8px; padding:0.6rem 0.7rem;"><p style="margin:0; font-size:0.84rem; color:#991b1b;"><strong>Odpowiedź administratora:</strong> ${escHtml(adminResponse)}</p></div>` : ''}
                         <p style="margin: 0.5rem 0 0 0; color: #9ca3af; font-size: 0.8rem;">${new Date(notification.created_at).toLocaleString('pl-PL')}</p>
                         ${isReviewReq ? '<p style="margin:0.3rem 0 0;font-size:0.8rem;color:#125B46;font-weight:600;">Kliknij, aby wystawić opinię →</p>' : ''}
                     </div>
-                    <button onclick="event.stopPropagation(); dismissNotification(${notification.id}, this)" style="background:none; border:none; color:#9ca3af; font-size:1.1rem; cursor:pointer; padding:0 0 0 0.5rem; flex-shrink:0; line-height:1;" title="Usuń powiadomienie">&times;</button>
+                    <button onclick="event.stopPropagation(); dismissNotification(${notifId}, this)" style="background:none; border:none; color:#9ca3af; font-size:1.1rem; cursor:pointer; padding:0 0 0 0.5rem; flex-shrink:0; line-height:1;" title="Usuń powiadomienie">&times;</button>
                 `;
                 notificationsList.appendChild(notifDiv);
             });
@@ -522,48 +542,124 @@
 
         notificationsModal.addEventListener('click', function(e) { if (e.target === notificationsModal) closeNotificationsModal(); });
 
+        function parseAppointmentTimestamp(app) {
+            const datePart = String(app.appointment_date || '').slice(0, 10);
+            const timePart = String(app.appointment_time || '00:00:00').slice(0, 8);
+            const dt = new Date(`${datePart}T${timePart}`);
+            return Number.isNaN(dt.getTime()) ? 0 : dt.getTime();
+        }
+
+        function buildDayGroupMeta(dateKey) {
+            const date = new Date(`${dateKey}T00:00:00`);
+            if (Number.isNaN(date.getTime())) {
+                return { relativeLabel: null, fullLabel: dateKey || 'Bez daty' };
+            }
+
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const tomorrow = new Date(today);
+            tomorrow.setDate(today.getDate() + 1);
+
+            const fullLabel = date.toLocaleDateString('pl-PL', {
+                weekday: 'long',
+                day: '2-digit',
+                month: 'long',
+                year: 'numeric'
+            });
+
+            if (date.getTime() === today.getTime()) {
+                return { relativeLabel: 'Dzisiaj', fullLabel };
+            }
+            if (date.getTime() === tomorrow.getTime()) {
+                return { relativeLabel: 'Jutro', fullLabel };
+            }
+            return { relativeLabel: null, fullLabel };
+        }
+
+        function renderDayGroupHeader(dateKey) {
+            const meta = buildDayGroupMeta(dateKey);
+            if (!meta.relativeLabel) {
+                return `<span>${escHtml(meta.fullLabel)}</span>`;
+            }
+            return `<span class="relative">${escHtml(meta.relativeLabel)}</span><span class="full">${escHtml(meta.fullLabel)}</span>`;
+        }
+
+        function groupAppointmentsByDate(appointments) {
+            const groups = new Map();
+            appointments.forEach(app => {
+                const key = String(app.appointment_date || '');
+                if (!groups.has(key)) {
+                    groups.set(key, []);
+                }
+                groups.get(key).push(app);
+            });
+            return groups;
+        }
+
+        function isAppointmentReviewed(appointmentId) {
+            return reviewedAppointmentIds.has(appointmentId) || reviewedAppointmentIds.has(String(appointmentId));
+        }
+
         function renderHistoryModal() {
             const query = modalSearchInput.value.toLowerCase().trim();
             const spec = modalSpecSelect.value.toLowerCase();
             modalListContainer.innerHTML = '';
 
             const filteredData = allAppointments.filter(app => {
-                const matchesName = app.doctor_name.toLowerCase().includes(query);
+                const matchesName = (app.doctor_name || '').toLowerCase().includes(query);
                 const matchesSpec = spec === '' || (app.specializations && app.specializations.toLowerCase().includes(spec));
                 return matchesName && matchesSpec;
-            });
+            }).sort((a, b) => parseAppointmentTimestamp(a) - parseAppointmentTimestamp(b));
 
             if(filteredData.length === 0) {
                 modalListContainer.innerHTML = '<p style="text-align:center; color: var(--text-muted); margin-top: 2rem;">Brak wizyt spełniających kryteria.</p>'; return;
             }
 
-            filteredData.forEach(app => {
-                const statusMap = {
-                    'confirmed': { text: 'Potwierdzona', color: '#22c55e' },
-                    'completed': { text: 'Zakończona', color: '#3b82f6' },
-                    'noshow': { text: 'Nieobecność klienta', color: '#eab308' },
-                    'cancelled': { text: 'Anulowana', color: '#ef4444' }
-                };
+            const stack = document.createElement('div');
+            stack.className = 'date-group-stack';
 
-                const status = app.status || 'confirmed';
-                const statusInfo = statusMap[status] || { text: status.charAt(0).toUpperCase() + status.slice(1), color: '#6b7280' };
-                const statusText = statusInfo.text;
-                const dotColor = statusInfo.color;
-                const opacity = (status === 'cancelled') ? 'opacity: 0.6;' : '';
-                const card = document.createElement('div');
-                card.className = 'appointment-card';
-                card.style.cssText = `margin-bottom: 1rem; ${opacity}`;
-                const actionBtn = (status !== 'cancelled' && status !== 'completed') ? `<button class="btn-secondary" onclick="openCancelModal(${app.appointment_id}); closeHistoryModal();">Anuluj</button>` : ``;
+            const grouped = groupAppointmentsByDate(filteredData);
+            grouped.forEach((items, dateKey) => {
+                const block = document.createElement('section');
+                block.className = 'date-group-block';
 
-                card.innerHTML = `
-                    <div class="app-date"><span class="day">${app.day}</span><span class="month">${app.month}</span><span class="time">${app.time_formatted}</span></div>
-                    <div class="app-details"><p class="spec">${app.specializations || 'Brak specjalizacji'}</p><h3>dr ${app.doctor_name}</h3><p class="status"><span class="dot" style="background-color: ${dotColor};"></span> ${statusText}</p>
-                    ${app.recommendations ? `<div style="margin-top: 0.75rem; padding: 0.75rem; background: #f3f4f6; border-radius: 6px; font-size: 0.9rem; color: #374151;"><strong>Zalecenia:</strong><br>${app.recommendations}</div>` : ''}
-                    </div>
-                    <div class="app-actions">${actionBtn}</div>
-                `;
-                modalListContainer.appendChild(card);
+                const header = document.createElement('div');
+                header.className = 'date-group-header';
+                header.innerHTML = renderDayGroupHeader(dateKey);
+
+                const body = document.createElement('div');
+                body.className = 'date-group-items';
+
+                items.forEach(app => {
+                    const status = app.status || 'confirmed';
+                    const statusInfo = statusMap[status] || { text: status.charAt(0).toUpperCase() + status.slice(1), color: '#6b7280' };
+                    const statusText = statusInfo.text;
+                    const dotColor = statusInfo.color;
+                    const opacity = (status === 'cancelled') ? 'opacity: 0.6;' : '';
+                    const appointmentId = parseInt(app.appointment_id, 10) || 0;
+                    const actionBtn = (status !== 'cancelled' && status !== 'completed')
+                        ? `<button class="btn-secondary" onclick="openCancelModal(${appointmentId}); closeHistoryModal();">Anuluj</button>`
+                        : '';
+
+                    const card = document.createElement('div');
+                    card.className = 'appointment-card';
+                    card.style.cssText = opacity;
+                    card.innerHTML = `
+                        <div class="app-date"><span class="day">${escHtml(app.day)}</span><span class="month">${escHtml(app.month)}</span><span class="time">${escHtml(app.time_formatted)}</span></div>
+                        <div class="app-details"><p class="spec">${escHtml(app.specializations || 'Brak specjalizacji')}</p><h3>dr ${escHtml(app.doctor_name)}</h3><p class="status"><span class="dot" style="background-color: ${dotColor};"></span> ${escHtml(statusText)}</p>
+                        ${app.recommendations ? `<div style="margin-top: 0.75rem; padding: 0.75rem; background: #f3f4f6; border-radius: 6px; font-size: 0.9rem; color: #374151;"><strong>Zalecenia:</strong><br>${escHtml(app.recommendations)}</div>` : ''}
+                        </div>
+                        <div class="app-actions">${actionBtn}</div>
+                    `;
+                    body.appendChild(card);
+                });
+
+                block.appendChild(header);
+                block.appendChild(body);
+                stack.appendChild(block);
             });
+
+            modalListContainer.appendChild(stack);
         }
 
         function toggleMobileMenu() {
@@ -584,38 +680,75 @@
                 .then(data => {
                     const container = document.getElementById('appointments-list-container');
                     if (!container) return;
-                    const items = data.slice(0, 3);
+                    const normalizedData = Array.isArray(data) ? data : [];
+                    allAppointments = normalizedData;
+
+                    const items = [...normalizedData]
+                        .sort((a, b) => parseAppointmentTimestamp(a) - parseAppointmentTimestamp(b))
+                        .slice(0, 3);
+
                     if (items.length === 0) {
                         container.innerHTML = `<div class="empty-state" style="background: white; padding: 2rem; border-radius: 12px; border: 1px solid #e2e8f0; text-align: center;"><p style="color: var(--text-muted); margin-bottom: 1rem;">Nie masz aktualnie zaplanowanych wizyt.</p></div>`;
                         return;
                     }
-                    container.innerHTML = items.map(app => {
-                        const status = app.status || 'confirmed';
-                        const si = statusMap[status] || { text: status, color: '#6b7280' };
-                        const opacity = status === 'cancelled' ? 'opacity:0.6;' : '';
-                        const recomHtml = app.recommendations ? `<div style="margin-top:0.75rem; padding:0.75rem; background:#f3f4f6; border-radius:6px; font-size:0.9rem; color:#374151;"><strong>Zalecenia:</strong><br>${escHtml(app.recommendations)}</div>` : '';
-                        let actionBtns = '';
-                        if (status !== 'cancelled' && status !== 'completed') {
-                            actionBtns += `<button class="btn-secondary" onclick="openCancelModal(${app.appointment_id})">Anuluj</button>`;
-                        }
-                        if (status === 'completed' && app.review_submitted !== 't' && app.review_submitted !== true && !reviewedAppointmentIds.has(app.appointment_id)) {
-                            actionBtns += `<button class="btn-secondary" style="background:#fefce8; color:#92400e; border-color:#fde68a; font-size:0.85rem;" onclick="openReviewModal(${app.appointment_id})"><i class="fa-regular fa-star"></i> Wystaw opinię</button>`;
-                        }
-                        return `<div class="appointment-card" style="${opacity}">
-                            <div class="app-date">
-                                <span class="day">${escHtml(app.day)}</span>
-                                <span class="month">${escHtml(app.month)}</span>
-                                <span class="time">${escHtml(app.time_formatted)}</span>
-                            </div>
-                            <div class="app-details">
-                                <p class="spec">${escHtml(app.specializations || '')}</p>
-                                <h3>dr ${escHtml(app.doctor_name)}</h3>
-                                <p class="status"><span class="dot" style="background-color:${si.color};"></span> ${si.text}</p>
-                                ${recomHtml}
-                            </div>
-                            <div class="app-actions" style="display:flex; flex-direction:column; align-items:flex-end; gap:0.25rem;">${actionBtns}</div>
-                        </div>`;
-                    }).join('');
+
+                    const stack = document.createElement('div');
+                    stack.className = 'date-group-stack';
+
+                    const grouped = groupAppointmentsByDate(items);
+                    grouped.forEach((groupItems, dateKey) => {
+                        const block = document.createElement('section');
+                        block.className = 'date-group-block';
+
+                        const header = document.createElement('div');
+                        header.className = 'date-group-header';
+                        header.innerHTML = renderDayGroupHeader(dateKey);
+
+                        const body = document.createElement('div');
+                        body.className = 'date-group-items';
+
+                        groupItems.forEach(app => {
+                            const status = app.status || 'confirmed';
+                            const si = statusMap[status] || { text: status, color: '#6b7280' };
+                            const opacity = status === 'cancelled' ? 'opacity:0.6;' : '';
+                            const recomHtml = app.recommendations ? `<div style="margin-top:0.75rem; padding:0.75rem; background:#f3f4f6; border-radius:6px; font-size:0.9rem; color:#374151;"><strong>Zalecenia:</strong><br>${escHtml(app.recommendations)}</div>` : '';
+                            const appointmentId = parseInt(app.appointment_id, 10) || 0;
+
+                            let actionBtns = '';
+                            if (status !== 'cancelled' && status !== 'completed') {
+                                actionBtns += `<button class="btn-secondary" onclick="openCancelModal(${appointmentId})">Anuluj</button>`;
+                            }
+                            if (status === 'completed' && app.review_submitted !== 't' && app.review_submitted !== true && !isAppointmentReviewed(appointmentId)) {
+                                actionBtns += `<button class="btn-secondary" style="background:#fefce8; color:#92400e; border-color:#fde68a; font-size:0.85rem;" onclick="openReviewModal(${appointmentId})"><i class="fa-regular fa-star"></i> Wystaw opinię</button>`;
+                            }
+
+                            const card = document.createElement('div');
+                            card.className = 'appointment-card';
+                            card.style.cssText = opacity;
+                            card.innerHTML = `
+                                <div class="app-date">
+                                    <span class="day">${escHtml(app.day)}</span>
+                                    <span class="month">${escHtml(app.month)}</span>
+                                    <span class="time">${escHtml(app.time_formatted)}</span>
+                                </div>
+                                <div class="app-details">
+                                    <p class="spec">${escHtml(app.specializations || 'Brak specjalizacji')}</p>
+                                    <h3>dr ${escHtml(app.doctor_name)}</h3>
+                                    <p class="status"><span class="dot" style="background-color:${si.color};"></span> ${escHtml(si.text)}</p>
+                                    ${recomHtml}
+                                </div>
+                                <div class="app-actions" style="display:flex; flex-direction:column; align-items:flex-end; gap:0.25rem;">${actionBtns}</div>
+                            `;
+                            body.appendChild(card);
+                        });
+
+                        block.appendChild(header);
+                        block.appendChild(body);
+                        stack.appendChild(block);
+                    });
+
+                    container.innerHTML = '';
+                    container.appendChild(stack);
                 })
                 .catch(() => {});
         }
@@ -676,14 +809,15 @@
                         
                         const specName = doctor.specialization ? doctor.specialization.charAt(0).toUpperCase() + doctor.specialization.slice(1) : 'Lekarz ogólny';
                         const starsHtml = renderStars(doctor.avg_rating, doctor.review_count);
+                        const doctorId = parseInt(doctor.doctor_id, 10) || 0;
 
                         card.innerHTML = `
                             <div>
-                                <h4 style="margin: 0; color: #0f172a; font-size: 1rem;">dr ${doctor.name}</h4>
-                                <p style="margin: 0.25rem 0; font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase;">${specName}</p>
+                                <h4 style="margin: 0; color: #0f172a; font-size: 1rem;">dr ${escHtml(doctor.name || '')}</h4>
+                                <p style="margin: 0.25rem 0; font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase;">${escHtml(specName)}</p>
                                 <div style="font-size: 0.8rem; margin-top: 2px;">${starsHtml}</div>
                             </div>
-                        <button onclick="openDoctorProfileModal(${doctor.doctor_id})" style="background-color: #125B46; color: white; padding: 0.5rem 1rem; border-radius: 6px; border: none; font-size: 0.85rem; font-weight: 600; cursor: pointer;">Umów</button>                    `;
+                        <button onclick="openDoctorProfileModal(${doctorId})" style="background-color: #125B46; color: white; padding: 0.5rem 1rem; border-radius: 6px; border: none; font-size: 0.85rem; font-weight: 600; cursor: pointer;">Umów</button>                    `;
                         resultsContainer.appendChild(card);
                     });
 
@@ -761,12 +895,13 @@
 
         function renderDoctorProfile(data, doctorId) {
             if (data.error) {
-                document.getElementById('doctor-profile-body').innerHTML = `<p style="color:red;text-align:center;padding:2rem;">${data.error}</p>`;
+                document.getElementById('doctor-profile-body').innerHTML = `<p style="color:red;text-align:center;padding:2rem;">${escHtml(data.error || '')}</p>`;
                 return;
             }
             const p = data.profile;
             const s = data.summary;
             const reviews = data.reviews || [];
+            const safeDoctorId = parseInt(doctorId, 10) || 0;
 
             // Header
             document.getElementById('dp-name').textContent = `dr ${p.name}`;
@@ -776,12 +911,13 @@
             if (data.next_slot) {
                 const [d, t] = data.next_slot.split(' ');
                 const dateObj = new Date(d + 'T00:00:00');
-                nextSlotHtml = dateObj.toLocaleDateString('pl-PL', {day:'2-digit',month:'long',year:'numeric'}) + ' godz. ' + t;
+                nextSlotHtml = dateObj.toLocaleDateString('pl-PL', {day:'2-digit',month:'long',year:'numeric'}) + ' godz. ' + escHtml(t || '');
             }
 
             let priceHtml = '<span style="color:#94a3b8;">Brak danych</span>';
             if (p.visit_price) {
-                priceHtml = `${parseFloat(p.visit_price).toFixed(0)} zł / ${p.visit_duration || 30} min`;
+                const duration = parseInt(p.visit_duration, 10) || 30;
+                priceHtml = `${parseFloat(p.visit_price).toFixed(0)} zł / ${duration} min`;
             }
 
             let bioHtml = p.bio ? `<div style="background:#f8fafc; padding:1rem; border-radius:8px; font-size:0.95rem; color:#374151; line-height:1.6;">${escHtml(p.bio)}</div>` : '';
@@ -792,6 +928,7 @@
             } else {
                 reviews.forEach(r => {
                     const date = new Date(r.created_at).toLocaleDateString('pl-PL');
+                    const reviewId = parseInt(r.id, 10) || 0;
                     reviewsHtml += `
                         <div style="border-bottom:1px solid #e2e8f0; padding:1rem 0;">
                             <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:0.5rem;">
@@ -801,7 +938,7 @@
                                 </div>
                                 <div style="display:flex; align-items:center; gap:0.75rem;">
                                     <div>${renderStarsStatic(r.rating)}</div>
-                                    <button onclick="openReportModal(${r.id})" style="background:none; border:none; color:#94a3b8; font-size:0.8rem; cursor:pointer; padding:0;" title="Zgłoś opinię"><i class="fa-solid fa-flag"></i></button>
+                                    <button onclick="openReportModal(${reviewId})" style="background:none; border:none; color:#94a3b8; font-size:0.8rem; cursor:pointer; padding:0;" title="Zgłoś opinię"><i class="fa-solid fa-flag"></i></button>
                                 </div>
                             </div>
                             ${r.comment ? `<p style="margin:0.5rem 0 0 0; color:#475569; font-size:0.9rem;">${escHtml(r.comment)}</p>` : ''}
@@ -828,7 +965,7 @@
                     <h4 style="margin:0 0 0.75rem; color:#0f172a;">Opinie pacjentów</h4>
                     ${reviewsHtml}
                 </div>
-                <a href="/book-appointment?id=${doctorId}" style="display:block; text-align:center; background:#125B46; color:white; padding:0.9rem; border-radius:8px; font-weight:700; text-decoration:none; font-size:1rem;">Umów wizytę &rarr;</a>
+                <a href="${buildBookingUrl(safeDoctorId)}" style="display:block; text-align:center; background:#125B46; color:white; padding:0.9rem; border-radius:8px; font-weight:700; text-decoration:none; font-size:1rem;">Umów wizytę &rarr;</a>
             `;
         }
 
@@ -891,6 +1028,8 @@
                 array_filter($processedAppointments, fn($a) => ($a['review_submitted'] === 't' || $a['review_submitted'] === true))
             ))
         ) ?>);
+
+        refreshAppointments();
 
         function handleNotificationClick(notification) {
             if (notification.type === 'review_request' && notification.related_id) {

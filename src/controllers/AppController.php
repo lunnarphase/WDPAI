@@ -5,12 +5,10 @@ class AppController {
 
     public function __construct() {
         if (session_status() === PHP_SESSION_NONE) {
-            $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-                    || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
             session_set_cookie_params([
                 'lifetime' => 0,
                 'path'     => '/',
-                'secure'   => $isHttps,
+                'secure'   => true,
                 'httponly' => true,
                 'samesite' => 'Lax',
             ]);
@@ -26,6 +24,36 @@ class AppController {
     protected function isPost(): bool
     {
         return $_SERVER["REQUEST_METHOD"] === 'POST';
+    }
+
+    protected function isHttpsRequest(): bool
+    {
+        return (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+            || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
+    }
+
+    protected function isJsonRequest(): bool
+    {
+        $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
+        $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+        $requestUri = $_SERVER['REQUEST_URI'] ?? '';
+        $xrw = strtolower($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '');
+
+        return stripos($accept, 'application/json') !== false
+            || stripos($contentType, 'application/json') !== false
+            || str_starts_with($requestUri, '/api-')
+            || $xrw === 'xmlhttprequest';
+    }
+
+    protected function jsonResponse(mixed $payload, int $statusCode = 200): void
+    {
+        if (!headers_sent()) {
+            header('Content-Type: application/json; charset=UTF-8');
+        }
+
+        http_response_code($statusCode);
+        echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        exit();
     }
 
     protected function generateCsrfToken(): string
@@ -68,17 +96,34 @@ class AppController {
     protected function requireLogin()
     {
         if (empty($_SESSION['user_id'])) {
+            if ($this->isJsonRequest()) {
+                $this->jsonResponse(['error' => 'Brak autoryzacji.'], 401);
+            }
+
             $url = $this->getBaseUrl();
             header("Location: {$url}/login");
             exit();
         }
     }
 
+    protected function requireHttps(): void
+    {
+        if ($this->isHttpsRequest()) {
+            return;
+        }
+
+        if ($this->isJsonRequest()) {
+            $this->jsonResponse(['error' => 'Wymagane połączenie HTTPS.'], 403);
+        }
+
+        http_response_code(403);
+        include 'public/views/403.html';
+        exit();
+    }
+
     protected function getBaseUrl(): string
     {
-        $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-            || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
-        $scheme = $isHttps ? 'https' : 'http';
+        $scheme = $this->isHttpsRequest() ? 'https' : 'http';
         return $scheme . '://' . $_SERVER['HTTP_HOST'];
     }
 
@@ -109,6 +154,10 @@ class AppController {
     
     protected function forbidden()
     {
+        if ($this->isJsonRequest()) {
+            $this->jsonResponse(['error' => 'Brak uprawnień.'], 403);
+        }
+
         http_response_code(403);
         include 'public/views/403.html';
         exit();
@@ -116,6 +165,10 @@ class AppController {
     
     protected function badRequest()
     {
+        if ($this->isJsonRequest()) {
+            $this->jsonResponse(['error' => 'Nieprawidłowe żądanie.'], 400);
+        }
+
         http_response_code(400);
         include 'public/views/400.html';
         exit();

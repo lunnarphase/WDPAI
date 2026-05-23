@@ -286,7 +286,9 @@ class AppointmentRepository extends Repository {
             SELECT id, message, is_read, created_at, type, related_id
             FROM notifications
             WHERE id_user = :user_id
-            ORDER BY created_at DESC
+            ORDER BY
+                CASE WHEN type = \'global_ip_attack\' THEN 0 ELSE 1 END,
+                created_at DESC
             LIMIT 50
         ');
         $stmt->bindParam(':user_id', $userId, PDO::PARAM_INT);

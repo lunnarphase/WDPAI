@@ -28,9 +28,11 @@
                 $rememberEmail = isset($_COOKIE['remember_email']) ? $_COOKIE['remember_email'] : ''; 
             ?>
 
-            <?php if(isset($messages)) { ?>
+            <?php if (isset($messages) && is_array($messages) && !empty($messages)) { ?>
                 <div class="<?= isset($is_success) && $is_success ? 'success-messages' : 'error-messages' ?>">
-                        <?php foreach($messages as $message) { echo htmlspecialchars($message); } ?>
+                    <?php foreach ($messages as $message): ?>
+                        <p><?= htmlspecialchars($message) ?></p>
+                    <?php endforeach; ?>
                 </div>
             <?php } ?>
 
