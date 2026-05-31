@@ -61,6 +61,14 @@ class UsersRepository extends Repository {
         $stmt->execute([$userId]);
     }
 
+    public function getEmailById(int $userId): string {
+        $db = $this->database->connect();
+        $stmt = $db->prepare('SELECT email FROM users WHERE id = ? LIMIT 1');
+        $stmt->execute([$userId]);
+        $email = $stmt->fetchColumn();
+        return is_string($email) ? $email : '';
+    }
+
     public function getAdminUserIds(): array {
         $db = $this->database->connect();
         $stmt = $db->prepare("SELECT u.id FROM users u JOIN roles r ON u.id_role = r.id WHERE r.name = 'admin'");

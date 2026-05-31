@@ -374,6 +374,63 @@ class AdminController extends AppController {
         }
     }
 
+    /**
+     * Zwraca szczegoly ataku potrzebne do modalu "Szczegoly ataku" w panelu
+     * Bezpieczenstwa. Dwa warianty wywolania:
+     *   - ?ip=X.X.X.X  -> lista kont, ktore byly atakowane z tego IP
+     *   - ?email=foo@bar -> lista IP, ktore atakowaly to konto
+     */
+    public function apiAdminAttackDetails() {
+        $this->requireAdmin();
+
+        if (!$this->isGet()) {
+            $this->jsonResponse(['error' => 'Niedozwolona metoda.'], 405);
+        }
+
+        $ip    = trim((string)($_GET['ip'] ?? ''));
+        $email = trim((string)($_GET['email'] ?? ''));
+
+        try {
+            if ($ip !== '') {
+                if (!filter_var($ip, FILTER_VALIDATE_IP)) {
+                    $this->jsonResponse(['error' => 'Nieprawidłowy adres IP.'], 400);
+                }
+                $blockInfo = $this->loginAttemptsRepo->getBlockedIpDetails($ip);
+                $targets = $this->loginAttemptsRepo->getRecentFailedTargetsForIp($ip, 15, 20);
+                $this->jsonResponse([
+                    'kind' => 'ip',
+                    'ip_address' => $ip,
+                    'is_blocked' => (bool)($blockInfo['is_blocked'] ?? false),
+                    'blocked_until' => $blockInfo['blocked_until'] ?? null,
+                    'remaining_seconds' => (int)($blockInfo['remaining_seconds'] ?? 0),
+                    'window_minutes' => 15,
+                    'target_accounts' => $targets,
+                ]);
+            }
+
+            if ($email !== '') {
+                if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    $this->jsonResponse(['error' => 'Nieprawidłowy email.'], 400);
+                }
+                $details = $this->loginAttemptsRepo->getAccountAttackDetails($email, 15);
+                $this->jsonResponse([
+                    'kind' => 'account',
+                    'email' => $email,
+                    'total_failures' => $details['total_failures'],
+                    'distinct_ips' => $details['distinct_ips'],
+                    'remaining_seconds' => $details['remaining_seconds'],
+                    'window_minutes' => $details['window_minutes'],
+                    'attacker_ips' => $details['attacker_ips'],
+                ]);
+            }
+
+            $this->jsonResponse(['error' => 'Brak parametru ip lub email.'], 400);
+        } catch (Exception $e) {
+            error_log('apiAdminAttackDetails error: ' . $e->getMessage());
+            $this->jsonResponse(['error' => 'Nie udało się pobrać szczegółów ataku.'], 500);
+        }
+    }
+
     public function adminBlockUser() {
         $this->requireAdmin();
 
@@ -417,9 +474,32 @@ class AdminController extends AppController {
         }
 
         try {
-            $this->userRepo->unblockUser($userId);
+            // KOLEJNOSC JEST KRYTYCZNA:
+            // 1) Najpierw odblokowujemy IP (metoda czyta login_attempts, zeby znalezc IP
+            //    z ktorych szly nieudane proby na to konto).
+            // 2) Potem usuwamy powiadomienia global_ip_attack dla tych IP oraz
+            //    account_global_attack dla tego emaila (zeby alerty nie wisialy w panelu).
+            // 3) Dopiero teraz czyscimy historie login_attempts - jakbysmy zrobili to
+            //    przed punktem 1, to query w unblockIpsForUser nie znalazloby zadnego IP.
+            //    Czyszczenie wyzeruje tez stan isAccountGloballyLocked i is_temporarily_locked.
+            // 4) Na koniec sciagamy flage is_blocked z konta (twarda flaga w users).
+            $unblockedIps = $this->loginAttemptsRepo->unblockIpsForUser($userId);
+
+            $userEmail = $this->userRepo->getEmailById($userId);
+            $clearedIpAlerts = $this->loginAttemptsRepo->deleteGlobalIpAttackNotificationsForIps($unblockedIps);
+            $clearedAccountAlerts = $userEmail !== ''
+                ? $this->loginAttemptsRepo->deleteAccountAttackNotificationsForEmail($userEmail)
+                : 0;
+
             $this->loginAttemptsRepo->clearAttemptsForUserId($userId);
-            $this->jsonResponse(['success' => true]);
+            $this->userRepo->unblockUser($userId);
+
+            $this->jsonResponse([
+                'success' => true,
+                'unblocked_ips' => $unblockedIps,
+                'cleared_ip_alerts' => $clearedIpAlerts,
+                'cleared_account_alerts' => $clearedAccountAlerts,
+            ]);
         } catch (Exception $e) {
             error_log('Admin unblock user error: ' . $e->getMessage());
             $this->jsonResponse(['success' => false, 'error' => 'Nie udało się odblokować konta.'], 500);

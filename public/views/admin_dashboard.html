@@ -25,6 +25,17 @@
         .form-group { margin-bottom: 1rem; text-align: left; }
         .form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: #64748b; margin-bottom: 0.4rem; text-transform: uppercase; }
         .form-group select, .form-group input { width: 100%; padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; font-size: 0.95rem; }
+
+        /* Krytyczny stan dzwonka powiadomien (np. globalny atak na IP) - pulsujaca obwodka */
+        .admin-bell-critical {
+            animation: admin-bell-critical-pulse 1.5s ease-in-out infinite;
+            box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.55);
+        }
+        @keyframes admin-bell-critical-pulse {
+            0%   { box-shadow: 0 0 0 0   rgba(220, 38, 38, 0.55); }
+            70%  { box-shadow: 0 0 0 10px rgba(220, 38, 38, 0);   }
+            100% { box-shadow: 0 0 0 0   rgba(220, 38, 38, 0);   }
+        }
     </style>
 </head>
 <body class="dashboard-body" style="background-color: #f8fafc;">
@@ -321,66 +332,79 @@
                         <?php if (!empty($login_logs)): ?>
                         <?php foreach ($login_logs as $log): ?>
                         <?php
-                            $tempRemaining = isset($log['temporary_lock_remaining_seconds']) ? (int)$log['temporary_lock_remaining_seconds'] : 0;
-                            $ipRemaining = isset($log['ip_block_remaining_seconds']) ? (int)$log['ip_block_remaining_seconds'] : 0;
-
-                            $tempRemainingText = '';
-                            if ($tempRemaining > 0) {
-                                $h = intdiv($tempRemaining, 3600);
-                                $m = intdiv($tempRemaining % 3600, 60);
-                                $s = $tempRemaining % 60;
-                                $tempRemainingText = $h > 0
+                            // Helper do formatowania czasu pozostalego.
+                            $fmt = function (int $seconds): string {
+                                if ($seconds < 0) return 'do odwołania';
+                                if ($seconds === 0) return '';
+                                $h = intdiv($seconds, 3600);
+                                $m = intdiv($seconds % 3600, 60);
+                                $s = $seconds % 60;
+                                return $h > 0
                                     ? sprintf('%dh %02dm %02ds', $h, $m, $s)
                                     : sprintf('%dm %02ds', $m, $s);
-                            }
+                            };
+                            $tempText = $fmt((int)($log['temporary_lock_remaining_seconds'] ?? 0));
+                            $ipText   = $fmt((int)($log['ip_block_remaining_seconds'] ?? 0));
+                            $acctText = $fmt((int)($log['account_global_lock_remaining_seconds'] ?? 0));
 
-                            $ipRemainingText = '';
-                            if ($ipRemaining !== 0) {
-                                if ($ipRemaining < 0) {
-                                    $ipRemainingText = 'do odwołania';
-                                } else {
-                                    $ih = intdiv($ipRemaining, 3600);
-                                    $im = intdiv($ipRemaining % 3600, 60);
-                                    $is = $ipRemaining % 60;
-                                    $ipRemainingText = $ih > 0
-                                        ? sprintf('%dh %02dm %02ds', $ih, $im, $is)
-                                        : sprintf('%dm %02ds', $im, $is);
-                                }
-                            }
+                            // Priorytet wyswietlania statusu - od najgrozniejszego.
+                            // 1) twarda flaga is_blocked (recznie przez admina/system)
+                            // 2) blokada IP (60 min, globalny atak z IP)
+                            // 3) globalny lockout konta (atak rozproszony z >=2 IP)
+                            // 4) soft lock per (IP, konto)
+                            // 5) brak konta / aktywne
+                            $isHardBlocked = !empty($log['is_blocked']);
+                            $isIpBlocked   = !empty($log['is_ip_blocked']);
+                            $isAccountGlobal = !empty($log['is_account_globally_locked']);
+                            $isTempLocked  = !empty($log['is_temporarily_locked']);
+                            $hasUser       = !empty($log['user_id']);
+                            $lastIp        = (string)($log['last_ip'] ?? '');
+                            $logEmail      = (string)($log['email'] ?? '');
                         ?>
-                        <tr class="login-log-row" data-user-id="<?= (int)($log['user_id'] ?? 0) ?>" data-blocked="<?= !empty($log['is_blocked']) ? '1' : '0' ?>">
-                            <td style="padding:0.75rem 1rem; font-size:0.9rem; border-bottom:1px solid #f1f5f9;"><?= htmlspecialchars($log['email'] ?? '') ?></td>
+                        <tr class="login-log-row" data-user-id="<?= (int)($log['user_id'] ?? 0) ?>" data-blocked="<?= $isHardBlocked ? '1' : '0' ?>">
+                            <td style="padding:0.75rem 1rem; font-size:0.9rem; border-bottom:1px solid #f1f5f9;"><?= htmlspecialchars($logEmail) ?></td>
                             <td style="padding:0.75rem 1rem; font-size:0.9rem; border-bottom:1px solid #f1f5f9;"><?= htmlspecialchars($log['username'] ?? '—') ?></td>
                             <td style="padding:0.75rem 1rem; font-size:0.9rem; border-bottom:1px solid #f1f5f9;">
                                 <span style="background:#fef2f2; color:#dc2626; padding:2px 10px; border-radius:999px; font-weight:600;"><?= (int)($log['failure_count'] ?? 0) ?></span>
                             </td>
                             <td style="padding:0.75rem 1rem; font-size:0.9rem; border-bottom:1px solid #f1f5f9; color:#64748b;"><?= htmlspecialchars($log['last_attempt'] ?? '—') ?></td>
-                            <td style="padding:0.75rem 1rem; font-size:0.9rem; border-bottom:1px solid #f1f5f9; color:#64748b; font-family:monospace;"><?= htmlspecialchars($log['last_ip'] ?? '—') ?></td>
+                            <td style="padding:0.75rem 1rem; font-size:0.9rem; border-bottom:1px solid #f1f5f9; color:#64748b; font-family:monospace;"><?= htmlspecialchars($lastIp ?: '—') ?></td>
                             <td style="padding:0.75rem 1rem; font-size:0.9rem; border-bottom:1px solid #f1f5f9;">
-                                <?php if (!empty($log['is_blocked'])): ?>
-                                <span style="background:#fee2e2; color:#b91c1c; padding:2px 10px; border-radius:999px; font-size:0.8rem; font-weight:600;">Zablokowane</span>
-                                <?php if (!empty($ipRemainingText)): ?>
-                                <div style="margin-top:0.3rem; font-size:0.76rem; color:#991b1b;">Pozostało: <?= htmlspecialchars($ipRemainingText) ?></div>
-                                <?php endif; ?>
-                                <?php elseif (!empty($log['is_temporarily_locked'])): ?>
-                                <span style="background:#fef3c7; color:#92400e; padding:2px 10px; border-radius:999px; font-size:0.8rem; font-weight:600;">Tymczasowo zablokowane</span>
-                                <?php if (!empty($tempRemainingText)): ?>
-                                <div style="margin-top:0.3rem; font-size:0.76rem; color:#92400e;">Pozostało: <?= htmlspecialchars($tempRemainingText) ?></div>
-                                <?php endif; ?>
-                                <?php elseif (!empty($log['is_ip_blocked'])): ?>
-                                <span style="background:#fee2e2; color:#b91c1c; padding:2px 10px; border-radius:999px; font-size:0.8rem; font-weight:600;">IP zablokowane</span>
-                                <?php if (!empty($ipRemainingText)): ?>
-                                <div style="margin-top:0.3rem; font-size:0.76rem; color:#991b1b;">Pozostało: <?= htmlspecialchars($ipRemainingText) ?></div>
-                                <?php endif; ?>
-                                <?php elseif (empty($log['user_id'])): ?>
-                                <span style="background:#f1f5f9; color:#64748b; padding:2px 10px; border-radius:999px; font-size:0.8rem;">Brak konta</span>
+                                <?php if ($isHardBlocked): ?>
+                                    <span style="background:#fee2e2; color:#b91c1c; padding:2px 10px; border-radius:999px; font-size:0.8rem; font-weight:600;">Zablokowane</span>
+                                <?php elseif ($isIpBlocked): ?>
+                                    <span style="background:#fee2e2; color:#b91c1c; padding:2px 10px; border-radius:999px; font-size:0.8rem; font-weight:600;">IP zablokowane</span>
+                                    <div style="margin-top:0.25rem; font-size:0.7rem; color:#7f1d1d; font-weight:600;">Globalny alert bezpieczeństwa</div>
+                                    <?php if ($ipText !== ''): ?>
+                                        <div style="margin-top:0.2rem; font-size:0.76rem; color:#991b1b;">Pozostało: <?= htmlspecialchars($ipText) ?></div>
+                                    <?php endif; ?>
+                                    <?php if ($lastIp !== ''): ?>
+                                        <button type="button" onclick="openAttackDetailsModal({kind:'ip', ip:<?= json_encode($lastIp) ?>})" style="margin-top:0.4rem; background:#fff1f2; color:#991b1b; border:1px solid #fecaca; border-radius:6px; padding:3px 10px; font-size:0.75rem; font-weight:600; cursor:pointer;"><i class="fa-solid fa-circle-info"></i> Szczegóły ataku</button>
+                                    <?php endif; ?>
+                                <?php elseif ($isAccountGlobal): ?>
+                                    <span style="background:#fef3c7; color:#92400e; padding:2px 10px; border-radius:999px; font-size:0.8rem; font-weight:600;">Konto zablokowane</span>
+                                    <div style="margin-top:0.25rem; font-size:0.7rem; color:#854d0e; font-weight:600;">Atak rozproszony (<?= (int)($log['attacker_ips_count'] ?? 0) ?>&nbsp;IP)</div>
+                                    <?php if ($acctText !== ''): ?>
+                                        <div style="margin-top:0.2rem; font-size:0.76rem; color:#854d0e;">Pozostało: <?= htmlspecialchars($acctText) ?></div>
+                                    <?php endif; ?>
+                                    <?php if ($logEmail !== ''): ?>
+                                        <button type="button" onclick="openAttackDetailsModal({kind:'account', email:<?= json_encode($logEmail) ?>})" style="margin-top:0.4rem; background:#fffbeb; color:#854d0e; border:1px solid #fde68a; border-radius:6px; padding:3px 10px; font-size:0.75rem; font-weight:600; cursor:pointer;"><i class="fa-solid fa-circle-info"></i> Szczegóły ataku</button>
+                                    <?php endif; ?>
+                                <?php elseif ($isTempLocked): ?>
+                                    <span style="background:#fef3c7; color:#92400e; padding:2px 10px; border-radius:999px; font-size:0.8rem; font-weight:600;">Tymczasowo zablokowane</span>
+                                    <div style="margin-top:0.25rem; font-size:0.7rem; color:#854d0e;">Tylko z IP <?= htmlspecialchars($lastIp ?: '—') ?></div>
+                                    <?php if ($tempText !== ''): ?>
+                                        <div style="margin-top:0.2rem; font-size:0.76rem; color:#92400e;">Pozostało: <?= htmlspecialchars($tempText) ?></div>
+                                    <?php endif; ?>
+                                <?php elseif (!$hasUser): ?>
+                                    <span style="background:#f1f5f9; color:#64748b; padding:2px 10px; border-radius:999px; font-size:0.8rem;">Brak konta</span>
                                 <?php else: ?>
-                                <span style="background:#dcfce7; color:#16a34a; padding:2px 10px; border-radius:999px; font-size:0.8rem; font-weight:600;">Aktywne</span>
+                                    <span style="background:#dcfce7; color:#16a34a; padding:2px 10px; border-radius:999px; font-size:0.8rem; font-weight:600;">Aktywne</span>
                                 <?php endif; ?>
                             </td>
                             <td style="padding:0.75rem 1rem; font-size:0.9rem; border-bottom:1px solid #f1f5f9;">
-                                <?php if (!empty($log['user_id'])): ?>
-                                    <?php if (!empty($log['is_blocked']) || !empty($log['is_temporarily_locked']) || !empty($log['is_ip_blocked'])): ?>
+                                <?php if ($hasUser): ?>
+                                    <?php if ($isHardBlocked || $isIpBlocked || $isAccountGlobal || $isTempLocked): ?>
                                     <button onclick="toggleUserBlock(<?= (int)$log['user_id'] ?>, false, this)" style="padding:4px 12px; background:#16a34a; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem;">Odblokuj</button>
                                     <?php else: ?>
                                     <button onclick="toggleUserBlock(<?= (int)$log['user_id'] ?>, true, this)" style="padding:4px 12px; background:#dc2626; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem;">Zablokuj</button>
@@ -628,6 +652,19 @@
         </div>
     </div>
 
+    <!-- Modal "Szczegoly ataku" - pokazywany z listy w zakladce Bezpieczenstwo -->
+    <div id="attackDetailsModal" class="admin-modal-overlay" style="z-index:3500;">
+        <div class="admin-modal-content" style="max-width:600px; max-height:85vh; display:flex; flex-direction:column;">
+            <div style="padding:1.25rem 1.5rem; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
+                <h3 id="attackDetailsTitle" style="margin:0; font-size:1.15rem; color:#0f172a;">Szczegóły ataku</h3>
+                <button onclick="closeAttackDetailsModal()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#64748b;">&times;</button>
+            </div>
+            <div id="attackDetailsBody" style="overflow-y:auto; flex:1; padding:1.25rem 1.5rem; font-size:0.9rem; color:#334155;">
+                <div style="text-align:center; padding:2rem; color:#64748b;"><i class="fa-solid fa-circle-notch fa-spin"></i> Wczytywanie…</div>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal Powiadomień Admin -->
     <div id="adminNotifModal" class="admin-modal-overlay" style="z-index:3000;">
         <div class="admin-modal-content" style="max-width:520px; max-height:85vh; display:flex; flex-direction:column;">
@@ -837,20 +874,27 @@
             }
         }
 
-        function updateAdminNotifBadge(count) {
+        function updateAdminNotifBadge(count, criticalCount = 0) {
             adminNotifBadgeCount = Math.max(0, Number(count) || 0);
+            const criticals = Math.max(0, Number(criticalCount) || 0);
 
             const bellBtn = document.getElementById('notifBellBtn');
             const bellContainer = bellBtn ? bellBtn.parentElement : null;
             let badge = document.getElementById('admin-notif-badge');
+            let criticalRing = document.getElementById('admin-notif-critical-ring');
 
             if (adminNotifBadgeCount <= 0) {
                 if (badge) {
                     badge.style.display = 'none';
                 }
+                if (criticalRing) {
+                    criticalRing.remove();
+                }
                 if (bellBtn) {
                     bellBtn.style.color = '#64748b';
                     bellBtn.style.borderColor = '#e2e8f0';
+                    bellBtn.innerHTML = '<i class="fa-regular fa-bell"></i>';
+                    bellBtn.classList.remove('admin-bell-critical');
                 }
                 return;
             }
@@ -868,16 +912,39 @@
             }
 
             if (bellBtn) {
-                bellBtn.style.color = '#dc2626';
-                bellBtn.style.borderColor = '#fecaca';
+                if (criticals > 0) {
+                    // Krytyczne powiadomienie (np. globalny atak na IP) — radykalnie inny look:
+                    // ikona tarczy z wirusem, pulsujaca obwodka, mocniejsze kolory.
+                    bellBtn.innerHTML = '<i class="fa-solid fa-shield-virus"></i>';
+                    bellBtn.style.color = '#ffffff';
+                    bellBtn.style.background = '#dc2626';
+                    bellBtn.style.borderColor = '#dc2626';
+                    bellBtn.classList.add('admin-bell-critical');
+                    bellBtn.setAttribute('title', `Krytyczny alert bezpieczenstwa (${criticals})`);
+                } else {
+                    bellBtn.innerHTML = '<i class="fa-regular fa-bell"></i>';
+                    bellBtn.style.color = '#dc2626';
+                    bellBtn.style.background = 'none';
+                    bellBtn.style.borderColor = '#fecaca';
+                    bellBtn.classList.remove('admin-bell-critical');
+                    bellBtn.setAttribute('title', 'Powiadomienia');
+                }
             }
+        }
+
+        function countCriticalUnread() {
+            if (!Array.isArray(allAdminNotifications)) return 0;
+            return allAdminNotifications.reduce((sum, n) => {
+                if (!isUnreadNotification(n)) return sum;
+                return sum + (n && n.type === 'global_ip_attack' ? 1 : 0);
+            }, 0);
         }
 
         function recalculateAdminNotifBadge() {
             const unread = Array.isArray(allAdminNotifications)
                 ? allAdminNotifications.reduce((sum, notification) => sum + (isUnreadNotification(notification) ? 1 : 0), 0)
                 : 0;
-            updateAdminNotifBadge(unread);
+            updateAdminNotifBadge(unread, countCriticalUnread());
         }
 
         function removeReviewNotifications(reviewId) {
@@ -1436,15 +1503,28 @@
                 const msg = String(notification.message || '');
                 const msgLines = msg.split('\n');
                 const firstLine = escHtml(msgLines[0] || 'Powiadomienie');
-                const restLines = msgLines.slice(1).map(line => {
-                    const colonIdx = line.indexOf(':');
-                    if (colonIdx !== -1 && line.trimStart().startsWith('Powód')) {
-                        const label = escHtml(line.substring(0, colonIdx + 1));
-                        const value = escHtml(line.substring(colonIdx + 2).trim());
-                        return `<span style="display:block; font-size:0.85rem; color:#475569; margin-top:0.25rem;">${label} <em>&ldquo;${value}&rdquo;</em></span>`;
-                    }
-                    return `<span style="display:block; font-size:0.85rem; color:#475569; margin-top:0.25rem;">${escHtml(line)}</span>`;
-                }).join('');
+                // Dla global_ip_attack pomijamy linie, ktore i tak renderujemy na samym dole
+                // z dedykowanych pol (Cele ataku / Blokada do / Pozostaly czas blokady IP) - inaczej
+                // ta sama informacja pojawialaby sie dwukrotnie.
+                const duplicatedPrefixes = isGlobalAttack
+                    ? ['Cele ataku:', 'Blokada aktywna do:', 'Pozostaly czas blokady IP:', 'Pozostały czas blokady IP:']
+                    : [];
+                const restLines = msgLines.slice(1)
+                    .filter(line => !duplicatedPrefixes.some(prefix => line.trimStart().startsWith(prefix)))
+                    .map(line => {
+                        const colonIdx = line.indexOf(':');
+                        if (colonIdx !== -1 && line.trimStart().startsWith('Powód')) {
+                            const label = escHtml(line.substring(0, colonIdx + 1));
+                            const value = escHtml(line.substring(colonIdx + 2).trim());
+                            return `<span style="display:block; font-size:0.85rem; color:#475569; margin-top:0.25rem;">${label} <em>&ldquo;${value}&rdquo;</em></span>`;
+                        }
+                        // Pogrubienie kluczowej informacji o automatycznej blokadzie IP.
+                        const trimmed = line.trimStart();
+                        if (isGlobalAttack && (trimmed.startsWith('Adres IP zostal') || trimmed.startsWith('Adres IP został'))) {
+                            return `<span style="display:block; font-size:0.88rem; color:#991b1b; margin-top:0.35rem; font-weight:700;">${escHtml(line)}</span>`;
+                        }
+                        return `<span style="display:block; font-size:0.85rem; color:#475569; margin-top:0.25rem;">${escHtml(line)}</span>`;
+                    }).join('');
 
                 const targetAccounts = Array.isArray(notification.target_accounts) ? notification.target_accounts : [];
                 const targetsHtml = isGlobalAttack && targetAccounts.length > 0
@@ -1457,7 +1537,7 @@
 
                 const remainingTime = formatRemainingSeconds(notification.ip_block_remaining_seconds);
                 const remainingHtml = isGlobalAttack && remainingTime
-                    ? `<span style="display:block; font-size:0.83rem; color:#991b1b; margin-top:0.25rem;"><strong>Pozostalo:</strong> ${escHtml(remainingTime)}</span>`
+                    ? `<span style="display:block; font-size:0.83rem; color:#991b1b; margin-top:0.25rem;"><strong>Pozostały czas blokady IP:</strong> ${escHtml(remainingTime)}</span>`
                     : '';
 
                 const iconHtml = isGlobalAttack
@@ -1678,26 +1758,45 @@
                 }
 
                 const uid = Number(log.user_id) || 0;
-                const isBlocked = toBool(log.is_blocked);
-                const isTempLocked = toBool(log.is_temporarily_locked);
+                const isHardBlocked = toBool(log.is_blocked);
                 const isIpBlocked = toBool(log.is_ip_blocked);
+                const isAccountGlobal = toBool(log.is_account_globally_locked);
+                const isTempLocked = toBool(log.is_temporarily_locked);
+                const attackerIpsCount = Number(log.attacker_ips_count) || 0;
+                const lastIp = String(log.last_ip || '');
+                const logEmail = String(log.email || '');
                 const tempRemainingText = formatRemainingSeconds(log.temporary_lock_remaining_seconds);
                 const ipRemainingText = formatRemainingSeconds(log.ip_block_remaining_seconds);
+                const acctRemainingText = formatRemainingSeconds(log.account_global_lock_remaining_seconds);
 
-                let statusHtml = '<span style="background:#f1f5f9; color:#64748b; padding:2px 10px; border-radius:999px; font-size:0.8rem;">Brak konta</span>';
-                if (uid > 0 && isBlocked) {
-                    statusHtml = `<span style="background:#fee2e2; color:#b91c1c; padding:2px 10px; border-radius:999px; font-size:0.8rem; font-weight:600;">Zablokowane</span>${ipRemainingText ? `<div style="margin-top:0.3rem; font-size:0.76rem; color:#991b1b;">Pozostalo: ${escapeHtml(ipRemainingText)}</div>` : ''}`;
-                } else if (uid > 0 && isTempLocked) {
-                    statusHtml = `<span style="background:#fef3c7; color:#92400e; padding:2px 10px; border-radius:999px; font-size:0.8rem; font-weight:600;">Tymczasowo zablokowane</span>${tempRemainingText ? `<div style="margin-top:0.3rem; font-size:0.76rem; color:#92400e;">Pozostalo: ${escapeHtml(tempRemainingText)}</div>` : ''}`;
+                let statusHtml;
+                if (uid > 0 && isHardBlocked) {
+                    statusHtml = `<span style="background:#fee2e2; color:#b91c1c; padding:2px 10px; border-radius:999px; font-size:0.8rem; font-weight:600;">Zablokowane</span>`;
                 } else if (uid > 0 && isIpBlocked) {
-                    statusHtml = `<span style="background:#fee2e2; color:#b91c1c; padding:2px 10px; border-radius:999px; font-size:0.8rem; font-weight:600;">IP zablokowane</span>${ipRemainingText ? `<div style="margin-top:0.3rem; font-size:0.76rem; color:#991b1b;">Pozostalo: ${escapeHtml(ipRemainingText)}</div>` : ''}`;
+                    const safeIp = JSON.stringify(lastIp);
+                    statusHtml = `<span style="background:#fee2e2; color:#b91c1c; padding:2px 10px; border-radius:999px; font-size:0.8rem; font-weight:600;">IP zablokowane</span>
+                        <div style="margin-top:0.25rem; font-size:0.7rem; color:#7f1d1d; font-weight:600;">Globalny alert bezpieczeństwa</div>
+                        ${ipRemainingText ? `<div style="margin-top:0.2rem; font-size:0.76rem; color:#991b1b;">Pozostało: ${escapeHtml(ipRemainingText)}</div>` : ''}
+                        ${lastIp ? `<button type="button" onclick='openAttackDetailsModal({kind:"ip", ip:${safeIp}})' style="margin-top:0.4rem; background:#fff1f2; color:#991b1b; border:1px solid #fecaca; border-radius:6px; padding:3px 10px; font-size:0.75rem; font-weight:600; cursor:pointer;"><i class="fa-solid fa-circle-info"></i> Szczegóły ataku</button>` : ''}`;
+                } else if (uid > 0 && isAccountGlobal) {
+                    const safeEmail = JSON.stringify(logEmail);
+                    statusHtml = `<span style="background:#fef3c7; color:#92400e; padding:2px 10px; border-radius:999px; font-size:0.8rem; font-weight:600;">Konto zablokowane</span>
+                        <div style="margin-top:0.25rem; font-size:0.7rem; color:#854d0e; font-weight:600;">Atak rozproszony (${attackerIpsCount}&nbsp;IP)</div>
+                        ${acctRemainingText ? `<div style="margin-top:0.2rem; font-size:0.76rem; color:#854d0e;">Pozostało: ${escapeHtml(acctRemainingText)}</div>` : ''}
+                        ${logEmail ? `<button type="button" onclick='openAttackDetailsModal({kind:"account", email:${safeEmail}})' style="margin-top:0.4rem; background:#fffbeb; color:#854d0e; border:1px solid #fde68a; border-radius:6px; padding:3px 10px; font-size:0.75rem; font-weight:600; cursor:pointer;"><i class="fa-solid fa-circle-info"></i> Szczegóły ataku</button>` : ''}`;
+                } else if (uid > 0 && isTempLocked) {
+                    statusHtml = `<span style="background:#fef3c7; color:#92400e; padding:2px 10px; border-radius:999px; font-size:0.8rem; font-weight:600;">Tymczasowo zablokowane</span>
+                        <div style="margin-top:0.25rem; font-size:0.7rem; color:#854d0e;">Tylko z IP ${escapeHtml(lastIp || '—')}</div>
+                        ${tempRemainingText ? `<div style="margin-top:0.2rem; font-size:0.76rem; color:#92400e;">Pozostało: ${escapeHtml(tempRemainingText)}</div>` : ''}`;
                 } else if (uid > 0) {
                     statusHtml = '<span style="background:#dcfce7; color:#16a34a; padding:2px 10px; border-radius:999px; font-size:0.8rem; font-weight:600;">Aktywne</span>';
+                } else {
+                    statusHtml = '<span style="background:#f1f5f9; color:#64748b; padding:2px 10px; border-radius:999px; font-size:0.8rem;">Brak konta</span>';
                 }
 
                 let actionHtml = '<span style="color:#94a3b8; font-size:0.8rem;">—</span>';
                 if (uid > 0) {
-                    if (isBlocked || isTempLocked || isIpBlocked) {
+                    if (isHardBlocked || isIpBlocked || isAccountGlobal || isTempLocked) {
                         actionHtml = `<button onclick="toggleUserBlock(${uid}, false, this)" style="padding:4px 12px; background:#16a34a; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem;">Odblokuj</button>`;
                     } else {
                         actionHtml = `<button onclick="toggleUserBlock(${uid}, true, this)" style="padding:4px 12px; background:#dc2626; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem;">Zablokuj</button>`;
@@ -1718,6 +1817,116 @@
             });
 
             tbody.innerHTML = html;
+        }
+
+        // --- MODAL "Szczegoly ataku" ---
+        function closeAttackDetailsModal() {
+            const m = document.getElementById('attackDetailsModal');
+            if (m) m.classList.remove('active');
+        }
+
+        function openAttackDetailsModal(opts) {
+            const modal = document.getElementById('attackDetailsModal');
+            const title = document.getElementById('attackDetailsTitle');
+            const body = document.getElementById('attackDetailsBody');
+            if (!modal || !title || !body) return;
+
+            body.innerHTML = '<div style="text-align:center; padding:2rem; color:#64748b;"><i class="fa-solid fa-circle-notch fa-spin"></i> Wczytywanie…</div>';
+            modal.classList.add('active');
+
+            const params = new URLSearchParams();
+            if (opts.kind === 'ip' && opts.ip) {
+                params.set('ip', opts.ip);
+                title.textContent = `Szczegóły ataku z IP ${opts.ip}`;
+            } else if (opts.kind === 'account' && opts.email) {
+                params.set('email', opts.email);
+                title.textContent = `Szczegóły ataku na konto ${opts.email}`;
+            } else {
+                body.innerHTML = '<p style="color:#dc2626;">Brak parametrów.</p>';
+                return;
+            }
+
+            fetch(`/api-admin-attack-details?${params.toString()}`, {headers: {'Accept': 'application/json'}})
+                .then(r => r.ok ? r.json() : Promise.reject(`HTTP ${r.status}`))
+                .then(data => renderAttackDetails(data))
+                .catch(err => {
+                    console.error('attack details fetch failed', err);
+                    body.innerHTML = '<p style="color:#dc2626;">Nie udało się pobrać szczegółów ataku.</p>';
+                });
+        }
+
+        function renderAttackDetails(data) {
+            const body = document.getElementById('attackDetailsBody');
+            if (!body) return;
+            if (!data || data.error) {
+                body.innerHTML = `<p style="color:#dc2626;">${escapeHtml(data && data.error || 'Błąd.')}</p>`;
+                return;
+            }
+            const window = Number(data.window_minutes) || 15;
+            const remaining = Number(data.remaining_seconds) || 0;
+            const remainingText = formatRemainingSeconds(remaining);
+
+            if (data.kind === 'ip') {
+                const targets = Array.isArray(data.target_accounts) ? data.target_accounts : [];
+                const targetsList = targets.length === 0
+                    ? '<p style="color:#94a3b8; margin:0.5rem 0;">Brak danych o atakowanych kontach w oknie czasowym.</p>'
+                    : `<table style="width:100%; border-collapse:collapse; margin-top:0.5rem;">
+                        <thead><tr style="background:#fef2f2;">
+                            <th style="text-align:left; padding:0.5rem; font-size:0.78rem; color:#991b1b; border-bottom:1px solid #fecaca;">Email celu</th>
+                            <th style="text-align:right; padding:0.5rem; font-size:0.78rem; color:#991b1b; border-bottom:1px solid #fecaca;">Liczba prób</th>
+                            <th style="text-align:left; padding:0.5rem; font-size:0.78rem; color:#991b1b; border-bottom:1px solid #fecaca;">Ostatnia próba</th>
+                        </tr></thead>
+                        <tbody>
+                            ${targets.map(t => `<tr>
+                                <td style="padding:0.45rem 0.5rem; border-bottom:1px solid #f1f5f9;">${escapeHtml(t.email || '—')}</td>
+                                <td style="padding:0.45rem 0.5rem; border-bottom:1px solid #f1f5f9; text-align:right; font-weight:600; color:#dc2626;">${Number(t.failure_count) || 0}</td>
+                                <td style="padding:0.45rem 0.5rem; border-bottom:1px solid #f1f5f9; color:#64748b; font-size:0.82rem;">${escapeHtml(t.last_attempt || '—')}</td>
+                            </tr>`).join('')}
+                        </tbody></table>`;
+
+                body.innerHTML = `
+                    <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:0.9rem 1rem; margin-bottom:1rem;">
+                        <div style="font-weight:700; color:#991b1b;"><i class="fa-solid fa-shield-virus"></i> Globalny alert bezpieczeństwa</div>
+                        <div style="margin-top:0.35rem; font-size:0.85rem; color:#7f1d1d;">
+                            Adres <strong>${escapeHtml(data.ip_address || '')}</strong> w ostatnich ${window} min próbował atakować <strong>${targets.length}</strong> kont.
+                        </div>
+                        ${data.is_blocked ? `<div style="margin-top:0.35rem; font-size:0.85rem; color:#7f1d1d;">Blokada aktywna do: <strong>${escapeHtml(data.blocked_until || '—')}</strong>${remainingText ? ` (pozostało ${escapeHtml(remainingText)})` : ''}.</div>` : `<div style="margin-top:0.35rem; font-size:0.85rem; color:#64748b;">Blokada IP nie jest aktualnie aktywna.</div>`}
+                    </div>
+                    <h4 style="margin:0 0 0.35rem; font-size:0.92rem; color:#0f172a;">Cele ataku (okno ${window} min)</h4>
+                    ${targetsList}
+                `;
+            } else if (data.kind === 'account') {
+                const ips = Array.isArray(data.attacker_ips) ? data.attacker_ips : [];
+                const ipsList = ips.length === 0
+                    ? '<p style="color:#94a3b8; margin:0.5rem 0;">Brak danych w oknie czasowym.</p>'
+                    : `<table style="width:100%; border-collapse:collapse; margin-top:0.5rem;">
+                        <thead><tr style="background:#fffbeb;">
+                            <th style="text-align:left; padding:0.5rem; font-size:0.78rem; color:#854d0e; border-bottom:1px solid #fde68a;">Adres IP</th>
+                            <th style="text-align:right; padding:0.5rem; font-size:0.78rem; color:#854d0e; border-bottom:1px solid #fde68a;">Liczba prób</th>
+                            <th style="text-align:left; padding:0.5rem; font-size:0.78rem; color:#854d0e; border-bottom:1px solid #fde68a;">Ostatnia próba</th>
+                        </tr></thead>
+                        <tbody>
+                            ${ips.map(row => `<tr>
+                                <td style="padding:0.45rem 0.5rem; border-bottom:1px solid #f1f5f9; font-family:monospace;">${escapeHtml(row.ip_address || '—')}</td>
+                                <td style="padding:0.45rem 0.5rem; border-bottom:1px solid #f1f5f9; text-align:right; font-weight:600; color:#dc2626;">${Number(row.failure_count) || 0}</td>
+                                <td style="padding:0.45rem 0.5rem; border-bottom:1px solid #f1f5f9; color:#64748b; font-size:0.82rem;">${escapeHtml(row.last_attempt || '—')}</td>
+                            </tr>`).join('')}
+                        </tbody></table>`;
+
+                body.innerHTML = `
+                    <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:0.9rem 1rem; margin-bottom:1rem;">
+                        <div style="font-weight:700; color:#854d0e;"><i class="fa-solid fa-triangle-exclamation"></i> Atak rozproszony na konto</div>
+                        <div style="margin-top:0.35rem; font-size:0.85rem; color:#7c2d12;">
+                            Konto <strong>${escapeHtml(data.email || '')}</strong> dostało <strong>${Number(data.total_failures) || 0}</strong> nieudanych prób z <strong>${Number(data.distinct_ips) || 0}</strong> różnych adresów IP w ostatnich ${window} min.
+                        </div>
+                        ${remainingText ? `<div style="margin-top:0.35rem; font-size:0.85rem; color:#7c2d12;">Lockout konta pozostało: <strong>${escapeHtml(remainingText)}</strong>.</div>` : `<div style="margin-top:0.35rem; font-size:0.85rem; color:#64748b;">Lockout konta już wygasł (admin może go ostatecznie zdjąć przyciskiem Odblokuj).</div>`}
+                    </div>
+                    <h4 style="margin:0 0 0.35rem; font-size:0.92rem; color:#0f172a;">Źródłowe adresy IP (okno ${window} min)</h4>
+                    ${ipsList}
+                `;
+            } else {
+                body.innerHTML = '<p style="color:#dc2626;">Nieznany typ ataku.</p>';
+            }
         }
 
         async function refreshAppointments(silent = true) {
@@ -1781,16 +1990,11 @@
 
                 if (Array.isArray(payload)) {
                     allAdminNotifications = payload;
-                    recalculateAdminNotifBadge();
                 } else {
                     allAdminNotifications = Array.isArray(payload.notifications) ? payload.notifications : [];
-                    const unread = Number(payload.unread_count);
-                    if (Number.isFinite(unread)) {
-                        updateAdminNotifBadge(unread);
-                    } else {
-                        recalculateAdminNotifBadge();
-                    }
                 }
+                // recalculate sam wyliczy oba: zwykly unread i criticalCount na podstawie typow w notifications
+                recalculateAdminNotifBadge();
 
                 if (isNotificationsModalOpen) {
                     renderAdminNotificationsList();
@@ -1860,12 +2064,23 @@
                 });
             }
 
+            const attackModal = document.getElementById('attackDetailsModal');
+            if (attackModal) {
+                attackModal.addEventListener('click', event => {
+                    if (event.target === attackModal) {
+                        closeAttackDetailsModal();
+                    }
+                });
+            }
+
             const bellBtn = document.getElementById('notifBellBtn');
             if (bellBtn) {
                 bellBtn.addEventListener('mouseenter', () => {
+                    if (bellBtn.classList.contains('admin-bell-critical')) return; // krytyczny ma swoj styl
                     bellBtn.style.color = adminNotifBadgeCount > 0 ? '#b91c1c' : '#0f172a';
                 });
                 bellBtn.addEventListener('mouseleave', () => {
+                    if (bellBtn.classList.contains('admin-bell-critical')) return;
                     bellBtn.style.color = adminNotifBadgeCount > 0 ? '#dc2626' : '#64748b';
                 });
             }

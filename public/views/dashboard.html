@@ -514,7 +514,7 @@
                     ${icon}
                     <div style="flex:1; min-width:0;">
                         <p style="margin: 0; color: #111827; font-size: 0.95rem;">${escHtml(mainMessage || rawMessage)}</p>
-                        ${adminResponse ? `<div style="margin-top:0.55rem; background:#fef2f2; border:1px solid #fecaca; border-left:4px solid #dc2626; border-radius:8px; padding:0.6rem 0.7rem;"><p style="margin:0; font-size:0.84rem; color:#991b1b;"><strong>Odpowiedź administratora:</strong> ${escHtml(adminResponse)}</p></div>` : ''}
+                        ${adminResponse ? `<div style="margin-top:0.55rem; background:#fef2f2; border:1px solid #fecaca; border-left:4px solid #dc2626; border-radius:8px; padding:0.6rem 0.7rem;"><p style="margin:0; font-size:0.84rem; color:#991b1b;"><strong>Odpowiedź administratora:</strong> <em>&bdquo;${escHtml(adminResponse)}&rdquo;</em></p></div>` : ''}
                         <p style="margin: 0.5rem 0 0 0; color: #9ca3af; font-size: 0.8rem;">${new Date(notification.created_at).toLocaleString('pl-PL')}</p>
                         ${isReviewReq ? '<p style="margin:0.3rem 0 0;font-size:0.8rem;color:#125B46;font-weight:600;">Kliknij, aby wystawić opinię →</p>' : ''}
                     </div>
@@ -753,6 +753,33 @@
                 .catch(() => {});
         }
         setInterval(refreshAppointments, 5000);
+
+        // --- AUTO-REFRESH POWIADOMIEN ---
+        // Trzymamy referencje do tablicy globalnej (const), wiec mutujemy ja zamiast podmieniac.
+        function refreshUserNotifications() {
+            fetch('/api-get-notifications', {headers: {'Accept': 'application/json'}})
+                .then(r => r.ok ? r.json() : null)
+                .then(data => {
+                    if (!data) return;
+                    const incoming = Array.isArray(data.notifications) ? data.notifications : [];
+                    const unread = Number(data.unread_count) || 0;
+
+                    allNotifications.length = 0;
+                    incoming.forEach(n => allNotifications.push(n));
+
+                    const dot = document.getElementById('notif-dot');
+                    if (dot) {
+                        dot.style.display = unread > 0 ? 'block' : 'none';
+                    }
+
+                    const modal = document.getElementById('notificationsModal');
+                    if (modal && modal.classList.contains('active')) {
+                        renderNotificationsModal();
+                    }
+                })
+                .catch(() => {});
+        }
+        setInterval(refreshUserNotifications, 5000);
 
         document.querySelectorAll('.mobile-menu a').forEach(link => {
             link.addEventListener('click', () => {

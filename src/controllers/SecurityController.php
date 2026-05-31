@@ -97,23 +97,38 @@ class SecurityController extends AppController {
         if ($ip !== 'unknown' && $this->loginAttemptsRepository->isIpBlocked($ip)) {
             error_log("Blocked IP login attempt: {$ip} for email: {$email}");
 
-            $ipBlockInfo = $this->loginAttemptsRepository->getBlockedIpDetails($ip);
-            $remainingSeconds = (int)($ipBlockInfo['remaining_seconds'] ?? 0);
-            $remainingText = $remainingSeconds !== 0
-                ? ' Pozostaly czas blokady: ' . $this->formatRemainingLockTime($remainingSeconds) . '.'
-                : '';
-
+            // Celowo nie ujawniamy pozostalego czasu blokady - to pozwoliloby zautomatyzowac
+            // atak w rownych interwalach. Informacja o czasie jest dostepna wylacznie dla admina.
             return $this->render('login', [
                 'messages'   => [
-                    'Logowanie z tego adresu IP jest tymczasowo zablokowane.' . $remainingText,
+                    'Logowanie z tego adresu IP jest tymczasowo zablokowane.',
                     'Jesli to pomylka, skontaktuj sie z administratorem.'
                 ],
                 'csrf_token' => $this->generateCsrfToken(),
             ]);
         }
 
-        if ($this->loginAttemptsRepository->isTemporarilyLocked($email, 5, 15)) {
-            error_log("Temporary lockout for email: {$email} from IP: {$ip}");
+        // Globalny lockout konta - atak rozproszony (>=2 IP, lacznie >=4 nieudanych).
+        // Tu blokujemy KAZDEMU dostep do konta, bo widac, ze sprawa nie ogranicza
+        // sie do jednego napastnika. Sprawdzamy PRZED soft lockoutem per IP-konto,
+        // bo jest ostrzejszy.
+        if ($this->loginAttemptsRepository->isAccountGloballyLocked($email, 4, 2, 15)) {
+            error_log("Account-wide lockout (distributed attack) for email: {$email} from IP: {$ip}");
+            return $this->render('login', [
+                'messages'   => [
+                    'To konto zostalo tymczasowo zablokowane ze wzgledow bezpieczenstwa.',
+                    'Jesli to Twoje konto, sprobuj ponownie za 15 minut lub skontaktuj sie z administratorem.',
+                ],
+                'csrf_token' => $this->generateCsrfToken(),
+            ]);
+        }
+
+        // Soft lockout per (IP, konto) - 3 nieudane proby z tego IP na to konto.
+        // Prawowity wlasciciel z innego IP nadal moze sie logowac. Zapobiega
+        // klasycznemu account-lockout DoS, ktory atakujacy z jednego IP moglby
+        // zrobic dowolnemu uzytkownikowi.
+        if ($ip !== 'unknown' && $this->loginAttemptsRepository->isTemporarilyLockedForIpAccount($email, $ip, 3, 15)) {
+            error_log("Per-IP soft lockout for email: {$email} from IP: {$ip}");
             return $this->render('login', [
                 'messages'   => ['Zbyt wiele nieudanych prób logowania. Spróbuj ponownie za 15 minut lub skontaktuj się z administratorem.'],
                 'csrf_token' => $this->generateCsrfToken(),
@@ -138,9 +153,30 @@ class SecurityController extends AppController {
             if ($failures >= 2) {
                 $messages[] = 'Uwaga: Wykryto wiele nieudanych prób logowania. Po przekroczeniu limitu konto może zostać zablokowane przez administratora.';
 
-                // Powiadamiaj adminów po przekroczeniu 3 prób (4, 6, 9, ...).
-                if ($user && $failures > 3 && ($failures === 4 || $failures % 3 === 0)) {
+                // Powiadamiaj adminów dokladnie raz - przy pierwszej probie, ktora wpada
+                // w lockout (3), oraz potem co kazde kolejne 3 nieudane proby (6, 9, 12, ...).
+                if ($user && $failures >= 3 && $failures % 3 === 0) {
                     $this->loginAttemptsRepository->notifyAdmins($email, $failures);
+                }
+            }
+
+            // Wykrywanie ataku rozproszonego NA KONTO (>=2 IP, lacznie >=4 nieudanych)
+            // - to jest moment, w ktorym blokada konta wlasnie wchodzi w zycie. Wysylamy
+            // pojedyncze powiadomienie krytyczne dla adminow (kazda kolejna proba juz
+            // ich nie spamuje, bo isAccountGloballyLocked odetnie reqest wczesniej).
+            if ($user) {
+                $accountAttack = $this->loginAttemptsRepository->getAccountAttackDetails($email, 15);
+                $crossedThreshold = $accountAttack['total_failures'] === 4
+                    && $accountAttack['distinct_ips'] >= 2;
+                if ($crossedThreshold) {
+                    $this->loginAttemptsRepository->notifyAdminsAboutAccountAttack(
+                        $email,
+                        $accountAttack['total_failures'],
+                        $accountAttack['distinct_ips'],
+                        $accountAttack['window_minutes'],
+                        $accountAttack['attacker_ips']
+                    );
+                    error_log("Distributed account attack on {$email}: {$accountAttack['total_failures']} fails from {$accountAttack['distinct_ips']} IPs");
                 }
             }
 
@@ -163,14 +199,8 @@ class SecurityController extends AppController {
                             isset($ipBlockInfo['remaining_seconds']) ? (int)$ipBlockInfo['remaining_seconds'] : null
                         );
 
-                        $remainingSeconds = isset($ipBlockInfo['remaining_seconds'])
-                            ? (int)$ipBlockInfo['remaining_seconds']
-                            : 0;
-                        if ($remainingSeconds !== 0) {
-                            $messages[] = 'Ze wzgledow bezpieczenstwa logowanie z Twojego adresu IP zostalo zablokowane. Pozostaly czas: ' . $this->formatRemainingLockTime($remainingSeconds) . '.';
-                        } else {
-                            $messages[] = 'Ze wzgledow bezpieczenstwa logowanie z Twojego adresu IP zostalo zablokowane.';
-                        }
+                        // Bez ujawniania pozostalego czasu (ochrona przed automatyzacja ataku).
+                        $messages[] = 'Ze wzgledow bezpieczenstwa logowanie z Twojego adresu IP zostalo zablokowane.';
                         error_log("Global attack detected and blocked for IP: {$ip}");
                     }
                 }

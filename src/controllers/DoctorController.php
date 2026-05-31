@@ -154,19 +154,43 @@ class DoctorController extends AppController {
             $this->jsonResponse(['success' => false, 'error' => 'Brakujące dane.'], 400);
         }
         $ranges = $body['ranges'] ?? [];
+        $today = date('Y-m-d');
+        $skippedPastDays = 0;
         // Sanitise input
         $clean = [];
         foreach ($ranges as $r) {
             $date  = preg_replace('/[^0-9\-]/', '', $r['date'] ?? '');
             $start = preg_replace('/[^0-9:]/', '', $r['start_time'] ?? '');
             $end   = preg_replace('/[^0-9:]/', '', $r['end_time']   ?? '');
-            if ($date && $start && $end && $start < $end) {
-                $clean[] = ['date' => $date, 'start_time' => $start, 'end_time' => $end];
+            if (!$date || !$start || !$end || $start >= $end) {
+                continue;
             }
+            // Nie pozwalamy zapisywać dostępności na daty z przeszłości - pacjent i tak ich
+            // nie zobaczy, a śmieci w bazie tylko mylą lekarza i utrudniają debug.
+            if ($date < $today) {
+                $skippedPastDays++;
+                continue;
+            }
+            $clean[] = ['date' => $date, 'start_time' => $start, 'end_time' => $end];
+        }
+        // Ogranicz operację DELETE w zapisie do zakresu od dziś, żeby przeszłe wpisy (jeśli już
+        // istnieją w bazie z wcześniejszych zapisów) zostały nietknięte. To zachowuje historię
+        // i zapobiega ponownemu wykasowaniu jej przez kolejne zapisy tygodnia.
+        $effectiveStart = max($body['week_start'], $today);
+        if ($effectiveStart > $body['week_end']) {
+            // Cały zapisywany tydzień jest w przeszłości - nie ma czego zapisywać ani kasować.
+            $this->jsonResponse([
+                'success' => true,
+                'skipped_past_days' => $skippedPastDays,
+                'message' => 'Nie można edytować harmonogramu z przeszłości.',
+            ]);
         }
         try {
-            $this->appointmentRepo->saveWeekAvailability($doctorId, $body['week_start'], $body['week_end'], $clean);
-            $this->jsonResponse(['success' => true]);
+            $this->appointmentRepo->saveWeekAvailability($doctorId, $effectiveStart, $body['week_end'], $clean);
+            $this->jsonResponse([
+                'success' => true,
+                'skipped_past_days' => $skippedPastDays,
+            ]);
         } catch (Exception $e) {
             error_log('Save week availability error: ' . $e->getMessage());
             $this->jsonResponse(['success' => false, 'error' => 'Nie udało się zapisać grafiku.'], 500);

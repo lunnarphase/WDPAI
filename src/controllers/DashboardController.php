@@ -111,6 +111,30 @@ class DashboardController extends AppController {
         $this->jsonResponse(['status' => 'ok']);
     }
 
+    public function apiGetNotifications() {
+        $this->requireLogin();
+
+        $notifications = $this->appointmentRepo->getUserNotifications((int)$_SESSION['user_id']);
+
+        $unreadCount = 0;
+        foreach ($notifications as $n) {
+            $isRead = $n['is_read'] ?? false;
+            $isUnread = $isRead === false
+                || $isRead === 0
+                || $isRead === '0'
+                || $isRead === 'f'
+                || $isRead === null;
+            if ($isUnread) {
+                $unreadCount++;
+            }
+        }
+
+        $this->jsonResponse([
+            'notifications' => $notifications,
+            'unread_count'  => $unreadCount,
+        ]);
+    }
+
     public function apiClearNotifications() {
         $this->requireLogin();
 

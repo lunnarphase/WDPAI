@@ -76,8 +76,14 @@ class LoginAttemptsRepository extends Repository {
 
     /**
      * Sprawdza, czy konto powinno zostać tymczasowo zablokowane.
+     *
+     * UWAGA: ta metoda nie uwzglednia IP - wpada gdy z DOWOLNEGO miejsca
+     * przyszly nieudane proby. Pozwala wiec atakujacemu z 1 IP zablokowac
+     * dowolne konto (account-lockout DoS). Trzymana tylko dla wstecznej
+     * zgodnosci - w sciezce logowania uzywamy `isTemporarilyLockedForIpAccount`
+     * i `isAccountGloballyLocked`.
      */
-    public function isTemporarilyLocked(string $email, int $maxFailures = 5, int $windowMinutes = 15): bool
+    public function isTemporarilyLocked(string $email, int $maxFailures = 3, int $windowMinutes = 15): bool
     {
         $db = $this->database->connect();
         $stmt = $db->prepare(" 
@@ -103,6 +109,143 @@ class LoginAttemptsRepository extends Repository {
     }
 
     /**
+     * Czy para (email, IP) ma za duzo nieudanych prob w oknie czasowym?
+     *
+     * To jest "miekka" blokada IP-aware: atakujacy z X.X.X.X po 3 nieudanych
+     * probach na konto user@a.pl zostaje odciety od TEGO konta na 15 min.
+     * Prawowity wlasciciel z innego IP nadal moze sie zalogowac (chyba ze
+     * doszedl globalny atak rozproszony - patrz isAccountGloballyLocked).
+     */
+    public function isTemporarilyLockedForIpAccount(
+        string $email,
+        string $ipAddress,
+        int $maxFailures = 3,
+        int $windowMinutes = 15
+    ): bool {
+        if ($ipAddress === '' || $ipAddress === 'unknown') {
+            return false;
+        }
+
+        $db = $this->database->connect();
+        $stmt = $db->prepare("
+            SELECT COUNT(*)
+            FROM login_attempts
+            WHERE email = :email
+              AND ip_address = :ip
+              AND success = FALSE
+              AND attempted_at > COALESCE(
+                    (SELECT MAX(attempted_at)
+                     FROM login_attempts
+                     WHERE email = :email AND success = TRUE),
+                    '1970-01-01'::timestamp
+              )
+              AND attempted_at >= (NOW() - (:window || ' minutes')::interval)
+        ");
+
+        $stmt->bindParam(':email', $email, PDO::PARAM_STR);
+        $stmt->bindParam(':ip', $ipAddress, PDO::PARAM_STR);
+        $window = (string)$windowMinutes;
+        $stmt->bindParam(':window', $window, PDO::PARAM_STR);
+        $stmt->execute();
+
+        return ((int)$stmt->fetchColumn()) >= $maxFailures;
+    }
+
+    /**
+     * Czy na to konto leci atak rozproszony? Wymaga rownoczesnie:
+     *   - lacznie >= $minFailures nieudanych prob w oknie $windowMinutes
+     *   - z co najmniej $minDistinctIps roznych adresow IP
+     *   - od ostatniego udanego logowania na to konto
+     *
+     * Dopiero ten warunek powoduje twardy globalny lockout konta (bo
+     * widac, ze problem nie ogranicza sie do jednego atakujacego).
+     */
+    public function isAccountGloballyLocked(
+        string $email,
+        int $minFailures = 4,
+        int $minDistinctIps = 2,
+        int $windowMinutes = 15
+    ): bool {
+        $details = $this->getAccountAttackDetails($email, $windowMinutes);
+        return $details['total_failures'] >= $minFailures
+            && $details['distinct_ips'] >= $minDistinctIps;
+    }
+
+    /**
+     * Zwraca informacje o aktualnym ataku na konto: ile nieudanych prob,
+     * z ilu IP, jakie to byly IP, kiedy byla ostatnia proba, ile sekund
+     * zostalo do konca okna (sluzy do liczenia remaining time globalnej
+     * blokady konta).
+     */
+    public function getAccountAttackDetails(string $email, int $windowMinutes = 15): array
+    {
+        $db = $this->database->connect();
+        $stmt = $db->prepare("
+            WITH last_success AS (
+                SELECT MAX(attempted_at) AS ts
+                FROM login_attempts
+                WHERE email = :email AND success = TRUE
+            ),
+            failures AS (
+                SELECT ip_address, attempted_at
+                FROM login_attempts
+                WHERE email = :email
+                  AND success = FALSE
+                  AND attempted_at > COALESCE((SELECT ts FROM last_success), '1970-01-01'::timestamp)
+                  AND attempted_at >= (NOW() - (:window || ' minutes')::interval)
+                  AND ip_address IS NOT NULL
+            )
+            SELECT
+                COUNT(*)::INT                                  AS total_failures,
+                COUNT(DISTINCT ip_address)::INT                AS distinct_ips,
+                MAX(attempted_at)                              AS last_attempt,
+                CASE
+                    WHEN MAX(attempted_at) IS NULL THEN 0
+                    ELSE GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (
+                        (MAX(attempted_at) + (:window || ' minutes')::interval) - NOW()
+                    ))))::INT
+                END                                            AS remaining_seconds
+            FROM failures
+        ");
+        $stmt->bindParam(':email', $email, PDO::PARAM_STR);
+        $window = (string)$windowMinutes;
+        $stmt->bindParam(':window', $window, PDO::PARAM_STR);
+        $stmt->execute();
+        $row = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+        // Lista atakujacych IP wraz z liczba prob (zeby admin mogl podejrzec)
+        $ipsStmt = $db->prepare("
+            SELECT
+                ip_address,
+                COUNT(*)::INT AS failure_count,
+                MAX(attempted_at) AS last_attempt
+            FROM login_attempts
+            WHERE email = :email
+              AND success = FALSE
+              AND ip_address IS NOT NULL
+              AND attempted_at > COALESCE(
+                    (SELECT MAX(attempted_at) FROM login_attempts WHERE email = :email AND success = TRUE),
+                    '1970-01-01'::timestamp
+              )
+              AND attempted_at >= (NOW() - (:window || ' minutes')::interval)
+            GROUP BY ip_address
+            ORDER BY failure_count DESC, MAX(attempted_at) DESC
+        ");
+        $ipsStmt->bindParam(':email', $email, PDO::PARAM_STR);
+        $ipsStmt->bindParam(':window', $window, PDO::PARAM_STR);
+        $ipsStmt->execute();
+        $attackerIps = $ipsStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+        return [
+            'total_failures'    => (int)($row['total_failures'] ?? 0),
+            'distinct_ips'      => (int)($row['distinct_ips'] ?? 0),
+            'remaining_seconds' => (int)($row['remaining_seconds'] ?? 0),
+            'window_minutes'    => $windowMinutes,
+            'attacker_ips'      => $attackerIps,
+        ];
+    }
+
+    /**
      * Zwraca konta z >= $minFailures kolejnymi nieudanymi próbami logowania.
      */
     public function getAccountsWithSuspiciousActivity(int $minFailures = 2): array
@@ -125,7 +268,41 @@ class LoginAttemptsRepository extends Repository {
                      FROM login_attempts
                      WHERE email = la.email AND success = FALSE
                      ORDER BY attempted_at DESC
-                     LIMIT 1)                                              AS last_ip
+                     LIMIT 1)                                              AS last_ip,
+                    -- Statystyki w oknie ostatnich 15 minut - na podstawie tego
+                    -- liczymy biezace blokady (i globalna, i per-IP).
+                    COUNT(*) FILTER (
+                        WHERE la.attempted_at >= (NOW() - INTERVAL '15 minutes')
+                    )                                                      AS failures_15m,
+                    COUNT(DISTINCT la.ip_address) FILTER (
+                        WHERE la.attempted_at >= (NOW() - INTERVAL '15 minutes')
+                          AND la.ip_address IS NOT NULL
+                    )                                                      AS distinct_ips_15m,
+                    MAX(la.attempted_at) FILTER (
+                        WHERE la.attempted_at >= (NOW() - INTERVAL '15 minutes')
+                    )                                                      AS last_attempt_15m,
+                    -- Te same statystyki, ale tylko dla ostatniego (najczestszego) IP -
+                    -- pozwala wyliczyc remaining time miekkiego lockoutu per (IP, konto).
+                    COUNT(*) FILTER (
+                        WHERE la.attempted_at >= (NOW() - INTERVAL '15 minutes')
+                          AND la.ip_address = (
+                            SELECT ip_address
+                            FROM login_attempts
+                            WHERE email = la.email AND success = FALSE
+                            ORDER BY attempted_at DESC
+                            LIMIT 1
+                          )
+                    )                                                      AS same_ip_failures_15m,
+                    MAX(la.attempted_at) FILTER (
+                        WHERE la.attempted_at >= (NOW() - INTERVAL '15 minutes')
+                          AND la.ip_address = (
+                            SELECT ip_address
+                            FROM login_attempts
+                            WHERE email = la.email AND success = FALSE
+                            ORDER BY attempted_at DESC
+                            LIMIT 1
+                          )
+                    )                                                      AS last_same_ip_attempt_15m
                 FROM login_attempts la
                 LEFT JOIN last_success ls ON la.email = ls.email
                 WHERE la.success = FALSE
@@ -149,17 +326,28 @@ class LoginAttemptsRepository extends Repository {
                 u.is_blocked,
                 (
                     u.id IS NOT NULL
-                    AND rf.failure_count >= 5
-                    AND rf.last_attempt >= (NOW() - INTERVAL '15 minutes')
+                    AND rf.distinct_ips_15m >= 2
+                    AND rf.failures_15m >= 4
+                )           AS is_account_globally_locked,
+                CASE
+                    WHEN u.id IS NOT NULL
+                     AND rf.distinct_ips_15m >= 2
+                     AND rf.failures_15m >= 4
+                    THEN GREATEST(0, FLOOR(EXTRACT(EPOCH FROM ((rf.last_attempt_15m + INTERVAL '15 minutes') - NOW()))))::INT
+                    ELSE 0
+                END         AS account_global_lock_remaining_seconds,
+                rf.distinct_ips_15m AS attacker_ips_count,
+                (
+                    u.id IS NOT NULL
+                    AND rf.same_ip_failures_15m >= 3
                 )           AS is_temporarily_locked,
                 CASE
                     WHEN u.id IS NOT NULL
-                     AND rf.failure_count >= 5
-                     AND rf.last_attempt >= (NOW() - INTERVAL '15 minutes')
+                     AND rf.same_ip_failures_15m >= 3
                     THEN TO_CHAR(
                         timezone(
                             'Europe/Warsaw',
-                            (rf.last_attempt + INTERVAL '15 minutes') AT TIME ZONE current_setting('TIMEZONE')
+                            (rf.last_same_ip_attempt_15m + INTERVAL '15 minutes') AT TIME ZONE current_setting('TIMEZONE')
                         ),
                         'YYYY-MM-DD HH24:MI:SS'
                     )
@@ -167,9 +355,8 @@ class LoginAttemptsRepository extends Repository {
                 END         AS temporary_locked_until,
                 CASE
                     WHEN u.id IS NOT NULL
-                     AND rf.failure_count >= 5
-                     AND rf.last_attempt >= (NOW() - INTERVAL '15 minutes')
-                    THEN GREATEST(0, FLOOR(EXTRACT(EPOCH FROM ((rf.last_attempt + INTERVAL '15 minutes') - NOW()))))::INT
+                     AND rf.same_ip_failures_15m >= 3
+                    THEN GREATEST(0, FLOOR(EXTRACT(EPOCH FROM ((rf.last_same_ip_attempt_15m + INTERVAL '15 minutes') - NOW()))))::INT
                     ELSE 0
                 END         AS temporary_lock_remaining_seconds,
                 (
@@ -199,6 +386,60 @@ class LoginAttemptsRepository extends Repository {
         $stmt->bindParam(':min_failures', $minFailures, PDO::PARAM_INT);
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Powiadomienie adminow o ataku rozproszonym na konkretne konto (atak
+     * z wielu IP wyzwala twardy globalny lockout konta).
+     */
+    public function notifyAdminsAboutAccountAttack(
+        string $email,
+        int $totalFailures,
+        int $distinctIps,
+        int $windowMinutes,
+        array $attackerIps = []
+    ): void {
+        $db = $this->database->connect();
+
+        $adminStmt = $db->prepare("
+            SELECT u.id FROM users u
+            JOIN roles r ON u.id_role = r.id
+            WHERE r.name = 'admin'
+        ");
+        $adminStmt->execute();
+        $adminIds = $adminStmt->fetchAll(PDO::FETCH_COLUMN);
+
+        if (empty($adminIds)) {
+            return;
+        }
+
+        $ipsLine = '';
+        if (!empty($attackerIps)) {
+            $parts = [];
+            foreach ($attackerIps as $row) {
+                $ip = trim((string)($row['ip_address'] ?? ''));
+                if ($ip === '') continue;
+                $count = (int)($row['failure_count'] ?? 0);
+                $parts[] = $count > 0 ? sprintf('%s (%d)', $ip, $count) : $ip;
+            }
+            if (!empty($parts)) {
+                $ipsLine = "\nAtakujace IP: " . implode(', ', $parts);
+            }
+        }
+
+        $message = "GLOBALNY LOCKOUT KONTA\n"
+            . "Wykryto atak rozproszony na konto {$email}\n"
+            . "Nieudane proby: {$totalFailures} w ciagu {$windowMinutes} min\n"
+            . "Rozne adresy IP: {$distinctIps}\n"
+            . "Konto zostalo automatycznie tymczasowo zablokowane."
+            . $ipsLine;
+
+        $notifStmt = $db->prepare(
+            "INSERT INTO notifications (id_user, message, type) VALUES (?, ?, 'account_global_attack')"
+        );
+        foreach ($adminIds as $adminId) {
+            $notifStmt->execute([$adminId, $message]);
+        }
     }
 
     /**
@@ -245,6 +486,117 @@ class LoginAttemptsRepository extends Repository {
         ");
         $stmt->bindParam(':user_id', $userId, PDO::PARAM_INT);
         $stmt->execute();
+    }
+
+    /**
+     * Zdejmuje aktywne blokady IP powiazane z kontem uzytkownika.
+     *
+     * Logika: gdy admin recznie odblokowuje konto, blokada IP zostala zalozona
+     * z powodu serii nieudanych prob - jesli admin uznaje, ze atak ustal i konto
+     * powinno znow dzialac, to nie chcemy zmuszac go do osobnego odblokowywania
+     * tych samych IP dla pozostalych kont. Bierzemy wiec wszystkie aktywne blokady
+     * IP, z ktorych byly nieudane proby na to konto, i usuwamy je.
+     *
+     * UWAGA: ta metoda korzysta z tabeli login_attempts - wywoluj ja PRZED
+     * clearAttemptsForUserId, inaczej zapytanie nie znajdzie zadnych IP do
+     * odblokowania (rekordy zostana usuniete).
+     *
+     * Zwraca liste zdjetych adresow IP (mozesz ich uzyc np. do usuniecia
+     * powiadomien `global_ip_attack` powiazanych z tymi IP).
+     */
+    public function unblockIpsForUser(int $userId): array
+    {
+        $db = $this->database->connect();
+        $this->ensureBlockedIpsTableExists($db);
+
+        // 1) Wez liste IP do zdjecia (z login_attempts dla tego usera, zaweone do tych,
+        //    ktore faktycznie maja aktywny wpis w blocked_ips).
+        $select = $db->prepare("
+            SELECT DISTINCT bi.ip_address
+            FROM blocked_ips bi
+            WHERE bi.ip_address IN (
+                SELECT DISTINCT la.ip_address
+                FROM login_attempts la
+                JOIN users u ON LOWER(la.email) = LOWER(u.email)
+                WHERE u.id = :user_id
+                  AND la.success = FALSE
+                  AND la.ip_address IS NOT NULL
+            )
+        ");
+        $select->bindParam(':user_id', $userId, PDO::PARAM_INT);
+        $select->execute();
+        $ips = $select->fetchAll(PDO::FETCH_COLUMN) ?: [];
+
+        if (empty($ips)) {
+            return [];
+        }
+
+        // 2) Skasuj wpisy w blocked_ips. Uzywamy IN (?, ?, ...) zamiast subquery,
+        //    bo mamy juz konkretna liste i chcemy miec pewnosc co skasujemy.
+        $placeholders = implode(',', array_fill(0, count($ips), '?'));
+        $delete = $db->prepare("DELETE FROM blocked_ips WHERE ip_address IN ({$placeholders})");
+        $delete->execute($ips);
+
+        return $ips;
+    }
+
+    /**
+     * Usuwa powiadomienia admina typu global_ip_attack dotyczace podanych adresow IP.
+     * Wywoluj po faktycznym zdjeciu blokady IP, zeby alert nie wisial w panelu admina
+     * z odliczaniem czasu, ktorego juz nie ma.
+     *
+     * Zwraca liczbe usunietych powiadomien.
+     */
+    public function deleteGlobalIpAttackNotificationsForIps(array $ipAddresses): int
+    {
+        $cleanIps = array_values(array_unique(array_filter($ipAddresses, function ($ip) {
+            return is_string($ip) && filter_var($ip, FILTER_VALIDATE_IP);
+        })));
+
+        if (empty($cleanIps)) {
+            return 0;
+        }
+
+        $db = $this->database->connect();
+
+        // Powiadomienia globalnego ataku maja w message linie "...IP: {adres}\n...".
+        // Idziemy po jednym IP, zliczamy usuniete.
+        $stmt = $db->prepare(" 
+            DELETE FROM notifications
+            WHERE type = 'global_ip_attack'
+              AND message LIKE :pattern
+        ");
+
+        $deleted = 0;
+        foreach ($cleanIps as $ip) {
+            $pattern = '%IP: ' . $ip . '%';
+            $stmt->bindParam(':pattern', $pattern, PDO::PARAM_STR);
+            $stmt->execute();
+            $deleted += $stmt->rowCount();
+        }
+
+        return $deleted;
+    }
+
+    /**
+     * Usuwa powiadomienia admina typu account_global_attack dla podanego emaila.
+     * Wywolywane po recznym odblokowaniu konta przez admina, zeby alert nie
+     * wisial w panelu z odliczaniem czasu, ktorego juz nie ma.
+     */
+    public function deleteAccountAttackNotificationsForEmail(string $email): int
+    {
+        if ($email === '') return 0;
+
+        $db = $this->database->connect();
+        $pattern = '%konto ' . $email . '%';
+        $stmt = $db->prepare("
+            DELETE FROM notifications
+            WHERE type = 'account_global_attack'
+              AND message LIKE :pattern
+        ");
+        $stmt->bindParam(':pattern', $pattern, PDO::PARAM_STR);
+        $stmt->execute();
+        return $stmt->rowCount();
     }
 
     /**

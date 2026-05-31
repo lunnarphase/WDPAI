@@ -134,6 +134,14 @@ class Routing {
             "controller" => "DashboardController",
             "action" => "apiMarkNotificationsRead"
         ],
+        "api-get-notifications" => [
+            "controller" => "DashboardController",
+            "action" => "apiGetNotifications"
+        ],
+        "api-admin-attack-details" => [
+            "controller" => "AdminController",
+            "action" => "apiAdminAttackDetails"
+        ],
         "api-clear-notifications" => [
             "controller" => "DashboardController",
             "action" => "apiClearNotifications"

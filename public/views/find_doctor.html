@@ -586,7 +586,7 @@
                     ${iconHtml}
                     <div style="flex:1; min-width:0;">
                         <p style="margin: 0; color: #111827; font-size: 0.95rem;">${escHtml(mainMessage || rawMessage)}</p>
-                        ${adminResponse ? `<div style="margin-top:0.55rem; background:#fef2f2; border:1px solid #fecaca; border-left:4px solid #dc2626; border-radius:8px; padding:0.6rem 0.7rem;"><p style="margin:0; font-size:0.84rem; color:#991b1b;"><strong>Odpowiedź administratora:</strong> ${escHtml(adminResponse)}</p></div>` : ''}
+                        ${adminResponse ? `<div style="margin-top:0.55rem; background:#fef2f2; border:1px solid #fecaca; border-left:4px solid #dc2626; border-radius:8px; padding:0.6rem 0.7rem;"><p style="margin:0; font-size:0.84rem; color:#991b1b;"><strong>Odpowiedź administratora:</strong> <em>&bdquo;${escHtml(adminResponse)}&rdquo;</em></p></div>` : ''}
                         <p style="margin: 0.5rem 0 0 0; color: #9ca3af; font-size: 0.8rem;">${new Date(notification.created_at).toLocaleString('pl-PL')}</p>
                     </div>
                     <button onclick="dismissNotification(${notifId}, this)" style="background:none; border:none; color:#9ca3af; font-size:1.1rem; cursor:pointer; padding:0 0 0 0.5rem; flex-shrink:0; line-height:1;" title="Usuń powiadomienie">&times;</button>
