@@ -18,8 +18,24 @@ class DashboardController extends AppController {
         $this->reviewRepo = new ReviewRepository();
     }
 
+    private function redirectNonPatientToRoleDashboard(): void
+    {
+        $role = $_SESSION['user_role'] ?? '';
+
+        if ($role === 'admin') {
+            header('Location: ' . $this->getBaseUrl() . '/admin-dashboard');
+            exit();
+        }
+
+        if ($role === 'doctor') {
+            header('Location: ' . $this->getBaseUrl() . '/doctor-dashboard');
+            exit();
+        }
+    }
+
     public function myAppointments() {
         $this->requireLogin();
+        $this->redirectNonPatientToRoleDashboard();
 
         $appointments = $this->appointmentRepo->getUpcomingAppointmentsForPatient($_SESSION['user_id']);
         $notifications = $this->appointmentRepo->getUserNotifications($_SESSION['user_id']);
@@ -38,6 +54,7 @@ class DashboardController extends AppController {
 
     public function index() {
         $this->requireLogin();
+        $this->redirectNonPatientToRoleDashboard();
 
         $appointments = $this->appointmentRepo->getUpcomingAppointmentsForPatient($_SESSION['user_id']);
         $notifications = $this->appointmentRepo->getUserNotifications($_SESSION['user_id']);
@@ -114,24 +131,28 @@ class DashboardController extends AppController {
     public function apiGetNotifications() {
         $this->requireLogin();
 
-        $notifications = $this->appointmentRepo->getUserNotifications((int)$_SESSION['user_id']);
-
-        $unreadCount = 0;
-        foreach ($notifications as $n) {
-            $isRead = $n['is_read'] ?? false;
-            $isUnread = $isRead === false
-                || $isRead === 0
-                || $isRead === '0'
-                || $isRead === 'f'
-                || $isRead === null;
-            if ($isUnread) {
-                $unreadCount++;
-            }
+        if (!$this->isGet()) {
+            $this->jsonResponse(['error' => 'Niedozwolona metoda.'], 405);
         }
+
+        $notifications = $this->appointmentRepo->getUserNotifications((int)$_SESSION['user_id']);
+        $unreadCount = $this->appointmentRepo->getUnreadNotificationsCount((int)$_SESSION['user_id']);
 
         $this->jsonResponse([
             'notifications' => $notifications,
             'unread_count'  => $unreadCount,
+        ]);
+    }
+
+    public function apiGetNotificationsUnreadCount() {
+        $this->requireLogin();
+
+        if (!$this->isGet()) {
+            $this->jsonResponse(['error' => 'Niedozwolona metoda.'], 405);
+        }
+
+        $this->jsonResponse([
+            'unread_count' => $this->appointmentRepo->getUnreadNotificationsCount((int)$_SESSION['user_id']),
         ]);
     }
 
@@ -142,8 +163,16 @@ class DashboardController extends AppController {
             $this->jsonResponse(['error' => 'Niedozwolona metoda.'], 405);
         }
 
-        $this->appointmentRepo->clearNotifications($_SESSION['user_id']);
-        $this->jsonResponse(['status' => 'ok']);
+        try {
+            $deletedCount = $this->appointmentRepo->clearNotifications((int)$_SESSION['user_id']);
+            $this->jsonResponse([
+                'status' => 'ok',
+                'deleted_count' => $deletedCount,
+            ]);
+        } catch (Exception $e) {
+            error_log('apiClearNotifications error: ' . $e->getMessage());
+            $this->jsonResponse(['error' => 'Nie udało się wyczyścić powiadomień.'], 500);
+        }
     }
 
     public function apiDeleteNotification() {
@@ -159,8 +188,17 @@ class DashboardController extends AppController {
             $this->jsonResponse(['success' => false, 'error' => 'Invalid id'], 400);
         }
 
-        $this->appointmentRepo->deleteNotification($notifId, $_SESSION['user_id']);
-        $this->jsonResponse(['success' => true]);
+        try {
+            $deleted = $this->appointmentRepo->deleteNotification($notifId, (int)$_SESSION['user_id']);
+            if (!$deleted) {
+                $this->jsonResponse(['success' => false, 'error' => 'Powiadomienie nie istnieje.'], 404);
+            }
+
+            $this->jsonResponse(['success' => true]);
+        } catch (Exception $e) {
+            error_log('apiDeleteNotification error: ' . $e->getMessage());
+            $this->jsonResponse(['success' => false, 'error' => 'Nie udało się usunąć powiadomienia.'], 500);
+        }
     }
 
     public function apiGetProfile() {

@@ -1,0 +1,10 @@
+﻿Running Integration Tests via PowerShell against https://localhost:8443
+[PASS] GET /login : Return code 200
+[PASS] GET /dashboard : Return code 302
+[PASS] GET /api-search-doctors : Return code 401
+[PASS] GET /api-get-notifications : Return code 401
+[PASS] GET /api-get-notifications-unread : Return code 401
+[PASS] GET /api-mark-notifications-read : Return code 401
+[PASS] GET /invalid-route-123 : Return code 404
+[PASS] GET /api-route-that-does-not-exist : Return code 404
+Summary: 8 passed, 0 failed

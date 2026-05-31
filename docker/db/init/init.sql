@@ -92,6 +92,9 @@ CREATE TABLE notifications (
     related_id INTEGER,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+CREATE INDEX idx_notifications_user_created_at ON notifications(id_user, created_at DESC);
+CREATE INDEX idx_notifications_user_type_created_at ON notifications(id_user, type, created_at DESC);
+CREATE INDEX idx_notifications_user_is_read ON notifications(id_user, is_read);
 
 -- Harmonogram i Wizyty (Relacja 1:N)
 CREATE TABLE appointments (

@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+ <head>
+  <meta charset="UTF-8">
+  <title>Dashboard for /app/src</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="../_css/bootstrap.min.css?v=11.0.12" rel="stylesheet" type="text/css">
+  <link href="../_css/nv.d3.min.css?v=11.0.12" rel="stylesheet" type="text/css">
+  <link href="../_css/style.css?v=11.0.12" rel="stylesheet" type="text/css">
+  <link href="../_css/custom.css" rel="stylesheet" type="text/css">
+ </head>
+ <body>
+  <header>
+   <div class="container-fluid">
+    <div class="row">
+     <div class="col-md-12">
+      <nav aria-label="breadcrumb">
+       <ol class="breadcrumb">
+         <li class="breadcrumb-item"><a href="../index.html">/app</a></li>
+         <li class="breadcrumb-item"><a href="index.html">src</a></li>
+         <li class="breadcrumb-item active">(Dashboard)</li>
+
+       </ol>
+      </nav>
+     </div>
+    </div>
+   </div>
+  </header>
+  <div class="container-fluid">
+   <div class="row">
+    <div class="col-md-12">
+     <h2>Classes</h2>
+    </div>
+   </div>
+   <div class="row">
+    <div class="col-md-6">
+     <h3>Coverage Distribution</h3>
+     <div id="classCoverageDistribution" style="height: 300px;">
+       <svg></svg>
+     </div>
+    </div>
+    <div class="col-md-6">
+     <h3>Complexity</h3>
+     <div id="classComplexity" style="height: 300px;">
+       <svg></svg>
+     </div>
+    </div>
+   </div>
+   <div class="row">
+    <div class="col-md-6">
+     <h3>Insufficient Coverage</h3>
+     <div class="scrollbox">
+      <table class="table">
+       <thead>
+        <tr>
+         <th>Class</th>
+         <th class="text-right">Coverage</th>
+        </tr>
+       </thead>
+       <tbody>
+       <tr><td><a href="controllers/AdminController.php.html#9">AdminController</a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/DashboardController.php.html#8">DashboardController</a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/DoctorController.php.html#7">DoctorController</a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/ReviewController.php.html#6">ReviewController</a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/DoctorRepository.php.html#5">DoctorRepository</a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/LoginAttemptsRepository.php.html#5">LoginAttemptsRepository</a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/ReviewRepository.php.html#5">ReviewRepository</a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/SecurityController.php.html#7">SecurityController</a></td><td class="text-right">9%</td></tr>
+       <tr><td><a href="controllers/AppointmentController.php.html#6">AppointmentController</a></td><td class="text-right">12%</td></tr>
+       <tr><td><a href="repositories/AppointmentRepository.php.html#5">AppointmentRepository</a></td><td class="text-right">30%</td></tr>
+       <tr><td><a href="controllers/AppController.php.html#4">AppController</a></td><td class="text-right">39%</td></tr>
+       <tr><td><a href="repositories/UsersRepository.php.html#6">UsersRepository</a></td><td class="text-right">61%</td></tr>
+
+       </tbody>
+      </table>
+     </div>
+    </div>
+    <div class="col-md-6">
+     <h3>Project Risks</h3>
+     <div class="scrollbox">
+      <table class="table">
+       <thead>
+        <tr>
+         <th>Class</th>
+         <th class="text-right"><abbr title="Change Risk Anti-Patterns (CRAP) Index">CRAP</abbr></th>
+        </tr>
+       </thead>
+       <tbody>
+       <tr><td><a href="controllers/AdminController.php.html#9">AdminController</a></td><td class="text-right">10302</td></tr>
+       <tr><td><a href="controllers/DoctorController.php.html#7">DoctorController</a></td><td class="text-right">4556</td></tr>
+       <tr><td><a href="repositories/LoginAttemptsRepository.php.html#5">LoginAttemptsRepository</a></td><td class="text-right">4290</td></tr>
+       <tr><td><a href="controllers/DashboardController.php.html#8">DashboardController</a></td><td class="text-right">2862</td></tr>
+       <tr><td><a href="controllers/SecurityController.php.html#7">SecurityController</a></td><td class="text-right">2463</td></tr>
+       <tr><td><a href="repositories/ReviewRepository.php.html#5">ReviewRepository</a></td><td class="text-right">1332</td></tr>
+       <tr><td><a href="repositories/AppointmentRepository.php.html#5">AppointmentRepository</a></td><td class="text-right">763</td></tr>
+       <tr><td><a href="controllers/AppointmentController.php.html#6">AppointmentController</a></td><td class="text-right">583</td></tr>
+       <tr><td><a href="controllers/ReviewController.php.html#6">ReviewController</a></td><td class="text-right">380</td></tr>
+       <tr><td><a href="controllers/AppController.php.html#4">AppController</a></td><td class="text-right">375</td></tr>
+       <tr><td><a href="repositories/UsersRepository.php.html#6">UsersRepository</a></td><td class="text-right">128</td></tr>
+
+       </tbody>
+      </table>
+     </div>
+    </div>
+   </div>
+   <div class="row">
+    <div class="col-md-12">
+     <h2>Methods</h2>
+    </div>
+   </div>
+   <div class="row">
+    <div class="col-md-6">
+     <h3>Coverage Distribution</h3>
+     <div id="methodCoverageDistribution" style="height: 300px;">
+       <svg></svg>
+     </div>
+    </div>
+    <div class="col-md-6">
+     <h3>Complexity</h3>
+     <div id="methodComplexity" style="height: 300px;">
+       <svg></svg>
+     </div>
+    </div>
+   </div>
+   <div class="row">
+    <div class="col-md-6">
+     <h3>Insufficient Coverage</h3>
+     <div class="scrollbox">
+      <table class="table">
+       <thead>
+        <tr>
+         <th>Method</th>
+         <th class="text-right">Coverage</th>
+        </tr>
+       </thead>
+       <tbody>
+       <tr><td><a href="controllers/AdminController.php.html#16"><abbr title="AdminController::__construct">__construct</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/AdminController.php.html#24"><abbr title="AdminController::requireAdmin">requireAdmin</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/AdminController.php.html#31"><abbr title="AdminController::adminDashboard">adminDashboard</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/AdminController.php.html#47"><abbr title="AdminController::adminUpdateAppointment">adminUpdateAppointment</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/AdminController.php.html#66"><abbr title="AdminController::adminDeleteAppointment">adminDeleteAppointment</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/AdminController.php.html#79"><abbr title="AdminController::adminUpdateUser">adminUpdateUser</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/AdminController.php.html#114"><abbr title="AdminController::adminDeleteUser">adminDeleteUser</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/AdminController.php.html#141"><abbr title="AdminController::adminAddUser">adminAddUser</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/AdminController.php.html#180"><abbr title="AdminController::adminDeleteReview">adminDeleteReview</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/AdminController.php.html#203"><abbr title="AdminController::adminDismissReport">adminDismissReport</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/AdminController.php.html#227"><abbr title="AdminController::adminResolveReport">adminResolveReport</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/AdminController.php.html#250"><abbr title="AdminController::apiGetReviewReports">apiGetReviewReports</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/AdminController.php.html#267"><abbr title="AdminController::apiGetLoginLogs">apiGetLoginLogs</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/AdminController.php.html#279"><abbr title="AdminController::apiGetAdminAppointments">apiGetAdminAppointments</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/AdminController.php.html#295"><abbr title="AdminController::apiGetAdminReviews">apiGetAdminReviews</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/AdminController.php.html#311"><abbr title="AdminController::apiGetAdminNotifications">apiGetAdminNotifications</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/AdminController.php.html#383"><abbr title="AdminController::apiAdminAttackDetails">apiAdminAttackDetails</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/AdminController.php.html#434"><abbr title="AdminController::adminBlockUser">adminBlockUser</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/AdminController.php.html#462"><abbr title="AdminController::adminUnblockUser">adminUnblockUser</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/AppController.php.html#48"><abbr title="AppController::jsonResponse">jsonResponse</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/AppController.php.html#75"><abbr title="AppController::render">render</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/AppController.php.html#96"><abbr title="AppController::requireLogin">requireLogin</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/AppController.php.html#109"><abbr title="AppController::requireHttps">requireHttps</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/AppController.php.html#155"><abbr title="AppController::forbidden">forbidden</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/AppController.php.html#166"><abbr title="AppController::badRequest">badRequest</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/AppointmentController.php.html#32"><abbr title="AppointmentController::book">book</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/AppointmentController.php.html#49"><abbr title="AppointmentController::confirm">confirm</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/AppointmentController.php.html#85"><abbr title="AppointmentController::cancel">cancel</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/AppointmentController.php.html#112"><abbr title="AppointmentController::getAvailability">getAvailability</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/DashboardController.php.html#14"><abbr title="DashboardController::__construct">__construct</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/DashboardController.php.html#21"><abbr title="DashboardController::redirectNonPatientToRoleDashboard">redirectNonPatientToRoleDashboard</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/DashboardController.php.html#36"><abbr title="DashboardController::myAppointments">myAppointments</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/DashboardController.php.html#55"><abbr title="DashboardController::index">index</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/DashboardController.php.html#76"><abbr title="DashboardController::apiSearchDoctors">apiSearchDoctors</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/DashboardController.php.html#96"><abbr title="DashboardController::apiGetAppointments">apiGetAppointments</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/DashboardController.php.html#120"><abbr title="DashboardController::apiMarkNotificationsRead">apiMarkNotificationsRead</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/DashboardController.php.html#131"><abbr title="DashboardController::apiGetNotifications">apiGetNotifications</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/DashboardController.php.html#147"><abbr title="DashboardController::apiGetNotificationsUnreadCount">apiGetNotificationsUnreadCount</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/DashboardController.php.html#159"><abbr title="DashboardController::apiClearNotifications">apiClearNotifications</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/DashboardController.php.html#178"><abbr title="DashboardController::apiDeleteNotification">apiDeleteNotification</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/DashboardController.php.html#204"><abbr title="DashboardController::apiGetProfile">apiGetProfile</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/DashboardController.php.html#220"><abbr title="DashboardController::apiChangePassword">apiChangePassword</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/DashboardController.php.html#252"><abbr title="DashboardController::apiUpdateProfile">apiUpdateProfile</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/DoctorController.php.html#12"><abbr title="DoctorController::__construct">__construct</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/DoctorController.php.html#18"><abbr title="DoctorController::requireDoctor">requireDoctor</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/DoctorController.php.html#25"><abbr title="DoctorController::doctorDashboard">doctorDashboard</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/DoctorController.php.html#49"><abbr title="DoctorController::getDoctorIdByUserId">getDoctorIdByUserId</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/DoctorController.php.html#53"><abbr title="DoctorController::updateDoctorProfile">updateDoctorProfile</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/DoctorController.php.html#86"><abbr title="DoctorController::doctorUpdateStatus">doctorUpdateStatus</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/DoctorController.php.html#104"><abbr title="DoctorController::findDoctor">findDoctor</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/DoctorController.php.html#121"><abbr title="DoctorController::apiGetSlots">apiGetSlots</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/DoctorController.php.html#132"><abbr title="DoctorController::apiGetDoctorAppointments">apiGetDoctorAppointments</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/DoctorController.php.html#138"><abbr title="DoctorController::apiGetWeekAvailability">apiGetWeekAvailability</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/DoctorController.php.html#149"><abbr title="DoctorController::apiSaveWeekAvailability">apiSaveWeekAvailability</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/DoctorController.php.html#200"><abbr title="DoctorController::apiGetScheduleTemplates">apiGetScheduleTemplates</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/DoctorController.php.html#206"><abbr title="DoctorController::apiSaveScheduleTemplate">apiSaveScheduleTemplate</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/DoctorController.php.html#225"><abbr title="DoctorController::apiDeleteScheduleTemplate">apiDeleteScheduleTemplate</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/DoctorController.php.html#242"><abbr title="DoctorController::apiGetAvailableDates">apiGetAvailableDates</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/DoctorController.php.html#252"><abbr title="DoctorController::getDoctorIdForCurrentUser">getDoctorIdForCurrentUser</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/DoctorController.php.html#260"><abbr title="DoctorController::doctorAvailability">doctorAvailability</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/ReviewController.php.html#10"><abbr title="ReviewController::__construct">__construct</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/ReviewController.php.html#15"><abbr title="ReviewController::submitReview">submitReview</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/ReviewController.php.html#49"><abbr title="ReviewController::reportReview">reportReview</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/ReviewController.php.html#79"><abbr title="ReviewController::apiGetDoctorProfile">apiGetDoctorProfile</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/SecurityController.php.html#55"><abbr title="SecurityController::login">login</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/SecurityController.php.html#268"><abbr title="SecurityController::logout">logout</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/SecurityController.php.html#290"><abbr title="SecurityController::register">register</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/AppointmentRepository.php.html#7"><abbr title="AppointmentRepository::createAppointment">createAppointment</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/AppointmentRepository.php.html#49"><abbr title="AppointmentRepository::getUpcomingAppointmentsForPatient">getUpcomingAppointmentsForPatient</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/AppointmentRepository.php.html#115"><abbr title="AppointmentRepository::getAllAppointmentsAdmin">getAllAppointmentsAdmin</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/AppointmentRepository.php.html#155"><abbr title="AppointmentRepository::getTodaysAppointmentsCount">getTodaysAppointmentsCount</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/AppointmentRepository.php.html#169"><abbr title="AppointmentRepository::getDoctorAppointments">getDoctorAppointments</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/AppointmentRepository.php.html#193"><abbr title="AppointmentRepository::getDoctorStats">getDoctorStats</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/AppointmentRepository.php.html#218"><abbr title="AppointmentRepository::updateAppointmentStatusByDoctor">updateAppointmentStatusByDoctor</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/AppointmentRepository.php.html#335"><abbr title="AppointmentRepository::getDoctorAvailabilityForWeek">getDoctorAvailabilityForWeek</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/AppointmentRepository.php.html#347"><abbr title="AppointmentRepository::saveWeekAvailability">saveWeekAvailability</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/AppointmentRepository.php.html#364"><abbr title="AppointmentRepository::getAvailableSlotsForDate">getAvailableSlotsForDate</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/AppointmentRepository.php.html#398"><abbr title="AppointmentRepository::getAvailableDatesInRange">getAvailableDatesInRange</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/AppointmentRepository.php.html#447"><abbr title="AppointmentRepository::getScheduleTemplates">getScheduleTemplates</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/AppointmentRepository.php.html#459"><abbr title="AppointmentRepository::saveScheduleTemplate">saveScheduleTemplate</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/AppointmentRepository.php.html#470"><abbr title="AppointmentRepository::deleteScheduleTemplate">deleteScheduleTemplate</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/DoctorRepository.php.html#7"><abbr title="DoctorRepository::searchDoctors">searchDoctors</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/LoginAttemptsRepository.php.html#10"><abbr title="LoginAttemptsRepository::ensureBlockedIpsTableExists">ensureBlockedIpsTableExists</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/LoginAttemptsRepository.php.html#24"><abbr title="LoginAttemptsRepository::formatSecondsAsHuman">formatSecondsAsHuman</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/LoginAttemptsRepository.php.html#45"><abbr title="LoginAttemptsRepository::recordAttempt">recordAttempt</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/LoginAttemptsRepository.php.html#57"><abbr title="LoginAttemptsRepository::getConsecutiveFailures">getConsecutiveFailures</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/LoginAttemptsRepository.php.html#86"><abbr title="LoginAttemptsRepository::isTemporarilyLocked">isTemporarilyLocked</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/LoginAttemptsRepository.php.html#119"><abbr title="LoginAttemptsRepository::isTemporarilyLockedForIpAccount">isTemporarilyLockedForIpAccount</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/LoginAttemptsRepository.php.html#163"><abbr title="LoginAttemptsRepository::isAccountGloballyLocked">isAccountGloballyLocked</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/LoginAttemptsRepository.php.html#180"><abbr title="LoginAttemptsRepository::getAccountAttackDetails">getAccountAttackDetails</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/LoginAttemptsRepository.php.html#251"><abbr title="LoginAttemptsRepository::getAccountsWithSuspiciousActivity">getAccountsWithSuspiciousActivity</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/LoginAttemptsRepository.php.html#395"><abbr title="LoginAttemptsRepository::notifyAdminsAboutAccountAttack">notifyAdminsAboutAccountAttack</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/LoginAttemptsRepository.php.html#449"><abbr title="LoginAttemptsRepository::notifyAdmins">notifyAdmins</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/LoginAttemptsRepository.php.html#478"><abbr title="LoginAttemptsRepository::clearAttemptsForUserId">clearAttemptsForUserId</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/LoginAttemptsRepository.php.html#507"><abbr title="LoginAttemptsRepository::unblockIpsForUser">unblockIpsForUser</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/LoginAttemptsRepository.php.html#550"><abbr title="LoginAttemptsRepository::deleteGlobalIpAttackNotificationsForIps">deleteGlobalIpAttackNotificationsForIps</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/LoginAttemptsRepository.php.html#586"><abbr title="LoginAttemptsRepository::deleteAccountAttackNotificationsForEmail">deleteAccountAttackNotificationsForEmail</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/LoginAttemptsRepository.php.html#605"><abbr title="LoginAttemptsRepository::isIpBlocked">isIpBlocked</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/LoginAttemptsRepository.php.html#635"><abbr title="LoginAttemptsRepository::detectGlobalIpAttack">detectGlobalIpAttack</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/LoginAttemptsRepository.php.html#683"><abbr title="LoginAttemptsRepository::blockIpAddress">blockIpAddress</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/LoginAttemptsRepository.php.html#728"><abbr title="LoginAttemptsRepository::getBlockedIpDetails">getBlockedIpDetails</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/LoginAttemptsRepository.php.html#786"><abbr title="LoginAttemptsRepository::getRecentFailedTargetsForIp">getRecentFailedTargetsForIp</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/LoginAttemptsRepository.php.html#820"><abbr title="LoginAttemptsRepository::notifyAdminsAboutIpAttack">notifyAdminsAboutIpAttack</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/ReviewRepository.php.html#7"><abbr title="ReviewRepository::hasReview">hasReview</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/ReviewRepository.php.html#14"><abbr title="ReviewRepository::isReviewSubmitted">isReviewSubmitted</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/ReviewRepository.php.html#22"><abbr title="ReviewRepository::submitReview">submitReview</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/ReviewRepository.php.html#63"><abbr title="ReviewRepository::getDoctorReviews">getDoctorReviews</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/ReviewRepository.php.html#86"><abbr title="ReviewRepository::getReviewSummary">getReviewSummary</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/ReviewRepository.php.html#99"><abbr title="ReviewRepository::reportReview">reportReview</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/ReviewRepository.php.html#154"><abbr title="ReviewRepository::getAllReviewsAdmin">getAllReviewsAdmin</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/ReviewRepository.php.html#200"><abbr title="ReviewRepository::deleteReviewAdmin">deleteReviewAdmin</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/ReviewRepository.php.html#208"><abbr title="ReviewRepository::getPendingReportsForReview">getPendingReportsForReview</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/ReviewRepository.php.html#222"><abbr title="ReviewRepository::dismissReport">dismissReport</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/ReviewRepository.php.html#245"><abbr title="ReviewRepository::resolveReportByDeletion">resolveReportByDeletion</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/ReviewRepository.php.html#267"><abbr title="ReviewRepository::getNextAvailableSlot">getNextAvailableSlot</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/ReviewRepository.php.html#307"><abbr title="ReviewRepository::getDoctorProfileData">getDoctorProfileData</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/ReviewRepository.php.html#323"><abbr title="ReviewRepository::updateDoctorProfile">updateDoctorProfile</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/ReviewRepository.php.html#329"><abbr title="ReviewRepository::getDoctorIdByUserId">getDoctorIdByUserId</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/UsersRepository.php.html#10"><abbr title="UsersRepository::getInstance">getInstance</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/UsersRepository.php.html#79"><abbr title="UsersRepository::createUser">createUser</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/UsersRepository.php.html#214"><abbr title="UsersRepository::searchDoctors">searchDoctors</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="repositories/UsersRepository.php.html#248"><abbr title="UsersRepository::addUserAdmin">addUserAdmin</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="controllers/AppController.php.html#6"><abbr title="AppController::__construct">__construct</abbr></a></td><td class="text-right">11%</td></tr>
+       <tr><td><a href="repositories/UsersRepository.php.html#324"><abbr title="UsersRepository::updateUserPassword">updateUserPassword</abbr></a></td><td class="text-right">66%</td></tr>
+       <tr><td><a href="repositories/UsersRepository.php.html#187"><abbr title="UsersRepository::deleteUserAdmin">deleteUserAdmin</abbr></a></td><td class="text-right">81%</td></tr>
+       <tr><td><a href="repositories/UsersRepository.php.html#149"><abbr title="UsersRepository::updateUserAdmin">updateUserAdmin</abbr></a></td><td class="text-right">83%</td></tr>
+
+       </tbody>
+      </table>
+     </div>
+    </div>
+    <div class="col-md-6">
+     <h3>Project Risks</h3>
+     <div class="scrollbox">
+      <table class="table">
+       <thead>
+        <tr>
+         <th>Method</th>
+         <th class="text-right"><abbr title="Change Risk Anti-Patterns (CRAP) Index">CRAP</abbr></th>
+        </tr>
+       </thead>
+       <tbody>
+       <tr><td><a href="controllers/SecurityController.php.html#55"><abbr title="SecurityController::login">login</abbr></a></td><td class="text-right">1190</td></tr>
+       <tr><td><a href="controllers/AdminController.php.html#311"><abbr title="AdminController::apiGetAdminNotifications">apiGetAdminNotifications</abbr></a></td><td class="text-right">210</td></tr>
+       <tr><td><a href="controllers/AdminController.php.html#141"><abbr title="AdminController::adminAddUser">adminAddUser</abbr></a></td><td class="text-right">156</td></tr>
+       <tr><td><a href="controllers/DoctorController.php.html#149"><abbr title="DoctorController::apiSaveWeekAvailability">apiSaveWeekAvailability</abbr></a></td><td class="text-right">156</td></tr>
+       <tr><td><a href="controllers/SecurityController.php.html#290"><abbr title="SecurityController::register">register</abbr></a></td><td class="text-right">156</td></tr>
+       <tr><td><a href="controllers/DashboardController.php.html#252"><abbr title="DashboardController::apiUpdateProfile">apiUpdateProfile</abbr></a></td><td class="text-right">132</td></tr>
+       <tr><td><a href="controllers/AdminController.php.html#79"><abbr title="AdminController::adminUpdateUser">adminUpdateUser</abbr></a></td><td class="text-right">110</td></tr>
+       <tr><td><a href="repositories/LoginAttemptsRepository.php.html#820"><abbr title="LoginAttemptsRepository::notifyAdminsAboutIpAttack">notifyAdminsAboutIpAttack</abbr></a></td><td class="text-right">110</td></tr>
+       <tr><td><a href="controllers/AppointmentController.php.html#112"><abbr title="AppointmentController::getAvailability">getAvailability</abbr></a></td><td class="text-right">72</td></tr>
+       <tr><td><a href="controllers/DoctorController.php.html#53"><abbr title="DoctorController::updateDoctorProfile">updateDoctorProfile</abbr></a></td><td class="text-right">72</td></tr>
+       <tr><td><a href="controllers/ReviewController.php.html#15"><abbr title="ReviewController::submitReview">submitReview</abbr></a></td><td class="text-right">72</td></tr>
+       <tr><td><a href="repositories/AppointmentRepository.php.html#398"><abbr title="AppointmentRepository::getAvailableDatesInRange">getAvailableDatesInRange</abbr></a></td><td class="text-right">72</td></tr>
+       <tr><td><a href="repositories/LoginAttemptsRepository.php.html#395"><abbr title="LoginAttemptsRepository::notifyAdminsAboutAccountAttack">notifyAdminsAboutAccountAttack</abbr></a></td><td class="text-right">72</td></tr>
+       <tr><td><a href="controllers/AdminController.php.html#114"><abbr title="AdminController::adminDeleteUser">adminDeleteUser</abbr></a></td><td class="text-right">56</td></tr>
+       <tr><td><a href="controllers/AdminController.php.html#383"><abbr title="AdminController::apiAdminAttackDetails">apiAdminAttackDetails</abbr></a></td><td class="text-right">56</td></tr>
+       <tr><td><a href="controllers/DoctorController.php.html#206"><abbr title="DoctorController::apiSaveScheduleTemplate">apiSaveScheduleTemplate</abbr></a></td><td class="text-right">56</td></tr>
+       <tr><td><a href="controllers/AdminController.php.html#47"><abbr title="AdminController::adminUpdateAppointment">adminUpdateAppointment</abbr></a></td><td class="text-right">42</td></tr>
+       <tr><td><a href="controllers/AppointmentController.php.html#49"><abbr title="AppointmentController::confirm">confirm</abbr></a></td><td class="text-right">42</td></tr>
+       <tr><td><a href="controllers/DashboardController.php.html#220"><abbr title="DashboardController::apiChangePassword">apiChangePassword</abbr></a></td><td class="text-right">42</td></tr>
+       <tr><td><a href="controllers/DoctorController.php.html#260"><abbr title="DoctorController::doctorAvailability">doctorAvailability</abbr></a></td><td class="text-right">42</td></tr>
+       <tr><td><a href="controllers/ReviewController.php.html#49"><abbr title="ReviewController::reportReview">reportReview</abbr></a></td><td class="text-right">42</td></tr>
+       <tr><td><a href="repositories/ReviewRepository.php.html#267"><abbr title="ReviewRepository::getNextAvailableSlot">getNextAvailableSlot</abbr></a></td><td class="text-right">42</td></tr>
+       <tr><td><a href="controllers/AdminController.php.html#203"><abbr title="AdminController::adminDismissReport">adminDismissReport</abbr></a></td><td class="text-right">30</td></tr>
+       <tr><td><a href="controllers/AdminController.php.html#434"><abbr title="AdminController::adminBlockUser">adminBlockUser</abbr></a></td><td class="text-right">30</td></tr>
+       <tr><td><a href="controllers/AdminController.php.html#462"><abbr title="AdminController::adminUnblockUser">adminUnblockUser</abbr></a></td><td class="text-right">30</td></tr>
+       <tr><td><a href="controllers/DashboardController.php.html#178"><abbr title="DashboardController::apiDeleteNotification">apiDeleteNotification</abbr></a></td><td class="text-right">30</td></tr>
+       <tr><td><a href="repositories/AppointmentRepository.php.html#7"><abbr title="AppointmentRepository::createAppointment">createAppointment</abbr></a></td><td class="text-right">30</td></tr>
+       <tr><td><a href="repositories/AppointmentRepository.php.html#218"><abbr title="AppointmentRepository::updateAppointmentStatusByDoctor">updateAppointmentStatusByDoctor</abbr></a></td><td class="text-right">30</td></tr>
+       <tr><td><a href="repositories/ReviewRepository.php.html#154"><abbr title="ReviewRepository::getAllReviewsAdmin">getAllReviewsAdmin</abbr></a></td><td class="text-right">30</td></tr>
+       <tr><td><a href="repositories/UsersRepository.php.html#248"><abbr title="UsersRepository::addUserAdmin">addUserAdmin</abbr></a></td><td class="text-right">30</td></tr>
+       <tr><td><a href="controllers/AdminController.php.html#16"><abbr title="AdminController::__construct">__construct</abbr></a></td><td class="text-right">20</td></tr>
+       <tr><td><a href="controllers/AdminController.php.html#180"><abbr title="AdminController::adminDeleteReview">adminDeleteReview</abbr></a></td><td class="text-right">20</td></tr>
+       <tr><td><a href="controllers/AdminController.php.html#227"><abbr title="AdminController::adminResolveReport">adminResolveReport</abbr></a></td><td class="text-right">20</td></tr>
+       <tr><td><a href="controllers/AppointmentController.php.html#85"><abbr title="AppointmentController::cancel">cancel</abbr></a></td><td class="text-right">20</td></tr>
+       <tr><td><a href="controllers/DashboardController.php.html#96"><abbr title="DashboardController::apiGetAppointments">apiGetAppointments</abbr></a></td><td class="text-right">20</td></tr>
+       <tr><td><a href="controllers/DoctorController.php.html#86"><abbr title="DoctorController::doctorUpdateStatus">doctorUpdateStatus</abbr></a></td><td class="text-right">20</td></tr>
+       <tr><td><a href="controllers/DoctorController.php.html#138"><abbr title="DoctorController::apiGetWeekAvailability">apiGetWeekAvailability</abbr></a></td><td class="text-right">20</td></tr>
+       <tr><td><a href="controllers/DoctorController.php.html#225"><abbr title="DoctorController::apiDeleteScheduleTemplate">apiDeleteScheduleTemplate</abbr></a></td><td class="text-right">20</td></tr>
+       <tr><td><a href="controllers/DoctorController.php.html#242"><abbr title="DoctorController::apiGetAvailableDates">apiGetAvailableDates</abbr></a></td><td class="text-right">20</td></tr>
+       <tr><td><a href="repositories/AppointmentRepository.php.html#364"><abbr title="AppointmentRepository::getAvailableSlotsForDate">getAvailableSlotsForDate</abbr></a></td><td class="text-right">20</td></tr>
+       <tr><td><a href="repositories/LoginAttemptsRepository.php.html#550"><abbr title="LoginAttemptsRepository::deleteGlobalIpAttackNotificationsForIps">deleteGlobalIpAttackNotificationsForIps</abbr></a></td><td class="text-right">20</td></tr>
+       <tr><td><a href="repositories/LoginAttemptsRepository.php.html#635"><abbr title="LoginAttemptsRepository::detectGlobalIpAttack">detectGlobalIpAttack</abbr></a></td><td class="text-right">20</td></tr>
+       <tr><td><a href="repositories/LoginAttemptsRepository.php.html#728"><abbr title="LoginAttemptsRepository::getBlockedIpDetails">getBlockedIpDetails</abbr></a></td><td class="text-right">20</td></tr>
+       <tr><td><a href="controllers/AdminController.php.html#24"><abbr title="AdminController::requireAdmin">requireAdmin</abbr></a></td><td class="text-right">12</td></tr>
+       <tr><td><a href="controllers/AdminController.php.html#66"><abbr title="AdminController::adminDeleteAppointment">adminDeleteAppointment</abbr></a></td><td class="text-right">12</td></tr>
+       <tr><td><a href="controllers/AdminController.php.html#250"><abbr title="AdminController::apiGetReviewReports">apiGetReviewReports</abbr></a></td><td class="text-right">12</td></tr>
+       <tr><td><a href="controllers/AdminController.php.html#279"><abbr title="AdminController::apiGetAdminAppointments">apiGetAdminAppointments</abbr></a></td><td class="text-right">12</td></tr>
+       <tr><td><a href="controllers/AdminController.php.html#295"><abbr title="AdminController::apiGetAdminReviews">apiGetAdminReviews</abbr></a></td><td class="text-right">12</td></tr>
+       <tr><td><a href="controllers/AppController.php.html#96"><abbr title="AppController::requireLogin">requireLogin</abbr></a></td><td class="text-right">12</td></tr>
+       <tr><td><a href="controllers/AppController.php.html#109"><abbr title="AppController::requireHttps">requireHttps</abbr></a></td><td class="text-right">12</td></tr>
+       <tr><td><a href="controllers/DashboardController.php.html#14"><abbr title="DashboardController::__construct">__construct</abbr></a></td><td class="text-right">12</td></tr>
+       <tr><td><a href="controllers/DashboardController.php.html#21"><abbr title="DashboardController::redirectNonPatientToRoleDashboard">redirectNonPatientToRoleDashboard</abbr></a></td><td class="text-right">12</td></tr>
+       <tr><td><a href="controllers/DashboardController.php.html#36"><abbr title="DashboardController::myAppointments">myAppointments</abbr></a></td><td class="text-right">12</td></tr>
+       <tr><td><a href="controllers/DashboardController.php.html#55"><abbr title="DashboardController::index">index</abbr></a></td><td class="text-right">12</td></tr>
+       <tr><td><a href="controllers/DashboardController.php.html#76"><abbr title="DashboardController::apiSearchDoctors">apiSearchDoctors</abbr></a></td><td class="text-right">12</td></tr>
+       <tr><td><a href="controllers/DashboardController.php.html#159"><abbr title="DashboardController::apiClearNotifications">apiClearNotifications</abbr></a></td><td class="text-right">12</td></tr>
+       <tr><td><a href="controllers/DashboardController.php.html#204"><abbr title="DashboardController::apiGetProfile">apiGetProfile</abbr></a></td><td class="text-right">12</td></tr>
+       <tr><td><a href="controllers/DoctorController.php.html#12"><abbr title="DoctorController::__construct">__construct</abbr></a></td><td class="text-right">12</td></tr>
+       <tr><td><a href="controllers/DoctorController.php.html#18"><abbr title="DoctorController::requireDoctor">requireDoctor</abbr></a></td><td class="text-right">12</td></tr>
+       <tr><td><a href="controllers/DoctorController.php.html#121"><abbr title="DoctorController::apiGetSlots">apiGetSlots</abbr></a></td><td class="text-right">12</td></tr>
+       <tr><td><a href="controllers/ReviewController.php.html#79"><abbr title="ReviewController::apiGetDoctorProfile">apiGetDoctorProfile</abbr></a></td><td class="text-right">12</td></tr>
+       <tr><td><a href="repositories/AppointmentRepository.php.html#347"><abbr title="AppointmentRepository::saveWeekAvailability">saveWeekAvailability</abbr></a></td><td class="text-right">12</td></tr>
+       <tr><td><a href="repositories/LoginAttemptsRepository.php.html#24"><abbr title="LoginAttemptsRepository::formatSecondsAsHuman">formatSecondsAsHuman</abbr></a></td><td class="text-right">12</td></tr>
+       <tr><td><a href="repositories/LoginAttemptsRepository.php.html#119"><abbr title="LoginAttemptsRepository::isTemporarilyLockedForIpAccount">isTemporarilyLockedForIpAccount</abbr></a></td><td class="text-right">12</td></tr>
+       <tr><td><a href="repositories/LoginAttemptsRepository.php.html#180"><abbr title="LoginAttemptsRepository::getAccountAttackDetails">getAccountAttackDetails</abbr></a></td><td class="text-right">12</td></tr>
+       <tr><td><a href="repositories/LoginAttemptsRepository.php.html#449"><abbr title="LoginAttemptsRepository::notifyAdmins">notifyAdmins</abbr></a></td><td class="text-right">12</td></tr>
+       <tr><td><a href="repositories/LoginAttemptsRepository.php.html#507"><abbr title="LoginAttemptsRepository::unblockIpsForUser">unblockIpsForUser</abbr></a></td><td class="text-right">12</td></tr>
+       <tr><td><a href="repositories/LoginAttemptsRepository.php.html#605"><abbr title="LoginAttemptsRepository::isIpBlocked">isIpBlocked</abbr></a></td><td class="text-right">12</td></tr>
+       <tr><td><a href="repositories/LoginAttemptsRepository.php.html#683"><abbr title="LoginAttemptsRepository::blockIpAddress">blockIpAddress</abbr></a></td><td class="text-right">12</td></tr>
+       <tr><td><a href="repositories/LoginAttemptsRepository.php.html#786"><abbr title="LoginAttemptsRepository::getRecentFailedTargetsForIp">getRecentFailedTargetsForIp</abbr></a></td><td class="text-right">12</td></tr>
+       <tr><td><a href="repositories/ReviewRepository.php.html#22"><abbr title="ReviewRepository::submitReview">submitReview</abbr></a></td><td class="text-right">12</td></tr>
+       <tr><td><a href="repositories/ReviewRepository.php.html#99"><abbr title="ReviewRepository::reportReview">reportReview</abbr></a></td><td class="text-right">12</td></tr>
+       <tr><td><a href="repositories/ReviewRepository.php.html#222"><abbr title="ReviewRepository::dismissReport">dismissReport</abbr></a></td><td class="text-right">12</td></tr>
+       <tr><td><a href="repositories/UsersRepository.php.html#214"><abbr title="UsersRepository::searchDoctors">searchDoctors</abbr></a></td><td class="text-right">12</td></tr>
+       <tr><td><a href="controllers/AdminController.php.html#267"><abbr title="AdminController::apiGetLoginLogs">apiGetLoginLogs</abbr></a></td><td class="text-right">6</td></tr>
+       <tr><td><a href="controllers/AppController.php.html#48"><abbr title="AppController::jsonResponse">jsonResponse</abbr></a></td><td class="text-right">6</td></tr>
+       <tr><td><a href="controllers/AppController.php.html#75"><abbr title="AppController::render">render</abbr></a></td><td class="text-right">6</td></tr>
+       <tr><td><a href="controllers/AppController.php.html#155"><abbr title="AppController::forbidden">forbidden</abbr></a></td><td class="text-right">6</td></tr>
+       <tr><td><a href="controllers/AppController.php.html#166"><abbr title="AppController::badRequest">badRequest</abbr></a></td><td class="text-right">6</td></tr>
+       <tr><td><a href="controllers/AppointmentController.php.html#32"><abbr title="AppointmentController::book">book</abbr></a></td><td class="text-right">6</td></tr>
+       <tr><td><a href="controllers/DashboardController.php.html#120"><abbr title="DashboardController::apiMarkNotificationsRead">apiMarkNotificationsRead</abbr></a></td><td class="text-right">6</td></tr>
+       <tr><td><a href="controllers/DashboardController.php.html#131"><abbr title="DashboardController::apiGetNotifications">apiGetNotifications</abbr></a></td><td class="text-right">6</td></tr>
+       <tr><td><a href="controllers/DashboardController.php.html#147"><abbr title="DashboardController::apiGetNotificationsUnreadCount">apiGetNotificationsUnreadCount</abbr></a></td><td class="text-right">6</td></tr>
+       <tr><td><a href="controllers/DoctorController.php.html#104"><abbr title="DoctorController::findDoctor">findDoctor</abbr></a></td><td class="text-right">6</td></tr>
+       <tr><td><a href="controllers/DoctorController.php.html#200"><abbr title="DoctorController::apiGetScheduleTemplates">apiGetScheduleTemplates</abbr></a></td><td class="text-right">6</td></tr>
+       <tr><td><a href="controllers/DoctorController.php.html#252"><abbr title="DoctorController::getDoctorIdForCurrentUser">getDoctorIdForCurrentUser</abbr></a></td><td class="text-right">6</td></tr>
+       <tr><td><a href="controllers/ReviewController.php.html#10"><abbr title="ReviewController::__construct">__construct</abbr></a></td><td class="text-right">6</td></tr>
+       <tr><td><a href="controllers/SecurityController.php.html#268"><abbr title="SecurityController::logout">logout</abbr></a></td><td class="text-right">6</td></tr>
+       <tr><td><a href="repositories/AppointmentRepository.php.html#155"><abbr title="AppointmentRepository::getTodaysAppointmentsCount">getTodaysAppointmentsCount</abbr></a></td><td class="text-right">6</td></tr>
+       <tr><td><a href="repositories/LoginAttemptsRepository.php.html#45"><abbr title="LoginAttemptsRepository::recordAttempt">recordAttempt</abbr></a></td><td class="text-right">6</td></tr>
+       <tr><td><a href="repositories/LoginAttemptsRepository.php.html#163"><abbr title="LoginAttemptsRepository::isAccountGloballyLocked">isAccountGloballyLocked</abbr></a></td><td class="text-right">6</td></tr>
+       <tr><td><a href="repositories/LoginAttemptsRepository.php.html#586"><abbr title="LoginAttemptsRepository::deleteAccountAttackNotificationsForEmail">deleteAccountAttackNotificationsForEmail</abbr></a></td><td class="text-right">6</td></tr>
+       <tr><td><a href="repositories/ReviewRepository.php.html#14"><abbr title="ReviewRepository::isReviewSubmitted">isReviewSubmitted</abbr></a></td><td class="text-right">6</td></tr>
+       <tr><td><a href="repositories/ReviewRepository.php.html#63"><abbr title="ReviewRepository::getDoctorReviews">getDoctorReviews</abbr></a></td><td class="text-right">6</td></tr>
+       <tr><td><a href="repositories/ReviewRepository.php.html#86"><abbr title="ReviewRepository::getReviewSummary">getReviewSummary</abbr></a></td><td class="text-right">6</td></tr>
+       <tr><td><a href="repositories/ReviewRepository.php.html#245"><abbr title="ReviewRepository::resolveReportByDeletion">resolveReportByDeletion</abbr></a></td><td class="text-right">6</td></tr>
+       <tr><td><a href="repositories/ReviewRepository.php.html#307"><abbr title="ReviewRepository::getDoctorProfileData">getDoctorProfileData</abbr></a></td><td class="text-right">6</td></tr>
+       <tr><td><a href="repositories/ReviewRepository.php.html#329"><abbr title="ReviewRepository::getDoctorIdByUserId">getDoctorIdByUserId</abbr></a></td><td class="text-right">6</td></tr>
+       <tr><td><a href="repositories/UsersRepository.php.html#10"><abbr title="UsersRepository::getInstance">getInstance</abbr></a></td><td class="text-right">6</td></tr>
+       <tr><td><a href="repositories/UsersRepository.php.html#79"><abbr title="UsersRepository::createUser">createUser</abbr></a></td><td class="text-right">6</td></tr>
+       <tr><td><a href="repositories/UsersRepository.php.html#149"><abbr title="UsersRepository::updateUserAdmin">updateUserAdmin</abbr></a></td><td class="text-right">5</td></tr>
+       <tr><td><a href="controllers/AppController.php.html#6"><abbr title="AppController::__construct">__construct</abbr></a></td><td class="text-right">4</td></tr>
+       <tr><td><a href="repositories/UsersRepository.php.html#324"><abbr title="UsersRepository::updateUserPassword">updateUserPassword</abbr></a></td><td class="text-right">2</td></tr>
+       <tr><td><a href="repositories/UsersRepository.php.html#187"><abbr title="UsersRepository::deleteUserAdmin">deleteUserAdmin</abbr></a></td><td class="text-right">2</td></tr>
+
+       </tbody>
+      </table>
+     </div>
+    </div>
+   </div>
+   <footer>
+    <hr/>
+    <p>
+     <small>Generated by <a href="https://github.com/sebastianbergmann/php-code-coverage" target="_top">php-code-coverage 11.0.12</a> using <a href="https://www.php.net/" target="_top">PHP 8.3.18RC1</a> and <a href="https://phpunit.de/">PHPUnit 11.5.55</a> at Sun May 31 13:25:43 UTC 2026.</small>
+    </p>
+   </footer>
+  </div>
+  <script src="../_js/jquery.min.js?v=11.0.12" type="text/javascript"></script>
+  <script src="../_js/d3.min.js?v=11.0.12" type="text/javascript"></script>
+  <script src="../_js/nv.d3.min.js?v=11.0.12" type="text/javascript"></script>
+  <script type="text/javascript">
+$(document).ready(function() {
+  nv.addGraph(function() {
+    var chart = nv.models.multiBarChart();
+    chart.tooltips(false)
+      .showControls(false)
+      .showLegend(false)
+      .reduceXTicks(false)
+      .staggerLabels(true)
+      .yAxis.tickFormat(d3.format('d'));
+
+    d3.select('#classCoverageDistribution svg')
+      .datum(getCoverageDistributionData([7,1,1,0,2,0,0,1,0,0,0,2], "Class Coverage"))
+      .transition().duration(500).call(chart);
+
+    nv.utils.windowResize(chart.update);
+
+    return chart;
+  });
+
+  nv.addGraph(function() {
+    var chart = nv.models.multiBarChart();
+    chart.tooltips(false)
+      .showControls(false)
+      .showLegend(false)
+      .reduceXTicks(false)
+      .staggerLabels(true)
+      .yAxis.tickFormat(d3.format('d'));
+
+    d3.select('#methodCoverageDistribution svg')
+      .datum(getCoverageDistributionData([122,0,1,0,0,0,0,1,0,2,0,45], "Method Coverage"))
+      .transition().duration(500).call(chart);
+
+    nv.utils.windowResize(chart.update);
+
+    return chart;
+  });
+
+  function getCoverageDistributionData(data, label) {
+    var labels = [
+      '0%',
+      '0-10%',
+      '10-20%',
+      '20-30%',
+      '30-40%',
+      '40-50%',
+      '50-60%',
+      '60-70%',
+      '70-80%',
+      '80-90%',
+      '90-100%',
+      '100%'
+    ];
+    var values = [];
+    $.each(labels, function(key) {
+      values.push({x: labels[key], y: data[key]});
+    });
+
+    return [
+      {
+        key: label,
+        values: values,
+        color: "#4572A7"
+      }
+    ];
+  }
+  nv.addGraph(function() {
+    var chart = nv.models.scatterChart()
+      .showDistX(true)
+      .showDistY(true)
+      .showLegend(false)
+      .forceX([0, 100]);
+    chart.tooltipContent(function(graph) {
+      return '<p>' + graph.point.class + '</p>';
+    });
+
+    chart.xAxis.axisLabel('Code Coverage (in percent)');
+    chart.yAxis.axisLabel('Cyclomatic Complexity');
+
+    d3.select('#classComplexity svg')
+      .datum(getComplexityData([[0,101,"<a href=\"controllers\/AdminController.php.html#9\">AdminController<\/a>"],[39.50617283950617,39,"<a href=\"controllers\/AppController.php.html#4\">AppController<\/a>"],[12.987012987012985,29,"<a href=\"controllers\/AppointmentController.php.html#6\">AppointmentController<\/a>"],[0,53,"<a href=\"controllers\/DashboardController.php.html#8\">DashboardController<\/a>"],[0,67,"<a href=\"controllers\/DoctorController.php.html#7\">DoctorController<\/a>"],[0,19,"<a href=\"controllers\/ReviewController.php.html#6\">ReviewController<\/a>"],[9.523809523809524,57,"<a href=\"controllers\/SecurityController.php.html#7\">SecurityController<\/a>"],[100,7,"<a href=\"models\/User.php.html#3\">User<\/a>"],[30.275229357798167,46,"<a href=\"repositories\/AppointmentRepository.php.html#5\">AppointmentRepository<\/a>"],[0,1,"<a href=\"repositories\/DoctorRepository.php.html#5\">DoctorRepository<\/a>"],[0,65,"<a href=\"repositories\/LoginAttemptsRepository.php.html#5\">LoginAttemptsRepository<\/a>"],[100,2,"<a href=\"repositories\/Repository.php.html#5\">Repository<\/a>"],[0,36,"<a href=\"repositories\/ReviewRepository.php.html#5\">ReviewRepository<\/a>"],[61.849710982658955,40,"<a href=\"repositories\/UsersRepository.php.html#6\">UsersRepository<\/a>"]], 'Class Complexity'))
+      .transition()
+      .duration(500)
+      .call(chart);
+
+    nv.utils.windowResize(chart.update);
+
+    return chart;
+  });
+
+  nv.addGraph(function() {
+    var chart = nv.models.scatterChart()
+      .showDistX(true)
+      .showDistY(true)
+      .showLegend(false)
+      .forceX([0, 100]);
+    chart.tooltipContent(function(graph) {
+      return '<p>' + graph.point.class + '</p>';
+    });
+
+    chart.xAxis.axisLabel('Code Coverage (in percent)');
+    chart.yAxis.axisLabel('Method Complexity');
+
+    d3.select('#methodComplexity svg')
+      .datum(getComplexityData([[0,4,"<a href=\"controllers\/AdminController.php.html#16\">AdminController::__construct<\/a>"],[0,3,"<a href=\"controllers\/AdminController.php.html#24\">AdminController::requireAdmin<\/a>"],[0,1,"<a href=\"controllers\/AdminController.php.html#31\">AdminController::adminDashboard<\/a>"],[0,6,"<a href=\"controllers\/AdminController.php.html#47\">AdminController::adminUpdateAppointment<\/a>"],[0,3,"<a href=\"controllers\/AdminController.php.html#66\">AdminController::adminDeleteAppointment<\/a>"],[0,10,"<a href=\"controllers\/AdminController.php.html#79\">AdminController::adminUpdateUser<\/a>"],[0,7,"<a href=\"controllers\/AdminController.php.html#114\">AdminController::adminDeleteUser<\/a>"],[0,12,"<a href=\"controllers\/AdminController.php.html#141\">AdminController::adminAddUser<\/a>"],[0,4,"<a href=\"controllers\/AdminController.php.html#180\">AdminController::adminDeleteReview<\/a>"],[0,5,"<a href=\"controllers\/AdminController.php.html#203\">AdminController::adminDismissReport<\/a>"],[0,4,"<a href=\"controllers\/AdminController.php.html#227\">AdminController::adminResolveReport<\/a>"],[0,3,"<a href=\"controllers\/AdminController.php.html#250\">AdminController::apiGetReviewReports<\/a>"],[0,2,"<a href=\"controllers\/AdminController.php.html#267\">AdminController::apiGetLoginLogs<\/a>"],[0,3,"<a href=\"controllers\/AdminController.php.html#279\">AdminController::apiGetAdminAppointments<\/a>"],[0,3,"<a href=\"controllers\/AdminController.php.html#295\">AdminController::apiGetAdminReviews<\/a>"],[0,14,"<a href=\"controllers\/AdminController.php.html#311\">AdminController::apiGetAdminNotifications<\/a>"],[0,7,"<a href=\"controllers\/AdminController.php.html#383\">AdminController::apiAdminAttackDetails<\/a>"],[0,5,"<a href=\"controllers\/AdminController.php.html#434\">AdminController::adminBlockUser<\/a>"],[0,5,"<a href=\"controllers\/AdminController.php.html#462\">AdminController::adminUnblockUser<\/a>"],[11.11111111111111,2,"<a href=\"controllers\/AppController.php.html#6\">AppController::__construct<\/a>"],[100,1,"<a href=\"controllers\/AppController.php.html#19\">AppController::isGet<\/a>"],[100,1,"<a href=\"controllers\/AppController.php.html#24\">AppController::isPost<\/a>"],[100,4,"<a href=\"controllers\/AppController.php.html#29\">AppController::isHttpsRequest<\/a>"],[100,4,"<a href=\"controllers\/AppController.php.html#35\">AppController::isJsonRequest<\/a>"],[0,2,"<a href=\"controllers\/AppController.php.html#48\">AppController::jsonResponse<\/a>"],[100,2,"<a href=\"controllers\/AppController.php.html#59\">AppController::generateCsrfToken<\/a>"],[100,3,"<a href=\"controllers\/AppController.php.html#67\">AppController::verifyCsrf<\/a>"],[0,2,"<a href=\"controllers\/AppController.php.html#75\">AppController::render<\/a>"],[0,3,"<a href=\"controllers\/AppController.php.html#96\">AppController::requireLogin<\/a>"],[0,3,"<a href=\"controllers\/AppController.php.html#109\">AppController::requireHttps<\/a>"],[100,2,"<a href=\"controllers\/AppController.php.html#124\">AppController::getBaseUrl<\/a>"],[100,6,"<a href=\"controllers\/AppController.php.html#130\">AppController::validateStrongPassword<\/a>"],[0,2,"<a href=\"controllers\/AppController.php.html#155\">AppController::forbidden<\/a>"],[0,2,"<a href=\"controllers\/AppController.php.html#166\">AppController::badRequest<\/a>"],[100,7,"<a href=\"controllers\/AppointmentController.php.html#10\">AppointmentController::sanitizeReturnTo<\/a>"],[100,2,"<a href=\"controllers\/AppointmentController.php.html#27\">AppointmentController::__construct<\/a>"],[0,2,"<a href=\"controllers\/AppointmentController.php.html#32\">AppointmentController::book<\/a>"],[0,6,"<a href=\"controllers\/AppointmentController.php.html#49\">AppointmentController::confirm<\/a>"],[0,4,"<a href=\"controllers\/AppointmentController.php.html#85\">AppointmentController::cancel<\/a>"],[0,8,"<a href=\"controllers\/AppointmentController.php.html#112\">AppointmentController::getAvailability<\/a>"],[0,3,"<a href=\"controllers\/DashboardController.php.html#14\">DashboardController::__construct<\/a>"],[0,3,"<a href=\"controllers\/DashboardController.php.html#21\">DashboardController::redirectNonPatientToRoleDashboard<\/a>"],[0,3,"<a href=\"controllers\/DashboardController.php.html#36\">DashboardController::myAppointments<\/a>"],[0,3,"<a href=\"controllers\/DashboardController.php.html#55\">DashboardController::index<\/a>"],[0,3,"<a href=\"controllers\/DashboardController.php.html#76\">DashboardController::apiSearchDoctors<\/a>"],[0,4,"<a href=\"controllers\/DashboardController.php.html#96\">DashboardController::apiGetAppointments<\/a>"],[0,2,"<a href=\"controllers\/DashboardController.php.html#120\">DashboardController::apiMarkNotificationsRead<\/a>"],[0,2,"<a href=\"controllers\/DashboardController.php.html#131\">DashboardController::apiGetNotifications<\/a>"],[0,2,"<a href=\"controllers\/DashboardController.php.html#147\">DashboardController::apiGetNotificationsUnreadCount<\/a>"],[0,3,"<a href=\"controllers\/DashboardController.php.html#159\">DashboardController::apiClearNotifications<\/a>"],[0,5,"<a href=\"controllers\/DashboardController.php.html#178\">DashboardController::apiDeleteNotification<\/a>"],[0,3,"<a href=\"controllers\/DashboardController.php.html#204\">DashboardController::apiGetProfile<\/a>"],[0,6,"<a href=\"controllers\/DashboardController.php.html#220\">DashboardController::apiChangePassword<\/a>"],[0,11,"<a href=\"controllers\/DashboardController.php.html#252\">DashboardController::apiUpdateProfile<\/a>"],[0,3,"<a href=\"controllers\/DoctorController.php.html#12\">DoctorController::__construct<\/a>"],[0,3,"<a href=\"controllers\/DoctorController.php.html#18\">DoctorController::requireDoctor<\/a>"],[0,1,"<a href=\"controllers\/DoctorController.php.html#25\">DoctorController::doctorDashboard<\/a>"],[0,1,"<a href=\"controllers\/DoctorController.php.html#49\">DoctorController::getDoctorIdByUserId<\/a>"],[0,8,"<a href=\"controllers\/DoctorController.php.html#53\">DoctorController::updateDoctorProfile<\/a>"],[0,4,"<a href=\"controllers\/DoctorController.php.html#86\">DoctorController::doctorUpdateStatus<\/a>"],[0,2,"<a href=\"controllers\/DoctorController.php.html#104\">DoctorController::findDoctor<\/a>"],[0,3,"<a href=\"controllers\/DoctorController.php.html#121\">DoctorController::apiGetSlots<\/a>"],[0,1,"<a href=\"controllers\/DoctorController.php.html#132\">DoctorController::apiGetDoctorAppointments<\/a>"],[0,4,"<a href=\"controllers\/DoctorController.php.html#138\">DoctorController::apiGetWeekAvailability<\/a>"],[0,12,"<a href=\"controllers\/DoctorController.php.html#149\">DoctorController::apiSaveWeekAvailability<\/a>"],[0,2,"<a href=\"controllers\/DoctorController.php.html#200\">DoctorController::apiGetScheduleTemplates<\/a>"],[0,7,"<a href=\"controllers\/DoctorController.php.html#206\">DoctorController::apiSaveScheduleTemplate<\/a>"],[0,4,"<a href=\"controllers\/DoctorController.php.html#225\">DoctorController::apiDeleteScheduleTemplate<\/a>"],[0,4,"<a href=\"controllers\/DoctorController.php.html#242\">DoctorController::apiGetAvailableDates<\/a>"],[0,2,"<a href=\"controllers\/DoctorController.php.html#252\">DoctorController::getDoctorIdForCurrentUser<\/a>"],[0,6,"<a href=\"controllers\/DoctorController.php.html#260\">DoctorController::doctorAvailability<\/a>"],[0,2,"<a href=\"controllers\/ReviewController.php.html#10\">ReviewController::__construct<\/a>"],[0,8,"<a href=\"controllers\/ReviewController.php.html#15\">ReviewController::submitReview<\/a>"],[0,6,"<a href=\"controllers\/ReviewController.php.html#49\">ReviewController::reportReview<\/a>"],[0,3,"<a href=\"controllers\/ReviewController.php.html#79\">ReviewController::apiGetDoctorProfile<\/a>"],[100,2,"<a href=\"controllers\/SecurityController.php.html#12\">SecurityController::__construct<\/a>"],[100,4,"<a href=\"controllers\/SecurityController.php.html#18\">SecurityController::getClientIpAddress<\/a>"],[100,3,"<a href=\"controllers\/SecurityController.php.html#37\">SecurityController::formatRemainingLockTime<\/a>"],[0,34,"<a href=\"controllers\/SecurityController.php.html#55\">SecurityController::login<\/a>"],[0,2,"<a href=\"controllers\/SecurityController.php.html#268\">SecurityController::logout<\/a>"],[0,12,"<a href=\"controllers\/SecurityController.php.html#290\">SecurityController::register<\/a>"],[100,1,"<a href=\"models\/User.php.html#11\">User::__construct<\/a>"],[100,1,"<a href=\"models\/User.php.html#20\">User::getId<\/a>"],[100,1,"<a href=\"models\/User.php.html#24\">User::getEmail<\/a>"],[100,1,"<a href=\"models\/User.php.html#28\">User::getPassword<\/a>"],[100,1,"<a href=\"models\/User.php.html#32\">User::getUsername<\/a>"],[100,1,"<a href=\"models\/User.php.html#36\">User::getRole<\/a>"],[100,1,"<a href=\"models\/User.php.html#40\">User::getIsBlocked<\/a>"],[0,5,"<a href=\"repositories\/AppointmentRepository.php.html#7\">AppointmentRepository::createAppointment<\/a>"],[0,1,"<a href=\"repositories\/AppointmentRepository.php.html#49\">AppointmentRepository::getUpcomingAppointmentsForPatient<\/a>"],[100,1,"<a href=\"repositories\/AppointmentRepository.php.html#82\">AppointmentRepository::cancelAppointment<\/a>"],[100,1,"<a href=\"repositories\/AppointmentRepository.php.html#97\">AppointmentRepository::getBookedSlots<\/a>"],[0,1,"<a href=\"repositories\/AppointmentRepository.php.html#115\">AppointmentRepository::getAllAppointmentsAdmin<\/a>"],[100,1,"<a href=\"repositories\/AppointmentRepository.php.html#139\">AppointmentRepository::updateAppointmentAdmin<\/a>"],[100,1,"<a href=\"repositories\/AppointmentRepository.php.html#149\">AppointmentRepository::deleteAppointmentAdmin<\/a>"],[0,2,"<a href=\"repositories\/AppointmentRepository.php.html#155\">AppointmentRepository::getTodaysAppointmentsCount<\/a>"],[0,1,"<a href=\"repositories\/AppointmentRepository.php.html#169\">AppointmentRepository::getDoctorAppointments<\/a>"],[0,1,"<a href=\"repositories\/AppointmentRepository.php.html#193\">AppointmentRepository::getDoctorStats<\/a>"],[0,5,"<a href=\"repositories\/AppointmentRepository.php.html#218\">AppointmentRepository::updateAppointmentStatusByDoctor<\/a>"],[100,1,"<a href=\"repositories\/AppointmentRepository.php.html#250\">AppointmentRepository::getTakenSlots<\/a>"],[100,1,"<a href=\"repositories\/AppointmentRepository.php.html#266\">AppointmentRepository::getAppointmentsInRange<\/a>"],[100,1,"<a href=\"repositories\/AppointmentRepository.php.html#283\">AppointmentRepository::getUserNotifications<\/a>"],[100,1,"<a href=\"repositories\/AppointmentRepository.php.html#300\">AppointmentRepository::getUnreadNotificationsCount<\/a>"],[100,1,"<a href=\"repositories\/AppointmentRepository.php.html#309\">AppointmentRepository::markNotificationsAsRead<\/a>"],[100,1,"<a href=\"repositories\/AppointmentRepository.php.html#316\">AppointmentRepository::clearNotifications<\/a>"],[100,1,"<a href=\"repositories\/AppointmentRepository.php.html#325\">AppointmentRepository::deleteNotification<\/a>"],[0,1,"<a href=\"repositories\/AppointmentRepository.php.html#335\">AppointmentRepository::getDoctorAvailabilityForWeek<\/a>"],[0,3,"<a href=\"repositories\/AppointmentRepository.php.html#347\">AppointmentRepository::saveWeekAvailability<\/a>"],[0,4,"<a href=\"repositories\/AppointmentRepository.php.html#364\">AppointmentRepository::getAvailableSlotsForDate<\/a>"],[0,8,"<a href=\"repositories\/AppointmentRepository.php.html#398\">AppointmentRepository::getAvailableDatesInRange<\/a>"],[0,1,"<a href=\"repositories\/AppointmentRepository.php.html#447\">AppointmentRepository::getScheduleTemplates<\/a>"],[0,1,"<a href=\"repositories\/AppointmentRepository.php.html#459\">AppointmentRepository::saveScheduleTemplate<\/a>"],[0,1,"<a href=\"repositories\/AppointmentRepository.php.html#470\">AppointmentRepository::deleteScheduleTemplate<\/a>"],[0,1,"<a href=\"repositories\/DoctorRepository.php.html#7\">DoctorRepository::searchDoctors<\/a>"],[0,1,"<a href=\"repositories\/LoginAttemptsRepository.php.html#10\">LoginAttemptsRepository::ensureBlockedIpsTableExists<\/a>"],[0,3,"<a href=\"repositories\/LoginAttemptsRepository.php.html#24\">LoginAttemptsRepository::formatSecondsAsHuman<\/a>"],[0,2,"<a href=\"repositories\/LoginAttemptsRepository.php.html#45\">LoginAttemptsRepository::recordAttempt<\/a>"],[0,1,"<a href=\"repositories\/LoginAttemptsRepository.php.html#57\">LoginAttemptsRepository::getConsecutiveFailures<\/a>"],[0,1,"<a href=\"repositories\/LoginAttemptsRepository.php.html#86\">LoginAttemptsRepository::isTemporarilyLocked<\/a>"],[0,3,"<a href=\"repositories\/LoginAttemptsRepository.php.html#119\">LoginAttemptsRepository::isTemporarilyLockedForIpAccount<\/a>"],[0,2,"<a href=\"repositories\/LoginAttemptsRepository.php.html#163\">LoginAttemptsRepository::isAccountGloballyLocked<\/a>"],[0,3,"<a href=\"repositories\/LoginAttemptsRepository.php.html#180\">LoginAttemptsRepository::getAccountAttackDetails<\/a>"],[0,1,"<a href=\"repositories\/LoginAttemptsRepository.php.html#251\">LoginAttemptsRepository::getAccountsWithSuspiciousActivity<\/a>"],[0,8,"<a href=\"repositories\/LoginAttemptsRepository.php.html#395\">LoginAttemptsRepository::notifyAdminsAboutAccountAttack<\/a>"],[0,3,"<a href=\"repositories\/LoginAttemptsRepository.php.html#449\">LoginAttemptsRepository::notifyAdmins<\/a>"],[0,1,"<a href=\"repositories\/LoginAttemptsRepository.php.html#478\">LoginAttemptsRepository::clearAttemptsForUserId<\/a>"],[0,3,"<a href=\"repositories\/LoginAttemptsRepository.php.html#507\">LoginAttemptsRepository::unblockIpsForUser<\/a>"],[0,4,"<a href=\"repositories\/LoginAttemptsRepository.php.html#550\">LoginAttemptsRepository::deleteGlobalIpAttackNotificationsForIps<\/a>"],[0,2,"<a href=\"repositories\/LoginAttemptsRepository.php.html#586\">LoginAttemptsRepository::deleteAccountAttackNotificationsForEmail<\/a>"],[0,3,"<a href=\"repositories\/LoginAttemptsRepository.php.html#605\">LoginAttemptsRepository::isIpBlocked<\/a>"],[0,4,"<a href=\"repositories\/LoginAttemptsRepository.php.html#635\">LoginAttemptsRepository::detectGlobalIpAttack<\/a>"],[0,3,"<a href=\"repositories\/LoginAttemptsRepository.php.html#683\">LoginAttemptsRepository::blockIpAddress<\/a>"],[0,4,"<a href=\"repositories\/LoginAttemptsRepository.php.html#728\">LoginAttemptsRepository::getBlockedIpDetails<\/a>"],[0,3,"<a href=\"repositories\/LoginAttemptsRepository.php.html#786\">LoginAttemptsRepository::getRecentFailedTargetsForIp<\/a>"],[0,10,"<a href=\"repositories\/LoginAttemptsRepository.php.html#820\">LoginAttemptsRepository::notifyAdminsAboutIpAttack<\/a>"],[100,2,"<a href=\"repositories\/Repository.php.html#8\">Repository::__construct<\/a>"],[0,1,"<a href=\"repositories\/ReviewRepository.php.html#7\">ReviewRepository::hasReview<\/a>"],[0,2,"<a href=\"repositories\/ReviewRepository.php.html#14\">ReviewRepository::isReviewSubmitted<\/a>"],[0,3,"<a href=\"repositories\/ReviewRepository.php.html#22\">ReviewRepository::submitReview<\/a>"],[0,2,"<a href=\"repositories\/ReviewRepository.php.html#63\">ReviewRepository::getDoctorReviews<\/a>"],[0,2,"<a href=\"repositories\/ReviewRepository.php.html#86\">ReviewRepository::getReviewSummary<\/a>"],[0,3,"<a href=\"repositories\/ReviewRepository.php.html#99\">ReviewRepository::reportReview<\/a>"],[0,5,"<a href=\"repositories\/ReviewRepository.php.html#154\">ReviewRepository::getAllReviewsAdmin<\/a>"],[0,1,"<a href=\"repositories\/ReviewRepository.php.html#200\">ReviewRepository::deleteReviewAdmin<\/a>"],[0,1,"<a href=\"repositories\/ReviewRepository.php.html#208\">ReviewRepository::getPendingReportsForReview<\/a>"],[0,3,"<a href=\"repositories\/ReviewRepository.php.html#222\">ReviewRepository::dismissReport<\/a>"],[0,2,"<a href=\"repositories\/ReviewRepository.php.html#245\">ReviewRepository::resolveReportByDeletion<\/a>"],[0,6,"<a href=\"repositories\/ReviewRepository.php.html#267\">ReviewRepository::getNextAvailableSlot<\/a>"],[0,2,"<a href=\"repositories\/ReviewRepository.php.html#307\">ReviewRepository::getDoctorProfileData<\/a>"],[0,1,"<a href=\"repositories\/ReviewRepository.php.html#323\">ReviewRepository::updateDoctorProfile<\/a>"],[0,2,"<a href=\"repositories\/ReviewRepository.php.html#329\">ReviewRepository::getDoctorIdByUserId<\/a>"],[0,2,"<a href=\"repositories\/UsersRepository.php.html#10\">UsersRepository::getInstance<\/a>"],[100,2,"<a href=\"repositories\/UsersRepository.php.html#18\">UsersRepository::getUserByEmail<\/a>"],[100,1,"<a href=\"repositories\/UsersRepository.php.html#44\">UsersRepository::emailExists<\/a>"],[100,1,"<a href=\"repositories\/UsersRepository.php.html#52\">UsersRepository::blockUser<\/a>"],[100,1,"<a href=\"repositories\/UsersRepository.php.html#58\">UsersRepository::unblockUser<\/a>"],[100,2,"<a href=\"repositories\/UsersRepository.php.html#64\">UsersRepository::getEmailById<\/a>"],[100,1,"<a href=\"repositories\/UsersRepository.php.html#72\">UsersRepository::getAdminUserIds<\/a>"],[0,2,"<a href=\"repositories\/UsersRepository.php.html#79\">UsersRepository::createUser<\/a>"],[100,2,"<a href=\"repositories\/UsersRepository.php.html#107\">UsersRepository::getUsersCount<\/a>"],[100,1,"<a href=\"repositories\/UsersRepository.php.html#116\">UsersRepository::getAllPatientsAdmin<\/a>"],[100,1,"<a href=\"repositories\/UsersRepository.php.html#123\">UsersRepository::getAllDoctorsAdmin<\/a>"],[100,1,"<a href=\"repositories\/UsersRepository.php.html#130\">UsersRepository::getAllUsersWithRoles<\/a>"],[83.33333333333334,5,"<a href=\"repositories\/UsersRepository.php.html#149\">UsersRepository::updateUserAdmin<\/a>"],[100,1,"<a href=\"repositories\/UsersRepository.php.html#180\">UsersRepository::getAdminCount<\/a>"],[81.25,2,"<a href=\"repositories\/UsersRepository.php.html#187\">UsersRepository::deleteUserAdmin<\/a>"],[0,3,"<a href=\"repositories\/UsersRepository.php.html#214\">UsersRepository::searchDoctors<\/a>"],[0,5,"<a href=\"repositories\/UsersRepository.php.html#248\">UsersRepository::addUserAdmin<\/a>"],[100,2,"<a href=\"repositories\/UsersRepository.php.html#293\">UsersRepository::getUserProfileData<\/a>"],[100,3,"<a href=\"repositories\/UsersRepository.php.html#307\">UsersRepository::updateUserProfileData<\/a>"],[66.66666666666666,2,"<a href=\"repositories\/UsersRepository.php.html#324\">UsersRepository::updateUserPassword<\/a>"]], 'Method Complexity'))
+      .transition()
+      .duration(500)
+      .call(chart);
+
+    nv.utils.windowResize(chart.update);
+
+    return chart;
+  });
+
+  function getComplexityData(data, label) {
+    var values = [];
+    $.each(data, function(key) {
+      var value = Math.round(data[key][0]*100) / 100;
+      values.push({
+        x: value,
+        y: data[key][1],
+        class: data[key][2],
+        size: 0.05,
+        shape: 'diamond'
+      });
+    });
+
+    return [
+      {
+        key: label,
+        values: values,
+        color: "#4572A7"
+      }
+    ];
+  }
+});
+  </script>
+ </body>
+</html>

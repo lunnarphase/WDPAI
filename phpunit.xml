@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit
+    bootstrap="tests/bootstrap.php"
+    cacheDirectory="tests/.phpunit.cache"
+    colors="true"
+    failOnRisky="true"
+    failOnWarning="true"
+>
+    <testsuites>
+        <testsuite name="WDPAI">
+            <directory suffix="Test.php">tests</directory>
+        </testsuite>
+    </testsuites>
+
+    <source>
+        <include>
+            <file>src/controllers/AppController.php</file>
+            <file>src/repositories/Repository.php</file>
+            <file>src/repositories/AppointmentRepository.php</file>
+            <file>src/repositories/UsersRepository.php</file>
+            <file>src/models/User.php</file>
+        </include>
+    </source>
+</phpunit>

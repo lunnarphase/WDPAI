@@ -1212,9 +1212,6 @@
                 });
         }
 
-        // Auto-odświeżanie co 5 sekund
-        setInterval(() => refreshSchedule(false), 5000);
-
         function openStatusModal(id, patientName, time, status, recommendations) {
             document.getElementById('modal_app_id').value = id;
             document.getElementById('modal_patient_name').value = patientName;
@@ -1320,31 +1317,40 @@
             }
         }
 
-        function refreshDoctorNotifications() {
-            fetch('/api-get-notifications', {headers: {'Accept': 'application/json'}})
+        function refreshDoctorNotifications(forceFull = false) {
+            if (document.hidden) return;
+
+            const modal = document.getElementById('doctorNotifModal');
+            const shouldFetchFull = forceFull || (modal && modal.classList.contains('active'));
+            const endpoint = shouldFetchFull ? '/api-get-notifications' : '/api-get-notifications-unread';
+
+            fetch(endpoint, {headers: {'Accept': 'application/json'}})
                 .then(r => r.ok ? r.json() : null)
                 .then(data => {
                     if (!data) return;
-                    const incoming = Array.isArray(data.notifications) ? data.notifications : [];
                     const unread = Number(data.unread_count) || 0;
 
-                    allDoctorNotifications.length = 0;
-                    incoming.forEach(n => allDoctorNotifications.push(n));
+                    if (shouldFetchFull) {
+                        const incoming = Array.isArray(data.notifications) ? data.notifications : [];
+
+                        allDoctorNotifications.length = 0;
+                        incoming.forEach(n => allDoctorNotifications.push(n));
+                    }
 
                     updateDoctorNotifBadge(unread);
 
-                    const modal = document.getElementById('doctorNotifModal');
-                    if (modal && modal.classList.contains('active')) {
+                    if (shouldFetchFull && modal && modal.classList.contains('active')) {
                         renderDoctorNotificationsList();
                     }
                 })
                 .catch(() => {});
         }
-        setInterval(refreshDoctorNotifications, 5000);
+            setInterval(refreshDoctorNotifications, 15000);
 
         function openNotificationsModal() {
             renderDoctorNotificationsList();
             document.getElementById('doctorNotifModal').classList.add('active');
+            refreshDoctorNotifications(true);
             // Oznacz jako przeczytane i ukryj badge
             fetch('/api-mark-notifications-read', {method:'POST'}).then(() => {
                 updateDoctorNotifBadge(0);

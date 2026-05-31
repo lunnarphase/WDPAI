@@ -19,6 +19,9 @@ CREATE TABLE IF NOT EXISTS blocked_ips (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_blocked_ips_blocked_until ON blocked_ips(blocked_until);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_created_at ON notifications(id_user, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_type_created_at ON notifications(id_user, type, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_is_read ON notifications(id_user, is_read);
 
 -- Migration: add trigger for review requests
 CREATE OR REPLACE FUNCTION notify_patient_review_request()

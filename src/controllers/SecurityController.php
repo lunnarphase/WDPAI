@@ -219,7 +219,7 @@ class SecurityController extends AppController {
             $this->loginAttemptsRepository->recordAttempt($email, $ip, false);
             error_log("Blocked account login attempt for email: {$email} from IP: {$ip}");
             return $this->render('login', [
-                'messages'   => ['Twoje konto zostało zablokowane. Skontaktuj się z administratorem.'],
+                'messages'   => ['Twoje konto zostało zablokowane. Jeśli uważasz, że to błąd, skontaktuj się z naszym wsparciem.'],
                 'csrf_token' => $this->generateCsrfToken(),
             ]);
         }

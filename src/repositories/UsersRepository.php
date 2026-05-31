@@ -130,7 +130,7 @@ class UsersRepository extends Repository {
     public function getAllUsersWithRoles(): array {
         $db = $this->database->connect();
         $stmt = $db->prepare('
-            SELECT u.id, u.email, u.username, r.name as role,
+            SELECT u.id, u.email, u.username, u.is_blocked, r.name as role,
                    p.pesel,
                    (SELECT s.name 
                     FROM doctors_specializations ds 

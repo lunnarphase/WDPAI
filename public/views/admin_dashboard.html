@@ -213,11 +213,12 @@
                                     $rolePl = 'Pacjent';
                                     $color = '#64748b'; 
                                     $bg = '#f1f5f9';
+                                    $isBlocked = !empty($u['is_blocked']);
                                     
                                     if($roleRaw === 'admin') { $rolePl = 'Admin'; $color = '#991b1b'; $bg = '#fee2e2'; }
                                     if($roleRaw === 'doctor') { $rolePl = 'Lekarz'; $color = '#166534'; $bg = '#bbf7d0'; }
                                 ?>
-                                <tr class="user-row" data-role="<?= htmlspecialchars($roleRaw, ENT_QUOTES) ?>" style="border-bottom: 1px solid #e2e8f0; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
+                                <tr class="user-row" data-role="<?= htmlspecialchars($roleRaw, ENT_QUOTES) ?>" data-user-id="<?= (int)$u['id'] ?>" data-blocked="<?= $isBlocked ? '1' : '0' ?>" style="border-bottom: 1px solid #e2e8f0; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
                                     <td style="padding: 1.25rem 1.5rem; color: #64748b; font-family: monospace;">#<?= $u['id'] ?></td>
                                     <td class="searchable-name" style="padding: 1.25rem 1.5rem; font-weight: 600; color: #0f172a;"><?= htmlspecialchars($u['username']) ?></td>
                                     <td class="searchable-email" style="padding: 1.25rem 1.5rem; color: #475569;"><?= htmlspecialchars($u['email']) ?></td>
@@ -227,7 +228,10 @@
                                         </span>
                                     </td>
                                     <td style="padding: 1.25rem 1.5rem; text-align: right;">
-                                        <button class="admin-action-btn btn-edit" onclick="openUserEditModal(<?= (int)$u['id'] ?>, '<?= htmlspecialchars($u['username'], ENT_QUOTES) ?>', '<?= htmlspecialchars($u['email'], ENT_QUOTES) ?>', '<?= htmlspecialchars($roleRaw, ENT_QUOTES) ?>', '<?= htmlspecialchars($u['pesel'] ?? '', ENT_QUOTES) ?>', '<?= htmlspecialchars($u['specialization'] ?? '', ENT_QUOTES) ?>')" title="Edytuj profil"><i class="fa-solid fa-pen-to-square"></i> Edytuj</button>
+                                        <button type="button" class="admin-action-btn user-row-block-btn" style="<?= $isBlocked ? 'background:#16a34a; color:white;' : 'background:#dc2626; color:white;' ?>" onclick="toggleUserBlock(<?= (int)$u['id'] ?>, <?= $isBlocked ? 'false' : 'true' ?>, this)" title="<?= $isBlocked ? 'Odblokuj konto' : 'Zablokuj konto' ?>">
+                                            <i class="fa-solid <?= $isBlocked ? 'fa-user-check' : 'fa-user-lock' ?>"></i> <?= $isBlocked ? 'Odblokuj' : 'Zablokuj' ?>
+                                        </button>
+                                        <button class="admin-action-btn btn-edit" onclick="openUserEditModal(<?= (int)$u['id'] ?>, '<?= htmlspecialchars($u['username'], ENT_QUOTES) ?>', '<?= htmlspecialchars($u['email'], ENT_QUOTES) ?>', '<?= htmlspecialchars($roleRaw, ENT_QUOTES) ?>', '<?= htmlspecialchars($u['pesel'] ?? '', ENT_QUOTES) ?>', '<?= htmlspecialchars($u['specialization'] ?? '', ENT_QUOTES) ?>', <?= $isBlocked ? 'true' : 'false' ?>)" title="Edytuj profil"><i class="fa-solid fa-pen-to-square"></i> Edytuj</button>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -504,8 +508,11 @@
                 <button onclick="closeUserEditModal()" style="background:none; border:none; font-size: 1.5rem; cursor:pointer; color: #64748b; transition: 0.2s;" onmouseover="this.style.color='#0f172a'" onmouseout="this.style.color='#64748b'">&times;</button>
             </div>
             
-            <form id="userEditForm" method="POST" action="/admin-update-user">
+            <form id="userEditForm" method="POST" action="/admin-update-user" novalidate>
                 <input type="hidden" name="user_id" id="modal_user_id">
+                <input type="hidden" id="modal_user_blocked" value="0">
+
+                <div id="user-edit-message" style="display:none; padding:0.75rem; border-radius:8px; margin-bottom:1rem; font-size:0.9rem;"></div>
                 
                 <div class="form-group">
                     <label>Nazwa użytkownika</label>
@@ -520,6 +527,12 @@
                 <div class="form-group">
                     <label>Nowe Hasło <span style="text-transform: none; font-weight: 400; font-size: 0.75rem;">(zostaw puste, aby nie zmieniać)</span></label>
                     <input type="password" name="password" id="modal_password" placeholder="Wpisz nowe hasło...">
+                    <p style="margin:0.4rem 0 0; color:#64748b; font-size:0.78rem;">Minimum 9 znaków, mała i wielka litera, cyfra oraz znak specjalny.</p>
+                </div>
+
+                <div class="form-group">
+                    <label>Powtórz nowe hasło</label>
+                    <input type="password" id="modal_password_confirm" placeholder="Powtórz nowe hasło...">
                 </div>
 
                 <div class="form-group" style="margin-bottom: 1.5rem;">
@@ -547,6 +560,7 @@
                 
                 <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; border-top: 1px solid #e2e8f0; padding-top: 1.5rem; margin-top: 1rem;">
                     <button type="button" class="btn-delete" onclick="openUserDeleteConfirmModal()"><i class="fa-solid fa-trash"></i> Usuń trwale</button>
+                    <button type="button" id="modalBlockToggleBtn" class="admin-action-btn" style="background:#dc2626; color:white;" onclick="toggleBlockFromEditModal()"><i class="fa-solid fa-user-lock"></i> Zablokuj konto</button>
                     <div style="display: flex; gap: 0.5rem;">
                         <button type="button" class="btn-secondary" onclick="closeUserEditModal()">Anuluj</button>
                         <button type="submit" class="btn-primary-small">Zapisz zmiany</button>
@@ -563,21 +577,28 @@
                 <button onclick="closeAddUserModal()" style="background:none; border:none; font-size: 1.5rem; cursor:pointer; color: #64748b; transition: 0.2s;" onmouseover="this.style.color='#0f172a'" onmouseout="this.style.color='#64748b'">&times;</button>
             </div>
             
-            <form id="addUserForm" method="POST" action="/admin-add-user">
+            <form id="addUserForm" method="POST" action="/admin-add-user" novalidate>
+                <div id="add-user-message" style="display:none; padding:0.75rem; border-radius:8px; margin-bottom:1rem; font-size:0.9rem;"></div>
                 
                 <div class="form-group">
                     <label>Nazwa użytkownika</label>
-                    <input type="text" name="username" required placeholder="Imię i nazwisko">
+                    <input type="text" name="username" id="add_username" required placeholder="Imię i nazwisko">
                 </div>
 
                 <div class="form-group">
                     <label>Adres Email</label>
-                    <input type="email" name="email" required placeholder="Email">
+                    <input type="email" name="email" id="add_email" required placeholder="nazwa@domena.pl">
                 </div>
 
                 <div class="form-group">
                     <label>Hasło</label>
-                    <input type="password" name="password" required placeholder="Hasło">
+                    <input type="password" name="password" id="add_password" required placeholder="Hasło">
+                    <p style="margin:0.4rem 0 0; color:#64748b; font-size:0.78rem;">Minimum 9 znaków, mała i wielka litera, cyfra oraz znak specjalny.</p>
+                </div>
+
+                <div class="form-group">
+                    <label>Powtórz hasło</label>
+                    <input type="password" id="add_password_confirm" required placeholder="Powtórz hasło">
                 </div>
 
                 <div class="form-group" style="margin-bottom: 1.5rem;">
@@ -591,7 +612,7 @@
 
                 <div class="form-group" id="add_pesel_group" style="display: block; margin-bottom: 2rem;">
                     <label>Numer PESEL</label>
-                    <input type="text" name="pesel" id="add_pesel" maxlength="11" placeholder="Np. 90010112345" required>
+                    <input type="text" name="pesel" id="add_pesel" maxlength="11" placeholder="Np. 90010112345">
                 </div>
 
                 <div style="display: flex; justify-content: flex-end; gap: 0.5rem; border-top: 1px solid #e2e8f0; padding-top: 1.5rem;">
@@ -1163,13 +1184,186 @@
             }
         }
 
-        function openUserEditModal(id, username, email, role, pesel, spec) {
+        function showFormMessage(elementId, text, type = 'error') {
+            const box = document.getElementById(elementId);
+            if (!box) {
+                return;
+            }
+
+            box.style.display = 'block';
+            box.textContent = text;
+
+            if (type === 'success') {
+                box.style.background = '#d1fae5';
+                box.style.color = '#065f46';
+            } else {
+                box.style.background = '#fee2e2';
+                box.style.color = '#991b1b';
+            }
+        }
+
+        function clearFormMessage(elementId) {
+            const box = document.getElementById(elementId);
+            if (!box) {
+                return;
+            }
+            box.style.display = 'none';
+            box.textContent = '';
+        }
+
+        function validateUiEmailAddress(email) {
+            return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
+        }
+
+        function validateUiStrongPassword(password) {
+            if (password.length < 9) return 'Hasło musi mieć co najmniej 9 znaków.';
+            if (!/[a-z]/.test(password)) return 'Hasło musi zawierać co najmniej jedną małą literę.';
+            if (!/[A-Z]/.test(password)) return 'Hasło musi zawierać co najmniej jedną wielką literę.';
+            if (!/[0-9]/.test(password)) return 'Hasło musi zawierać co najmniej jedną cyfrę.';
+            if (!/[^a-zA-Z0-9]/.test(password)) return 'Hasło musi zawierać co najmniej jeden znak specjalny.';
+            return null;
+        }
+
+        function isValidPesel(pesel) {
+            return /^\d{11}$/.test(pesel);
+        }
+
+        function updateModalBlockToggleButton(isBlocked) {
+            const button = document.getElementById('modalBlockToggleBtn');
+            if (!button) {
+                return;
+            }
+
+            if (isBlocked) {
+                button.style.background = '#16a34a';
+                button.style.color = 'white';
+                button.innerHTML = '<i class="fa-solid fa-user-check"></i> Odblokuj konto';
+            } else {
+                button.style.background = '#dc2626';
+                button.style.color = 'white';
+                button.innerHTML = '<i class="fa-solid fa-user-lock"></i> Zablokuj konto';
+            }
+        }
+
+        function updateUserRowBlockButtons(userId, isBlocked) {
+            const row = document.querySelector(`.user-row[data-user-id="${userId}"]`);
+            if (!row) {
+                return;
+            }
+
+            row.setAttribute('data-blocked', isBlocked ? '1' : '0');
+            const button = row.querySelector('.user-row-block-btn');
+            if (!button) {
+                return;
+            }
+
+            if (isBlocked) {
+                button.style.background = '#16a34a';
+                button.style.color = 'white';
+                button.title = 'Odblokuj konto';
+                button.setAttribute('onclick', `toggleUserBlock(${userId}, false, this)`);
+                button.innerHTML = '<i class="fa-solid fa-user-check"></i> Odblokuj';
+            } else {
+                button.style.background = '#dc2626';
+                button.style.color = 'white';
+                button.title = 'Zablokuj konto';
+                button.setAttribute('onclick', `toggleUserBlock(${userId}, true, this)`);
+                button.innerHTML = '<i class="fa-solid fa-user-lock"></i> Zablokuj';
+            }
+        }
+
+        function validateAddUserForm() {
+            const username = document.getElementById('add_username')?.value.trim() || '';
+            const email = document.getElementById('add_email')?.value.trim() || '';
+            const password = document.getElementById('add_password')?.value || '';
+            const passwordConfirm = document.getElementById('add_password_confirm')?.value || '';
+            const role = document.getElementById('add_user_role')?.value || 'patient';
+            const pesel = document.getElementById('add_pesel')?.value.trim() || '';
+
+            if (!username) {
+                return 'Nazwa użytkownika jest wymagana.';
+            }
+
+            if (!validateUiEmailAddress(email)) {
+                return 'Podaj poprawny adres email, np. nazwa@domena.pl.';
+            }
+
+            const passwordError = validateUiStrongPassword(password);
+            if (passwordError) {
+                return passwordError;
+            }
+
+            if (password !== passwordConfirm) {
+                return 'Hasła nie są identyczne.';
+            }
+
+            if (role === 'patient' && !isValidPesel(pesel)) {
+                return 'Dla roli pacjent wymagany jest poprawny numer PESEL (11 cyfr).';
+            }
+
+            return null;
+        }
+
+        function validateUserEditForm() {
+            const username = document.getElementById('modal_username')?.value.trim() || '';
+            const email = document.getElementById('modal_user_email')?.value.trim() || '';
+            const password = document.getElementById('modal_password')?.value || '';
+            const passwordConfirm = document.getElementById('modal_password_confirm')?.value || '';
+            const role = document.getElementById('modal_user_role')?.value || 'patient';
+            const pesel = document.getElementById('modal_pesel')?.value.trim() || '';
+
+            if (!username) {
+                return 'Nazwa użytkownika jest wymagana.';
+            }
+
+            if (!validateUiEmailAddress(email)) {
+                return 'Podaj poprawny adres email, np. nazwa@domena.pl.';
+            }
+
+            if (role === 'patient' && !isValidPesel(pesel)) {
+                return 'Dla roli pacjent wymagany jest poprawny numer PESEL (11 cyfr).';
+            }
+
+            if (!password && passwordConfirm) {
+                return 'Wpisano potwierdzenie hasła bez nowego hasła.';
+            }
+
+            if (password) {
+                const passwordError = validateUiStrongPassword(password);
+                if (passwordError) {
+                    return passwordError;
+                }
+
+                if (password !== passwordConfirm) {
+                    return 'Hasła nie są identyczne.';
+                }
+            }
+
+            return null;
+        }
+
+        function toggleBlockFromEditModal() {
+            const userId = Number(document.getElementById('modal_user_id')?.value || 0);
+            const isBlocked = document.getElementById('modal_user_blocked')?.value === '1';
+            const btn = document.getElementById('modalBlockToggleBtn');
+
+            if (!userId || !btn) {
+                return;
+            }
+
+            toggleUserBlock(userId, !isBlocked, btn);
+        }
+
+        function openUserEditModal(id, username, email, role, pesel, spec, isBlocked = false) {
             document.getElementById('modal_user_id').value = id;
             document.getElementById('modal_username').value = username;
             document.getElementById('modal_user_email').value = email;
             document.getElementById('modal_user_role').value = role;
             document.getElementById('modal_password').value = '';
+            document.getElementById('modal_password_confirm').value = '';
             document.getElementById('modal_pesel').value = pesel || '';
+            document.getElementById('modal_user_blocked').value = isBlocked ? '1' : '0';
+            clearFormMessage('user-edit-message');
 
             if (spec) {
                 const specSelect = document.getElementById('modal_specialization');
@@ -1182,11 +1376,13 @@
             }
 
             toggleRoleFields();
+            updateModalBlockToggleButton(!!isBlocked);
             document.getElementById('userEditModal').classList.add('active');
         }
 
         function closeUserEditModal() {
             document.getElementById('userEditModal').classList.remove('active');
+            clearFormMessage('user-edit-message');
         }
 
         function toggleRoleFields() {
@@ -1231,11 +1427,18 @@
         }
 
         function openAddUserModal() {
+            const addForm = document.getElementById('addUserForm');
+            if (addForm) {
+                addForm.reset();
+            }
+            toggleAddRoleFields();
+            clearFormMessage('add-user-message');
             document.getElementById('addUserModal').classList.add('active');
         }
 
         function closeAddUserModal() {
             document.getElementById('addUserModal').classList.remove('active');
+            clearFormMessage('add-user-message');
         }
 
         function filterReviews() {
@@ -1725,6 +1928,16 @@
                     alert(data.error || 'Błąd operacji.');
                     return;
                 }
+
+                updateUserRowBlockButtons(userId, block);
+
+                const modalUserId = Number(document.getElementById('modal_user_id')?.value || 0);
+                if (modalUserId === Number(userId)) {
+                    document.getElementById('modal_user_blocked').value = block ? '1' : '0';
+                    updateModalBlockToggleButton(block);
+                    showFormMessage('user-edit-message', block ? 'Konto zostało zablokowane.' : 'Konto zostało odblokowane.', 'success');
+                }
+
                 refreshLoginLogs(true);
             }).catch(() => {
                 btn.disabled = false;
@@ -2012,6 +2225,10 @@
                 return;
             }
 
+            if (document.hidden) {
+                return;
+            }
+
             isRealtimeRefreshRunning = true;
             try {
                 await Promise.all([
@@ -2033,7 +2250,7 @@
             refreshAllRealtimeData(true);
             realtimeRefreshHandle = setInterval(() => {
                 refreshAllRealtimeData(true);
-            }, 2000);
+            }, 10000);
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -2070,6 +2287,38 @@
                     if (event.target === attackModal) {
                         closeAttackDetailsModal();
                     }
+                });
+            }
+
+            const addUserForm = document.getElementById('addUserForm');
+            if (addUserForm) {
+                addUserForm.addEventListener('submit', event => {
+                    event.preventDefault();
+                    clearFormMessage('add-user-message');
+
+                    const error = validateAddUserForm();
+                    if (error) {
+                        showFormMessage('add-user-message', error, 'error');
+                        return;
+                    }
+
+                    addUserForm.submit();
+                });
+            }
+
+            const userEditForm = document.getElementById('userEditForm');
+            if (userEditForm) {
+                userEditForm.addEventListener('submit', event => {
+                    event.preventDefault();
+                    clearFormMessage('user-edit-message');
+
+                    const error = validateUserEditForm();
+                    if (error) {
+                        showFormMessage('user-edit-message', error, 'error');
+                        return;
+                    }
+
+                    userEditForm.submit();
                 });
             }
 

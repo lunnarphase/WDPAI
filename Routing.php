@@ -138,6 +138,10 @@ class Routing {
             "controller" => "DashboardController",
             "action" => "apiGetNotifications"
         ],
+        "api-get-notifications-unread" => [
+            "controller" => "DashboardController",
+            "action" => "apiGetNotificationsUnreadCount"
+        ],
         "api-admin-attack-details" => [
             "controller" => "AdminController",
             "action" => "apiAdminAttackDetails"

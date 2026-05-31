@@ -1,0 +1,40 @@
+﻿PHPUnit 11.5.55 by Sebastian Bergmann and contributors.
+
+Runtime:       PHP 8.3.18RC1 with Xdebug 3.5.1
+Configuration: /app/phpunit.xml
+
+..........................................................        58 / 58 (100%)
+
+Time: 00:05.299, Memory: 29.45 MB
+
+OK (58 tests, 141 assertions)
+
+Generating code coverage report in Clover XML format ... done [00:00.158]
+
+Generating code coverage report in HTML format ... done [00:00.700]
+
+
+Code Coverage Report:
+  2026-05-31 13:25:44
+
+ Summary:
+  Classes: 12.50% (2/16)
+  Methods: 26.14% (46/176)
+  Lines:   12.81% (254/1983)
+
+AppController
+  Methods:  53.33% ( 8/15)   Lines:  39.51% ( 32/ 81)
+AppointmentController
+  Methods:  33.33% ( 2/ 6)   Lines:  12.99% ( 10/ 77)
+AppointmentRepository
+  Methods:  44.00% (11/25)   Lines:  30.28% ( 66/218)
+Database
+  Methods:  50.00% ( 1/ 2)   Lines:  12.90% (  4/ 31)
+Repository
+  Methods: 100.00% ( 1/ 1)   Lines: 100.00% (  1/  1)
+SecurityController
+  Methods:  50.00% ( 3/ 6)   Lines:   9.52% ( 22/231)
+User
+  Methods: 100.00% ( 7/ 7)   Lines: 100.00% ( 12/ 12)
+UsersRepository
+  Methods:  65.00% (13/20)   Lines:  61.85% (107/173)

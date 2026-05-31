@@ -56,7 +56,9 @@
                 </div>
             <?php } ?>
 
-            <form id="register-form" action="/register" method="POST">
+            <div id="register-validation-message" class="error-messages" style="display:none;"></div>
+
+            <form id="register-form" action="/register" method="POST" novalidate>
                 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token ?? '') ?>">
                 
                 <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
@@ -124,6 +126,35 @@
         const passwordConfirmInput = document.getElementById('password_confirm');
         const passwordHelp = document.getElementById('password-help');
         const passwordMatchError = document.getElementById('password-match-error');
+        const registerValidationMessage = document.getElementById('register-validation-message');
+        const nameInput = document.getElementById('name');
+        const surnameInput = document.getElementById('surname');
+        const peselInput = document.getElementById('pesel');
+        const emailInput = document.getElementById('email');
+
+        function showRegisterValidationMessage(message) {
+            if (!registerValidationMessage) {
+                return;
+            }
+            registerValidationMessage.style.display = 'block';
+            registerValidationMessage.innerHTML = `<p>${message}</p>`;
+        }
+
+        function clearRegisterValidationMessage() {
+            if (!registerValidationMessage) {
+                return;
+            }
+            registerValidationMessage.style.display = 'none';
+            registerValidationMessage.innerHTML = '';
+        }
+
+        function isValidEmailAddress(email) {
+            return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
+        }
+
+        function isValidPesel(pesel) {
+            return /^\d{11}$/.test(pesel);
+        }
 
         function getPasswordIssues(password) {
             const issues = [];
@@ -175,14 +206,53 @@
 
         if (registerForm) {
             registerForm.addEventListener('submit', function(e) {
+                clearRegisterValidationMessage();
+
+                const name = (nameInput?.value || '').trim();
+                const surname = (surnameInput?.value || '').trim();
+                const pesel = (peselInput?.value || '').trim();
+                const email = (emailInput?.value || '').trim();
+                const termsAccepted = !!registerForm.querySelector('input[name="terms"]:checked');
+
+                if (!name || !surname) {
+                    e.preventDefault();
+                    showRegisterValidationMessage('Wpisz imię i nazwisko.');
+                    return;
+                }
+
+                if (!isValidPesel(pesel)) {
+                    e.preventDefault();
+                    showRegisterValidationMessage('Podaj poprawny numer PESEL (11 cyfr).');
+                    return;
+                }
+
+                if (!isValidEmailAddress(email)) {
+                    e.preventDefault();
+                    showRegisterValidationMessage('Podaj poprawny adres email, np. nazwa@domena.pl.');
+                    return;
+                }
+
                 const passwordValid = updatePasswordFeedback();
                 const passwordsMatch = updatePasswordMatchFeedback();
 
                 if (!passwordValid || !passwordsMatch) {
                     e.preventDefault();
+                    showRegisterValidationMessage('Popraw hasło zgodnie z wymaganiami formularza.');
+                    return;
+                }
+
+                if (!termsAccepted) {
+                    e.preventDefault();
+                    showRegisterValidationMessage('Zaakceptuj regulamin i politykę prywatności.');
                 }
             });
         }
+
+        [nameInput, surnameInput, peselInput, emailInput, passwordInput, passwordConfirmInput].forEach(input => {
+            if (input) {
+                input.addEventListener('input', clearRegisterValidationMessage);
+            }
+        });
     </script>
 
 </body>

@@ -87,7 +87,7 @@
                 <button onclick="closeProfileModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280; line-height: 1;">&times;</button>
             </div>
             <div id="profile-message" style="display:none; padding: 0.75rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.9rem;"></div>
-            <form id="profileForm" onsubmit="handleProfileUpdate(event)">
+            <form id="profileForm" onsubmit="handleProfileUpdate(event)" novalidate>
                 <div style="margin-bottom: 1.25rem;">
                     <label style="display:block; font-size: 0.8rem; font-weight: 600; color: #4b5563; text-transform: uppercase; margin-bottom: 0.5rem;">Nazwa użytkownika</label>
                     <input type="text" id="profile-username" required maxlength="30" style="width: 100%; padding: 0.85rem; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box;">
@@ -96,6 +96,7 @@
                 <div style="margin-bottom: 1.25rem;">
                     <label style="display:block; font-size: 0.8rem; font-weight: 600; color: #4b5563; text-transform: uppercase; margin-bottom: 0.5rem;">Email</label>
                     <input type="email" id="profile-email" required style="width: 100%; padding: 0.85rem; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box;">
+                    <p id="profile-email-error" style="display:none; color:#dc2626; font-size:0.8rem; margin:0.35rem 0 0;">Podaj poprawny adres email, np. nazwa@domena.pl.</p>
                 </div>
                 <div style="margin-bottom: 1.25rem;">
                     <button type="button" onclick="closeProfileModal(); openChangePasswordModal();" style="background: none; border: 1px solid #d1d5db; color: #374151; padding: 0.75rem 1rem; border-radius: 8px; width: 100%; font-weight: 600; cursor: pointer; text-align:left; display:flex; align-items:center; gap:0.5rem;"><i class="fa-solid fa-lock" style="color:#64748b;"></i> Zmień hasło</button>
@@ -118,14 +119,15 @@
                 <button onclick="closeChangePasswordModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280; line-height: 1;">&times;</button>
             </div>
             <div id="change-password-message" style="display:none; padding: 0.75rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.9rem;"></div>
-            <form id="changePasswordForm" onsubmit="handleChangePassword(event)">
+            <form id="changePasswordForm" onsubmit="handleChangePassword(event)" novalidate>
                 <div style="margin-bottom: 1.25rem;">
                     <label style="display:block; font-size: 0.8rem; font-weight: 600; color: #4b5563; text-transform: uppercase; margin-bottom: 0.5rem;">Nowe hasło</label>
-                    <input type="password" id="change-password-new" minlength="9" required style="width: 100%; padding: 0.85rem; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box;">
+                    <input type="password" id="change-password-new" style="width: 100%; padding: 0.85rem; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box;">
+                    <p id="change-password-strength-error" style="display:none; color:#dc2626; font-size:0.8rem; margin:0.35rem 0 0;">Hasło musi mieć min. 9 znaków, małą i wielką literę, cyfrę oraz znak specjalny.</p>
                 </div>
                 <div style="margin-bottom: 1.5rem;">
                     <label style="display:block; font-size: 0.8rem; font-weight: 600; color: #4b5563; text-transform: uppercase; margin-bottom: 0.5rem;">Powtórz nowe hasło</label>
-                    <input type="password" id="change-password-confirm" minlength="9" required style="width: 100%; padding: 0.85rem; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box;">
+                    <input type="password" id="change-password-confirm" style="width: 100%; padding: 0.85rem; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box;">
                     <p id="change-password-match-error" style="display:none; color:#dc2626; font-size:0.8rem; margin:0.35rem 0 0;">Hasła nie są identyczne.</p>
                 </div>
                 <p style="margin-top:-0.75rem; margin-bottom:1rem; color:#64748b; font-size:0.82rem;">Minimum 9 znaków, mała i wielka litera, cyfra oraz znak specjalny.</p>
@@ -203,6 +205,19 @@
         const allAppointments = <?= json_encode($processedAppointments) ?>;
         const allNotifications = <?= json_encode($notifications ?? []) ?>;
         const reviewedAppointmentIds = new Set(<?= json_encode(array_values($reviewedIds)) ?>);
+
+        function isValidEmailAddress(email) {
+            return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
+        }
+
+        function validateStrongPasswordForUi(password) {
+            if (password.length < 9) return 'Hasło musi mieć co najmniej 9 znaków.';
+            if (!/[a-z]/.test(password)) return 'Hasło musi zawierać co najmniej jedną małą literę.';
+            if (!/[A-Z]/.test(password)) return 'Hasło musi zawierać co najmniej jedną wielką literę.';
+            if (!/[0-9]/.test(password)) return 'Hasło musi zawierać co najmniej jedną cyfrę.';
+            if (!/[^a-zA-Z0-9]/.test(password)) return 'Hasło musi zawierać co najmniej jeden znak specjalny.';
+            return null;
+        }
 
         const filterName = document.getElementById('filter-name');
         const filterSpec = document.getElementById('filter-spec');
@@ -374,6 +389,7 @@
         function openNotificationsModal() {
             notificationsModal.classList.add('active');
             renderNotificationsModal();
+            refreshUserNotifications(true);
             fetch('/api-mark-notifications-read', { method: 'POST' })
                 .then(res => res.json())
                 .then(() => { const dot = document.getElementById('notif-dot'); if (dot) dot.style.display = 'none'; })
@@ -493,15 +509,33 @@
         function handleProfileUpdate(e) {
             e.preventDefault();
             const username = document.getElementById('profile-username').value.trim();
-            const email = document.getElementById('profile-email').value;
+            const email = document.getElementById('profile-email').value.trim();
 
             const usernameError = document.getElementById('profile-username-error');
+            const emailError = document.getElementById('profile-email-error');
+            const msgBox = document.getElementById('profile-message');
+
+            if (!username) {
+                msgBox.style.display = 'block';
+                msgBox.style.backgroundColor = '#fee2e2';
+                msgBox.style.color = '#991b1b';
+                msgBox.textContent = 'Nazwa użytkownika jest wymagana.';
+                return;
+            }
+
             if (username.length > 30) {
                 usernameError.style.display = 'block';
                 document.getElementById('profile-username').focus();
                 return;
             }
             usernameError.style.display = 'none';
+
+            if (!isValidEmailAddress(email)) {
+                emailError.style.display = 'block';
+                document.getElementById('profile-email').focus();
+                return;
+            }
+            emailError.style.display = 'none';
 
             fetch('/api-update-profile', {
                 method: 'POST',
@@ -510,7 +544,6 @@
             })
             .then(res => res.json())
             .then(data => {
-                const msgBox = document.getElementById('profile-message');
                 msgBox.style.display = 'block';
                 if (data.success) {
                     msgBox.style.backgroundColor = '#d1fae5';
@@ -533,6 +566,7 @@
             document.getElementById('changePasswordForm').reset();
             document.getElementById('change-password-message').style.display = 'none';
             document.getElementById('change-password-match-error').style.display = 'none';
+            document.getElementById('change-password-strength-error').style.display = 'none';
             changePasswordModal.classList.add('active');
         }
 
@@ -544,10 +578,27 @@
 
         function handleChangePassword(e) {
             e.preventDefault();
-            const newPassword = document.getElementById('change-password-new').value;
-            const confirmPassword = document.getElementById('change-password-confirm').value;
+            const newPassword = document.getElementById('change-password-new').value.trim();
+            const confirmPassword = document.getElementById('change-password-confirm').value.trim();
             const matchError = document.getElementById('change-password-match-error');
+            const strengthError = document.getElementById('change-password-strength-error');
             const msgBox = document.getElementById('change-password-message');
+
+            if (!newPassword || !confirmPassword) {
+                strengthError.style.display = 'block';
+                strengthError.textContent = 'Wypełnij oba pola hasła.';
+                matchError.style.display = 'none';
+                return;
+            }
+
+            const passwordError = validateStrongPasswordForUi(newPassword);
+            if (passwordError) {
+                strengthError.style.display = 'block';
+                strengthError.textContent = passwordError;
+                matchError.style.display = 'none';
+                return;
+            }
+            strengthError.style.display = 'none';
 
             if (newPassword !== confirmPassword) {
                 matchError.style.display = 'block';
@@ -738,29 +789,37 @@
         }
 
         // --- AUTO-REFRESH POWIADOMIEN ---
-        function refreshUserNotifications() {
-            fetch('/api-get-notifications', {headers: {'Accept': 'application/json'}})
+        function refreshUserNotifications(forceFull = false) {
+            if (document.hidden) return;
+
+            const shouldFetchFull = forceFull || (notificationsModal && notificationsModal.classList.contains('active'));
+            const endpoint = shouldFetchFull ? '/api-get-notifications' : '/api-get-notifications-unread';
+
+            fetch(endpoint, {headers: {'Accept': 'application/json'}})
                 .then(r => r.ok ? r.json() : null)
                 .then(data => {
                     if (!data) return;
-                    const incoming = Array.isArray(data.notifications) ? data.notifications : [];
                     const unread = Number(data.unread_count) || 0;
 
-                    allNotifications.length = 0;
-                    incoming.forEach(n => allNotifications.push(n));
+                    if (shouldFetchFull) {
+                        const incoming = Array.isArray(data.notifications) ? data.notifications : [];
+
+                        allNotifications.length = 0;
+                        incoming.forEach(n => allNotifications.push(n));
+                    }
 
                     const dot = document.getElementById('notif-dot');
                     if (dot) {
                         dot.style.display = unread > 0 ? 'block' : 'none';
                     }
 
-                    if (notificationsModal && notificationsModal.classList.contains('active')) {
+                    if (shouldFetchFull && notificationsModal && notificationsModal.classList.contains('active')) {
                         renderNotificationsModal();
                     }
                 })
                 .catch(() => {});
         }
-        setInterval(refreshUserNotifications, 5000);
+            setInterval(refreshUserNotifications, 15000);
     </script>
 
     <!-- Modal Wystawiania Opinii -->

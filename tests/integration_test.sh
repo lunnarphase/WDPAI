@@ -1,34 +1,59 @@
 #!/bin/bash
 
-# Simple integration test using cURL
-# Test checking if the backend APIs are up and returning expected status codes.
+if [ -z "${BASE_URL:-}" ]; then
+    if [ -f "/.dockerenv" ]; then
+        BASE_URL="https://nginx"
+    else
+        BASE_URL="https://localhost:8443"
+    fi
+fi
+PASSED=0
+FAILED=0
 
-BASE_URL="http://localhost"
+echo "Running Integration Tests against ${BASE_URL}..."
 
-echo "Running Integration Tests..."
+get_status() {
+    local uri="$1"
+    local accept="$2"
 
-# 1. Test the main dashboard (Should be 302 or 200)
-STATUS=$(curl -o /dev/null -s -w "%{http_code}\n" $BASE_URL/dashboard)
-if [ "$STATUS" -eq 200 ] || [ "$STATUS" -eq 302 ]; then
-    echo "✅ [PASS] GET /dashboard : Return code $STATUS"
-else
-    echo "❌ [FAIL] GET /dashboard : Unexpected code $STATUS"
+    if [ -n "$accept" ]; then
+        curl -k -o /dev/null -s -H "Accept: ${accept}" -w "%{http_code}\n" "$uri"
+    else
+        curl -k -o /dev/null -s -w "%{http_code}\n" "$uri"
+    fi
+}
+
+assert_status() {
+    local name="$1"
+    local uri="$2"
+    local expected="$3"
+    local accept="${4:-}"
+    local status
+
+    status=$(get_status "$uri" "$accept")
+
+    if [ "$status" -eq "$expected" ]; then
+        PASSED=$((PASSED + 1))
+        echo "[PASS] ${name} : Return code ${status}"
+    else
+        FAILED=$((FAILED + 1))
+        echo "[FAIL] ${name} : Expected ${expected}, got ${status}"
+    fi
+}
+
+assert_status "GET /login" "$BASE_URL/login" 200
+assert_status "GET /dashboard" "$BASE_URL/dashboard" 302
+assert_status "GET /api-search-doctors" "$BASE_URL/api-search-doctors?q=Jan" 401 "application/json"
+assert_status "GET /api-get-notifications" "$BASE_URL/api-get-notifications" 401 "application/json"
+assert_status "GET /api-get-notifications-unread" "$BASE_URL/api-get-notifications-unread" 401 "application/json"
+assert_status "GET /api-mark-notifications-read" "$BASE_URL/api-mark-notifications-read" 401 "application/json"
+assert_status "GET /invalid-route-123" "$BASE_URL/invalid-route-123" 404
+assert_status "GET /api-route-that-does-not-exist" "$BASE_URL/api-route-that-does-not-exist" 404 "application/json"
+
+echo "Summary: ${PASSED} passed, ${FAILED} failed"
+
+if [ "$FAILED" -gt 0 ]; then
+    exit 1
 fi
 
-# 2. Test Fetch API endpoint for missing auth or JSON
-API_STATUS=$(curl -o /dev/null -s -w "%{http_code}\n" $BASE_URL/api-search-doctors?q=Jan)
-if [ "$API_STATUS" -eq 200 ]; then
-    echo "✅ [PASS] GET /api-search-doctors : Return code $API_STATUS"
-else
-    echo "❌ [FAIL] GET /api-search-doctors : Unexpected code $API_STATUS"
-fi
-
-# 3. Test a non-existent path (404 Not Found)
-ERROR_STATUS=$(curl -o /dev/null -s -w "%{http_code}\n" $BASE_URL/invalid-route-123)
-if [ "$ERROR_STATUS" -eq 404 ]; then
-    echo "✅ [PASS] GET /invalid-route-123 : Return code 404 handled perfectly"
-else
-    echo "❌ [FAIL] GET /invalid-route-123 : Expected 404, got $ERROR_STATUS"
-fi
-
-echo "All tests finished!"
+exit 0

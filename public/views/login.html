@@ -36,8 +36,9 @@
                 </div>
             <?php } ?>
 
-            <form action="/login" method="POST">
+            <form id="login-form" action="/login" method="POST" novalidate>
                 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token ?? '') ?>">
+                <div id="login-validation-message" class="error-messages" style="display:none;"></div>
                 <div class="form-group">
                     <label for="email">E-mail</label>
                     <input name="email" id="email" type="email" placeholder="twoj@email.pl" value="<?= htmlspecialchars($rememberEmail) ?>" required>
@@ -72,6 +73,63 @@
             <a href="#">Regulamin</a>
         </footer>
     </div>
+
+    <script>
+        const loginForm = document.getElementById('login-form');
+        const loginValidationMessage = document.getElementById('login-validation-message');
+        const loginEmailInput = document.getElementById('email');
+        const loginPasswordInput = document.getElementById('password');
+
+        function showLoginValidationMessage(message) {
+            if (!loginValidationMessage) {
+                return;
+            }
+            loginValidationMessage.style.display = 'block';
+            loginValidationMessage.innerHTML = `<p>${message}</p>`;
+        }
+
+        function clearLoginValidationMessage() {
+            if (!loginValidationMessage) {
+                return;
+            }
+            loginValidationMessage.style.display = 'none';
+            loginValidationMessage.innerHTML = '';
+        }
+
+        function isValidEmailAddress(email) {
+            return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
+        }
+
+        if (loginForm) {
+            loginForm.addEventListener('submit', function(event) {
+                event.preventDefault();
+                clearLoginValidationMessage();
+
+                const email = (loginEmailInput?.value || '').trim();
+                const password = loginPasswordInput?.value || '';
+
+                if (!email || !password) {
+                    showLoginValidationMessage('Wypełnij email i hasło.');
+                    return;
+                }
+
+                if (!isValidEmailAddress(email)) {
+                    showLoginValidationMessage('Podaj poprawny adres email, np. nazwa@domena.pl.');
+                    return;
+                }
+
+                loginForm.submit();
+            });
+        }
+
+        if (loginEmailInput) {
+            loginEmailInput.addEventListener('input', clearLoginValidationMessage);
+        }
+
+        if (loginPasswordInput) {
+            loginPasswordInput.addEventListener('input', clearLoginValidationMessage);
+        }
+    </script>
 
 </body>
 </html>

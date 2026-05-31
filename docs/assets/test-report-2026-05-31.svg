@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-label="MediSchedule test and coverage report">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#111827"/>
+    </linearGradient>
+    <style>
+      .title { font: 700 44px Arial, Helvetica, sans-serif; fill: #f8fafc; }
+      .subtitle { font: 400 22px Arial, Helvetica, sans-serif; fill: #cbd5e1; }
+      .cardTitle { font: 700 28px Arial, Helvetica, sans-serif; fill: #e2e8f0; }
+      .metric { font: 700 38px Arial, Helvetica, sans-serif; fill: #f8fafc; }
+      .line { font: 500 22px Arial, Helvetica, sans-serif; fill: #cbd5e1; }
+      .ok { font: 700 24px Arial, Helvetica, sans-serif; fill: #16a34a; }
+      .small { font: 400 18px Arial, Helvetica, sans-serif; fill: #94a3b8; }
+      .path { font: 500 18px 'Courier New', monospace; fill: #93c5fd; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="760" fill="url(#bg)"/>
+  <rect x="28" y="24" width="1144" height="712" rx="18" fill="#0b1220" stroke="#1f2937" stroke-width="2"/>
+
+  <text x="64" y="90" class="title">MediSchedule - Automated Test and Coverage Report</text>
+  <text x="64" y="126" class="subtitle">Generated: 2026-05-31 15:26 (local)</text>
+
+  <rect x="64" y="170" width="510" height="220" rx="14" fill="#111827" stroke="#334155"/>
+  <text x="92" y="220" class="cardTitle">Unit tests (PHPUnit)</text>
+  <text x="92" y="268" class="metric">58/58 PASS</text>
+  <text x="92" y="310" class="line">Assertions: 141</text>
+  <text x="92" y="346" class="line">Runtime: 5.257s (with coverage)</text>
+  <text x="92" y="378" class="ok">Status: OK</text>
+
+  <rect x="626" y="170" width="510" height="220" rx="14" fill="#111827" stroke="#334155"/>
+  <text x="654" y="220" class="cardTitle">Integration tests (smoke)</text>
+  <text x="654" y="268" class="metric">8/8 PASS</text>
+  <text x="654" y="310" class="line">Failed: 0</text>
+  <text x="654" y="346" class="line">Base URL: https://localhost:8443</text>
+  <text x="654" y="378" class="ok">Status: OK</text>
+
+  <rect x="64" y="424" width="1072" height="130" rx="14" fill="#111827" stroke="#334155"/>
+  <text x="92" y="466" class="cardTitle">Coverage summary (scoped backend modules)</text>
+  <text x="92" y="508" class="metric">Lines: 44.95%   Methods: 58.82%   Classes: 40.00%</text>
+  <text x="92" y="540" class="small">Scope: AppController, AppointmentRepository, Repository, User, UsersRepository</text>
+
+  <rect x="64" y="574" width="1072" height="140" rx="14" fill="#111827" stroke="#334155"/>
+  <text x="92" y="614" class="cardTitle">Evidence files</text>
+  <text x="92" y="648" class="path">tests/reports/phpunit_coverage_scoped_2026-05-31_152602.txt</text>
+  <text x="92" y="676" class="path">tests/reports/integration_2026-05-31_151433.txt</text>
+  <text x="92" y="704" class="small">This image summarizes the latest successful local run with line coverage enabled.</text>
+</svg>

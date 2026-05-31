@@ -297,6 +297,15 @@ class AppointmentRepository extends Repository {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    public function getUnreadNotificationsCount(int $userId): int {
+        $db = $this->database->connect();
+        $stmt = $db->prepare('SELECT COUNT(*) FROM notifications WHERE id_user = :user_id AND is_read = FALSE');
+        $stmt->bindParam(':user_id', $userId, PDO::PARAM_INT);
+        $stmt->execute();
+
+        return (int)$stmt->fetchColumn();
+    }
+
     public function markNotificationsAsRead(int $userId): void {
         $db = $this->database->connect();
         $stmt = $db->prepare('UPDATE notifications SET is_read = TRUE WHERE id_user = :user_id');
@@ -304,17 +313,21 @@ class AppointmentRepository extends Repository {
         $stmt->execute();
     }
 
-    public function clearNotifications(int $userId): void {
+    public function clearNotifications(int $userId): int {
         $db = $this->database->connect();
         $stmt = $db->prepare('DELETE FROM notifications WHERE id_user = :user_id');
         $stmt->bindParam(':user_id', $userId, PDO::PARAM_INT);
         $stmt->execute();
+
+        return $stmt->rowCount();
     }
 
-    public function deleteNotification(int $notifId, int $userId): void {
+    public function deleteNotification(int $notifId, int $userId): bool {
         $db = $this->database->connect();
         $stmt = $db->prepare('DELETE FROM notifications WHERE id = :id AND id_user = :user_id');
         $stmt->execute([':id' => $notifId, ':user_id' => $userId]);
+
+        return $stmt->rowCount() > 0;
     }
 
     // =================== DOCTOR AVAILABILITY ===================
