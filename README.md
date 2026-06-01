@@ -101,6 +101,152 @@ erDiagram
 - Relacja N:M: `doctors <-> specializations` przez `doctors_specializations`.
 - Relacje 1:N: wizyty, powiadomienia, logi prob logowania.
 
+### 3.3 Model danych (ERD pelny)
+
+```mermaid
+erDiagram
+    ROLES {
+        int id PK
+        varchar name
+    }
+
+    SPECIALIZATIONS {
+        int id PK
+        varchar name
+    }
+
+    USERS {
+        int id PK
+        varchar email
+        varchar password
+        varchar username
+        int id_role FK
+        boolean is_blocked
+    }
+
+    PATIENTS {
+        int id PK
+        int id_user FK
+        char pesel
+        varchar phone
+    }
+
+    DOCTORS {
+        int id PK
+        int id_user FK
+        text bio
+        decimal visit_price
+        int visit_duration
+    }
+
+    DOCTORS_SPECIALIZATIONS {
+        int id_doctor FK
+        int id_specialization FK
+    }
+
+    NOTIFICATIONS {
+        int id PK
+        int id_user FK
+        text message
+        boolean is_read
+        varchar type
+        int related_id
+        timestamp created_at
+    }
+
+    APPOINTMENTS {
+        int id PK
+        int id_patient FK
+        int id_doctor FK
+        date appointment_date
+        time appointment_time
+        varchar status
+        boolean review_submitted
+    }
+
+    DOCTOR_AVAILABILITY {
+        int id PK
+        int id_doctor FK
+        date date
+        time start_time
+        time end_time
+    }
+
+    DOCTOR_SCHEDULE_TEMPLATES {
+        int id PK
+        int id_doctor FK
+        varchar name
+        time start_time
+        time end_time
+    }
+
+    REVIEWS {
+        int id PK
+        int id_appointment FK
+        int id_doctor FK
+        int id_patient FK
+        int rating
+        text comment
+        timestamp created_at
+    }
+
+    REVIEW_REPORTS {
+        int id PK
+        int id_review FK
+        int id_reporter FK
+        varchar category
+        text reason
+        varchar status
+        text admin_response
+        timestamp created_at
+    }
+
+    LOGIN_ATTEMPTS {
+        int id PK
+        varchar email
+        varchar ip_address
+        timestamp attempted_at
+        boolean success
+    }
+
+    BLOCKED_IPS {
+        varchar ip_address PK
+        timestamp blocked_until
+        text reason
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    ROLES ||--o{ USERS : assigns
+    USERS ||--o| PATIENTS : has_profile
+    USERS ||--o| DOCTORS : has_profile
+
+    DOCTORS ||--o{ DOCTORS_SPECIALIZATIONS : links
+    SPECIALIZATIONS ||--o{ DOCTORS_SPECIALIZATIONS : links
+
+    USERS ||--o{ NOTIFICATIONS : receives
+
+    PATIENTS ||--o{ APPOINTMENTS : books
+    DOCTORS ||--o{ APPOINTMENTS : serves
+
+    DOCTORS ||--o{ DOCTOR_AVAILABILITY : availability
+    DOCTORS ||--o{ DOCTOR_SCHEDULE_TEMPLATES : templates
+
+    APPOINTMENTS ||--o| REVIEWS : has_review
+    PATIENTS ||--o{ REVIEWS : writes
+    DOCTORS ||--o{ REVIEWS : receives
+
+    REVIEWS ||--o{ REVIEW_REPORTS : gets_reports
+    USERS ||--o{ REVIEW_REPORTS : reports
+
+    USERS ||--o{ LOGIN_ATTEMPTS : logical_email_match
+    BLOCKED_IPS ||--o{ LOGIN_ATTEMPTS : logical_ip_match
+```
+
+**Interpretacja**:
+- Diagram pelny obejmuje wszystkie tabele aplikacyjne i bezpieczenstwa z warstwy SQL.
+- Relacje `logical_email_match` i `logical_ip_match` sa relacjami logicznymi (nie twardymi FK).
+
 ## 4. Bezpieczenstwo
 
 ### 4.1 PHP SECURITY BINGO - wynik wdrozenia
