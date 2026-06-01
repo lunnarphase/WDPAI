@@ -27,12 +27,20 @@ class SecurityControllerHelpersTest extends TestCase
         $_SERVER = $this->serverBackup;
     }
 
-    public function testGetClientIpAddressUsesFirstForwardedIp(): void
+    public function testGetClientIpAddressUsesFirstForwardedIpOnlyWhenProxyIsTrusted(): void
+    {
+        $_SERVER['HTTP_X_FORWARDED_FOR'] = '203.0.113.9, 10.0.0.1';
+        $_SERVER['REMOTE_ADDR'] = '172.18.0.2';
+
+        $this->assertSame('203.0.113.9', $this->invoke('getClientIpAddress'));
+    }
+
+    public function testGetClientIpAddressIgnoresForwardedIpForUntrustedRemoteAddress(): void
     {
         $_SERVER['HTTP_X_FORWARDED_FOR'] = '203.0.113.9, 10.0.0.1';
         $_SERVER['REMOTE_ADDR'] = '198.51.100.7';
 
-        $this->assertSame('203.0.113.9', $this->invoke('getClientIpAddress'));
+        $this->assertSame('198.51.100.7', $this->invoke('getClientIpAddress'));
     }
 
     public function testGetClientIpAddressFallsBackToRemoteAddr(): void

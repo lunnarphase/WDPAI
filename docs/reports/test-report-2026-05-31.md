@@ -8,8 +8,8 @@
 
 ## Results
 
-- Unit tests: PASS (58 tests, 141 assertions)
-- Integration tests: PASS (8 passed, 0 failed)
+- Unit tests: PASS (61 tests, 145 assertions)
+- Integration tests: PASS (13 passed, 0 failed)
 - Coverage (scoped):
 	- Classes: 40.00% (2/5)
 	- Methods: 58.82% (40/68)

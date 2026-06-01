@@ -57,6 +57,8 @@ class DoctorController extends AppController {
             $this->jsonResponse(['error' => 'Niedozwolona metoda.'], 405);
         }
 
+        $this->verifyCsrf();
+
         $input = json_decode(file_get_contents('php://input'), true);
         if (!is_array($input)) {
             $this->jsonResponse(['error' => 'Błędne dane wejściowe.'], 400);
@@ -87,6 +89,8 @@ class DoctorController extends AppController {
         $this->requireDoctor();
 
         if ($this->isPost()) {
+            $this->verifyCsrf();
+
             if (empty($_POST['appointment_id']) || empty($_POST['status'])) {
                 $this->badRequest();
             }
@@ -119,6 +123,8 @@ class DoctorController extends AppController {
     }
 
     public function apiGetSlots() {
+        $this->requireLogin();
+
         $doctorId = (int)($_GET['doctor_id'] ?? 0);
         $date = $_GET['date'] ?? '';
 
@@ -135,6 +141,28 @@ class DoctorController extends AppController {
         $this->jsonResponse($appointments);
     }
 
+    public function apiGetMyReviews() {
+        $this->requireDoctor();
+
+        $doctorId = $this->getDoctorIdForCurrentUser();
+        if (!$doctorId) {
+            $this->jsonResponse([
+                'reviews' => [],
+                'summary' => ['avg_rating' => 0, 'review_count' => 0],
+            ]);
+        }
+
+        try {
+            $this->jsonResponse([
+                'reviews' => $this->reviewRepo->getDoctorReviews($doctorId, true),
+                'summary' => $this->reviewRepo->getReviewSummary($doctorId),
+            ]);
+        } catch (Exception $e) {
+            error_log('apiGetMyReviews error: ' . $e->getMessage());
+            $this->jsonResponse(['error' => 'Nie udało się pobrać opinii.'], 500);
+        }
+    }
+
     public function apiGetWeekAvailability() {
         $this->requireDoctor();
         $doctorId = $this->getDoctorIdForCurrentUser();
@@ -148,6 +176,8 @@ class DoctorController extends AppController {
 
     public function apiSaveWeekAvailability() {
         $this->requireDoctor();
+        $this->verifyCsrf();
+
         $doctorId = $this->getDoctorIdForCurrentUser();
         $body = json_decode(file_get_contents('php://input'), true);
         if (!$doctorId || empty($body['week_start']) || empty($body['week_end'])) {
@@ -205,6 +235,8 @@ class DoctorController extends AppController {
 
     public function apiSaveScheduleTemplate() {
         $this->requireDoctor();
+        $this->verifyCsrf();
+
         $doctorId = $this->getDoctorIdForCurrentUser();
         $body = json_decode(file_get_contents('php://input'), true);
         $name  = trim($body['name']       ?? '');
@@ -224,6 +256,8 @@ class DoctorController extends AppController {
 
     public function apiDeleteScheduleTemplate() {
         $this->requireDoctor();
+        $this->verifyCsrf();
+
         $doctorId = $this->getDoctorIdForCurrentUser();
         $body = json_decode(file_get_contents('php://input'), true);
         $templateId = (int)($body['id'] ?? 0);
@@ -240,6 +274,8 @@ class DoctorController extends AppController {
     }
 
     public function apiGetAvailableDates() {
+        $this->requireLogin();
+
         $doctorId  = (int)($_GET['doctor_id']  ?? 0);
         $startDate = $_GET['start_date'] ?? '';
         $endDate   = $_GET['end_date']   ?? '';
@@ -258,6 +294,8 @@ class DoctorController extends AppController {
     }
 
     public function doctorAvailability() {
+        $this->requireLogin();
+
         $contentType = isset($_SERVER["CONTENT_TYPE"]) ? trim($_SERVER["CONTENT_TYPE"]) : '';
 
         if ($contentType === "application/json") {

@@ -48,6 +48,8 @@ class AdminController extends AppController {
         $this->requireAdmin();
 
         if ($this->isPost()) {
+            $this->verifyCsrf();
+
             if (empty($_POST['appointment_id']) || empty($_POST['patient_id']) || empty($_POST['doctor_id']) || empty($_POST['appointment_date'])) {
                 $this->badRequest();
             }
@@ -67,6 +69,8 @@ class AdminController extends AppController {
         $this->requireAdmin();
 
         if ($this->isPost()) {
+            $this->verifyCsrf();
+
             if (empty($_POST['appointment_id'])) {
                 $this->badRequest();
             }
@@ -80,6 +84,8 @@ class AdminController extends AppController {
         $this->requireAdmin();
 
         if ($this->isPost()) {
+            $this->verifyCsrf();
+
             if (empty($_POST['user_id']) || empty($_POST['username']) || empty($_POST['email']) || empty($_POST['role'])) {
                 $this->badRequest();
             }
@@ -115,6 +121,8 @@ class AdminController extends AppController {
         $this->requireAdmin();
 
         if ($this->isPost()) {
+            $this->verifyCsrf();
+
             if (empty($_POST['user_id']) || empty($_POST['user_role'])) {
                 $this->badRequest();
             }
@@ -142,6 +150,8 @@ class AdminController extends AppController {
         $this->requireAdmin();
 
         if ($this->isPost()) {
+            $this->verifyCsrf();
+
             if (empty($_POST['username']) || empty($_POST['email']) || empty($_POST['password']) || empty($_POST['role'])) {
                 $this->badRequest();
             }
@@ -184,6 +194,8 @@ class AdminController extends AppController {
             $this->jsonResponse(['error' => 'Niedozwolona metoda.'], 405);
         }
 
+        $this->verifyCsrf();
+
         $input = json_decode(file_get_contents('php://input'), true);
         $reviewId = (int)($input['review_id'] ?? 0);
 
@@ -206,6 +218,8 @@ class AdminController extends AppController {
         if (!$this->isPost()) {
             $this->jsonResponse(['error' => 'Niedozwolona metoda.'], 405);
         }
+
+        $this->verifyCsrf();
 
         $input = json_decode(file_get_contents('php://input'), true);
         $reportId = (int)($input['report_id'] ?? 0);
@@ -230,6 +244,8 @@ class AdminController extends AppController {
         if (!$this->isPost()) {
             $this->jsonResponse(['error' => 'Niedozwolona metoda.'], 405);
         }
+
+        $this->verifyCsrf();
 
         $input = json_decode(file_get_contents('php://input'), true);
         $reviewId = (int)($input['review_id'] ?? 0);
@@ -438,6 +454,8 @@ class AdminController extends AppController {
             $this->jsonResponse(['success' => false, 'error' => 'Niedozwolona metoda.'], 405);
         }
 
+        $this->verifyCsrf();
+
         $input  = json_decode(file_get_contents('php://input'), true);
         $userId = (int)($input['user_id'] ?? 0);
 
@@ -465,6 +483,8 @@ class AdminController extends AppController {
         if (!$this->isPost()) {
             $this->jsonResponse(['success' => false, 'error' => 'Niedozwolona metoda.'], 405);
         }
+
+        $this->verifyCsrf();
 
         $input  = json_decode(file_get_contents('php://input'), true);
         $userId = (int)($input['user_id'] ?? 0);

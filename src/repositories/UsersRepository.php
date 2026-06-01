@@ -81,7 +81,7 @@ class UsersRepository extends Repository {
         $db = $this->database->connect();
         
         try {
-            $db->beginTransaction();
+            $this->beginTransactionWithIsolation($db, 'READ COMMITTED');
 
             $stmt = $db->prepare('
                 INSERT INTO users (email, password, username, id_role)
@@ -150,7 +150,7 @@ class UsersRepository extends Repository {
         $db = $this->database->connect();
         
         try {
-            $db->beginTransaction();
+            $this->beginTransactionWithIsolation($db, 'READ COMMITTED');
 
             $stmt = $db->prepare("SELECT id FROM roles WHERE name = ?");
             $stmt->execute([$role]);
@@ -187,7 +187,7 @@ class UsersRepository extends Repository {
     public function deleteUserAdmin(int $id): void {
         $db = $this->database->connect();
         try {
-            $db->beginTransaction();
+            $this->beginTransactionWithIsolation($db, 'READ COMMITTED');
             
             $stmt1 = $db->prepare('DELETE FROM appointments WHERE id_patient IN (SELECT id FROM patients WHERE id_user = ?) OR id_doctor IN (SELECT id FROM doctors WHERE id_user = ?)');
             $stmt1->execute([$id, $id]);
@@ -248,7 +248,7 @@ class UsersRepository extends Repository {
     public function addUserAdmin(string $email, string $password, string $username, string $role, string $pesel): bool {
         $conn = $this->database->connect();
         try {
-            $conn->beginTransaction();
+            $this->beginTransactionWithIsolation($conn, 'READ COMMITTED');
 
             $stmt = $conn->prepare('SELECT id FROM roles WHERE name = :role_name');
             $stmt->bindParam(':role_name', $role, PDO::PARAM_STR);

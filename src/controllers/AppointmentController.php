@@ -43,6 +43,7 @@ class AppointmentController extends AppController {
         return $this->render('book_appointment', [
             'doctorId' => $doctorId,
             'returnTo' => $returnTo,
+            'csrf_token' => $this->generateCsrfToken(),
         ]);
     }
 
@@ -54,6 +55,8 @@ class AppointmentController extends AppController {
             exit();
         }
 
+        $this->verifyCsrf();
+
         $doctorId = (int)($_POST['doctor_id'] ?? 0);
         $date = $_POST['appointment_date'] ?? null;
         $time = $_POST['appointment_time'] ?? null;
@@ -64,6 +67,7 @@ class AppointmentController extends AppController {
             return $this->render('book_appointment', [
                 'doctorId' => $doctorId, 
                 'returnTo' => $returnTo,
+                'csrf_token' => $this->generateCsrfToken(),
                 'messages' => ['Wybierz datę i godzinę przed zatwierdzeniem!']
             ]);
         }
@@ -72,11 +76,20 @@ class AppointmentController extends AppController {
             $this->appointmentRepo->createAppointment($userId, $doctorId, $date, $time);
             header("Location: " . $this->getBaseUrl() . "/dashboard?booking=success");
             exit();
+        } catch (RuntimeException $e) {
+            error_log('Appointment creation business error: ' . $e->getMessage());
+            return $this->render('book_appointment', [
+                'doctorId' => $doctorId,
+                'returnTo' => $returnTo,
+                'csrf_token' => $this->generateCsrfToken(),
+                'messages' => [$e->getMessage()]
+            ]);
         } catch (Exception $e) {
             error_log('Appointment creation error: ' . $e->getMessage());
             return $this->render('book_appointment', [
                 'doctorId' => $doctorId, 
                 'returnTo' => $returnTo,
+                'csrf_token' => $this->generateCsrfToken(),
                 'messages' => ['Wystąpił błąd podczas zapisu wizyty. Spróbuj ponownie.']
             ]);
         }
@@ -89,6 +102,8 @@ class AppointmentController extends AppController {
             header("Location: " . $this->getBaseUrl() . "/dashboard");
             exit();
         }
+
+        $this->verifyCsrf();
 
         if (empty($_POST['appointment_id'])) {
             $this->badRequest();
@@ -110,6 +125,8 @@ class AppointmentController extends AppController {
     }
 
     public function getAvailability($id = null) {
+        $this->requireLogin();
+
         if (!$this->isPost()) {
             $this->jsonResponse(['error' => 'Niedozwolona metoda.'], 405);
         }

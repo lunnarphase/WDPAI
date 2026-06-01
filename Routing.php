@@ -106,6 +106,10 @@ class Routing {
             "controller" => "DoctorController",
             "action" => "apiGetDoctorAppointments"
         ],
+        "api-get-my-reviews" => [
+            "controller" => "DoctorController",
+            "action" => "apiGetMyReviews"
+        ],
         "api-get-week-availability" => [
             "controller" => "DoctorController",
             "action" => "apiGetWeekAvailability"

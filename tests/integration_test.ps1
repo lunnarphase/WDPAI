@@ -7,13 +7,25 @@ Write-Host "Running Integration Tests via PowerShell against $BaseUrl"
 function Get-StatusCode {
     param(
         [Parameter(Mandatory = $true)] [string] $Uri,
-        [string] $Accept = ""
+        [string] $Accept = "",
+        [string] $Method = "GET",
+        [string] $ContentType = "",
+        [string] $Body = ""
     )
 
-    $args = @("-k", "-s", "-o", "NUL", "-w", "%{http_code}")
+    $args = @("-k", "-s", "-o", "NUL", "-w", "%{http_code}", "-X", $Method)
     if ($Accept -ne "") {
         $args += @("-H", "Accept: $Accept")
     }
+
+    if ($ContentType -ne "") {
+        $args += @("-H", "Content-Type: $ContentType")
+    }
+
+    if ($Body -ne "") {
+        $args += @("--data", $Body)
+    }
+
     $args += $Uri
 
     $status = & curl.exe @args
@@ -29,10 +41,13 @@ function Assert-StatusCode {
         [Parameter(Mandatory = $true)] [string] $Name,
         [Parameter(Mandatory = $true)] [string] $Uri,
         [Parameter(Mandatory = $true)] [int] $Expected,
-        [string] $Accept = ""
+        [string] $Accept = "",
+        [string] $Method = "GET",
+        [string] $ContentType = "",
+        [string] $Body = ""
     )
 
-    $status = Get-StatusCode -Uri $Uri -Accept $Accept
+    $status = Get-StatusCode -Uri $Uri -Accept $Accept -Method $Method -ContentType $ContentType -Body $Body
 
     if ($status -eq $Expected) {
         $script:Passed++
@@ -49,8 +64,17 @@ Assert-StatusCode -Name "GET /api-search-doctors" -Uri "$BaseUrl/api-search-doct
 Assert-StatusCode -Name "GET /api-get-notifications" -Uri "$BaseUrl/api-get-notifications" -Expected 401 -Accept "application/json"
 Assert-StatusCode -Name "GET /api-get-notifications-unread" -Uri "$BaseUrl/api-get-notifications-unread" -Expected 401 -Accept "application/json"
 Assert-StatusCode -Name "GET /api-mark-notifications-read" -Uri "$BaseUrl/api-mark-notifications-read" -Expected 401 -Accept "application/json"
+Assert-StatusCode -Name "GET /api-get-my-reviews" -Uri "$BaseUrl/api-get-my-reviews" -Expected 401 -Accept "application/json"
+Assert-StatusCode -Name "GET /api-get-slots" -Uri "$BaseUrl/api-get-slots?doctor_id=1&date=2026-06-15" -Expected 401 -Accept "application/json"
+Assert-StatusCode -Name "GET /api-get-available-dates" -Uri "$BaseUrl/api-get-available-dates?doctor_id=1&start_date=2026-06-15&end_date=2026-06-21" -Expected 401 -Accept "application/json"
+Assert-StatusCode -Name "POST /doctor-availability" -Uri "$BaseUrl/doctor-availability" -Expected 401 -Accept "application/json" -Method "POST" -ContentType "application/json" -Body "{}"
 Assert-StatusCode -Name "GET /invalid-route-123" -Uri "$BaseUrl/invalid-route-123" -Expected 404
 Assert-StatusCode -Name "GET /api-route-that-does-not-exist" -Uri "$BaseUrl/api-route-that-does-not-exist" -Expected 404 -Accept "application/json"
+Assert-StatusCode -Name "POST /confirm-appointment" -Uri "$BaseUrl/confirm-appointment" -Expected 302 -Method "POST"
+Assert-StatusCode -Name "POST /api-update-profile" -Uri "$BaseUrl/api-update-profile" -Expected 401 -Accept "application/json" -Method "POST" -ContentType "application/json" -Body "{}"
+Assert-StatusCode -Name "POST /api-change-password" -Uri "$BaseUrl/api-change-password" -Expected 401 -Accept "application/json" -Method "POST" -ContentType "application/json" -Body "{}"
+Assert-StatusCode -Name "POST /submit-review" -Uri "$BaseUrl/submit-review" -Expected 401 -Accept "application/json" -Method "POST" -ContentType "application/json" -Body "{}"
+Assert-StatusCode -Name "POST /admin-delete-review" -Uri "$BaseUrl/admin-delete-review" -Expected 401 -Accept "application/json" -Method "POST" -ContentType "application/json" -Body "{}"
 
 Write-Host "Summary: $Passed passed, $Failed failed"
 

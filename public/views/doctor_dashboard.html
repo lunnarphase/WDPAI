@@ -276,23 +276,21 @@
                     Moje opinie
                 </h2>
                 <?php if (!empty($reviewSummary) && $reviewSummary['review_count'] > 0): ?>
-                <div style="display:inline-flex; align-items:center; gap:1rem; background:#fefce8; padding:0.75rem 1.25rem; border-radius:10px; border:1px solid #fde68a;">
-                    <span style="font-size:1.1rem; font-weight:700; color:#92400e;"><?= number_format($reviewSummary['avg_rating'], 1) ?></span>
+                <div id="reviews-summary-box" style="display:inline-flex; align-items:center; gap:1rem; background:#fefce8; padding:0.75rem 1.25rem; border-radius:10px; border:1px solid #fde68a;">
+                    <span id="reviews-summary-avg" style="font-size:1.1rem; font-weight:700; color:#92400e;"><?= number_format($reviewSummary['avg_rating'], 1) ?></span>
                     <div id="summary-stars"></div>
-                    <span style="color:#78350f; font-size:0.9rem;"><?= $reviewSummary['review_count'] ?> <?= $reviewSummary['review_count'] == 1 ? 'opinia' : ($reviewSummary['review_count'] < 5 ? 'opinie' : 'opinii') ?></span>
+                    <span id="reviews-summary-count" style="color:#78350f; font-size:0.9rem;"><?= $reviewSummary['review_count'] ?> <?= $reviewSummary['review_count'] == 1 ? 'opinia' : ($reviewSummary['review_count'] < 5 ? 'opinie' : 'opinii') ?></span>
                 </div>
                 <?php else: ?>
-                <p style="color:#94a3b8; margin:0;">Nie masz jeszcze żadnych opinii.</p>
+                <p id="reviews-summary-empty" style="color:#94a3b8; margin:0;">Nie masz jeszcze żadnych opinii.</p>
                 <?php endif; ?>
-                <?php if (!empty($doctorReviews)): ?>
-                <div style="margin-top:1rem; display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+                <div id="reviews-filter-row" style="margin-top:1rem; display:<?= !empty($doctorReviews) ? 'flex' : 'none' ?>; align-items:center; gap:0.5rem; flex-wrap:wrap;">
                     <span style="font-size:0.85rem; color:#64748b; font-weight:600; margin-right:0.25rem;">Filtruj:</span>
                     <button onclick="filterReviewsByStars(0)" id="review-filter-all" class="review-star-filter active" style="padding:0.35rem 0.85rem; border-radius:20px; border:1px solid #e2e8f0; background:#125B46; color:white; font-size:0.85rem; font-weight:600; cursor:pointer;">Wszystkie</button>
                     <?php for ($s = 5; $s >= 1; $s--): ?>
                     <button onclick="filterReviewsByStars(<?= $s ?>)" id="review-filter-<?= $s ?>" class="review-star-filter" style="padding:0.35rem 0.85rem; border-radius:20px; border:1px solid #e2e8f0; background:white; color:#374151; font-size:0.85rem; cursor:pointer;"><?= $s ?> <i class="fa-solid fa-star" style="color:#f59e0b; font-size:0.8rem;"></i></button>
                     <?php endfor; ?>
                 </div>
-                <?php endif; ?>
             </div>
             <div id="reviews-list">
                 <?php if (!empty($doctorReviews)): ?>
@@ -973,18 +971,196 @@
             el.innerHTML = renderStarsStatic(parseInt(el.dataset.rating) || 0);
         });
 
-        const summaryStarsEl = document.getElementById('summary-stars');
-        if (summaryStarsEl) {
-            const avgRating = <?= json_encode((float)($reviewSummary['avg_rating'] ?? 0)) ?>;
+        const doctorProfileId = <?= json_encode((int)($doctorProfile['id'] ?? 0)) ?>;
+        const initialReviewSummary = <?= json_encode($reviewSummary ?? ['avg_rating' => 0, 'review_count' => 0]) ?>;
+        const initialReviewCount = <?= json_encode((int)count($doctorReviews ?? [])) ?>;
+        let currentReviewFilter = 0;
+        let isRefreshingDoctorReviews = false;
+
+        function toLocalDateKey(dateObj) {
+            const y = dateObj.getFullYear();
+            const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const d = String(dateObj.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        function parseReviewDate(rawDate) {
+            const value = String(rawDate || '');
+            const normalized = value.includes('T') ? value : value.replace(' ', 'T');
+            let dateObj = new Date(normalized);
+            if (Number.isNaN(dateObj.getTime())) {
+                dateObj = new Date(value);
+            }
+            return Number.isNaN(dateObj.getTime()) ? null : dateObj;
+        }
+
+        function getReviewDateMeta(rawDate) {
+            const dateObj = parseReviewDate(rawDate);
+            if (!dateObj) {
+                const fallback = String(rawDate || '').slice(0, 10) || 'Brak daty';
+                return { dateKey: fallback, displayDate: fallback, relativeLabel: null };
+            }
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const tomorrow = new Date(today);
+            tomorrow.setDate(today.getDate() + 1);
+
+            const dateKey = toLocalDateKey(dateObj);
+            const currentKey = toLocalDateKey(today);
+            const tomorrowKey = toLocalDateKey(tomorrow);
+
+            let relativeLabel = null;
+            if (dateKey === currentKey) {
+                relativeLabel = 'Dzisiaj';
+            } else if (dateKey === tomorrowKey) {
+                relativeLabel = 'Jutro';
+            }
+
+            return {
+                dateKey,
+                displayDate: dateObj.toLocaleDateString('pl-PL', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric'
+                }),
+                relativeLabel,
+            };
+        }
+
+        function renderAverageStars(avgRatingRaw) {
+            const avgRating = Number(avgRatingRaw) || 0;
             const full = Math.floor(avgRating);
             const half = (avgRating - full) >= 0.25 ? 1 : 0;
             const empty = 5 - full - half;
             let html = '';
-            for (let i = 0; i < full; i++)  html += '<i class="fa-solid fa-star" style="color:#f59e0b; font-size:1rem;"></i>';
-            if (half)                         html += '<i class="fa-solid fa-star-half-stroke" style="color:#f59e0b; font-size:1rem;"></i>';
+            for (let i = 0; i < full; i++) html += '<i class="fa-solid fa-star" style="color:#f59e0b; font-size:1rem;"></i>';
+            if (half) html += '<i class="fa-solid fa-star-half-stroke" style="color:#f59e0b; font-size:1rem;"></i>';
             for (let i = 0; i < empty; i++) html += '<i class="fa-regular fa-star" style="color:#f59e0b; font-size:1rem;"></i>';
-            summaryStarsEl.innerHTML = html;
+            return html;
         }
+
+        function getReviewCountLabel(count) {
+            if (count === 1) return 'opinia';
+            if (count > 1 && count < 5) return 'opinie';
+            return 'opinii';
+        }
+
+        function renderReviewSummary(summary, reviewCount) {
+            const summaryBox = document.getElementById('reviews-summary-box');
+            const summaryEmpty = document.getElementById('reviews-summary-empty');
+            const summaryAvg = document.getElementById('reviews-summary-avg');
+            const summaryStars = document.getElementById('summary-stars');
+            const summaryCount = document.getElementById('reviews-summary-count');
+            const filterRow = document.getElementById('reviews-filter-row');
+
+            const avg = Number(summary?.avg_rating ?? 0);
+            const count = Number(summary?.review_count ?? reviewCount ?? 0);
+
+            if (summaryAvg) {
+                summaryAvg.textContent = avg.toLocaleString('pl-PL', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+            }
+            if (summaryStars) {
+                summaryStars.innerHTML = renderAverageStars(avg);
+            }
+            if (summaryCount) {
+                summaryCount.textContent = `${count} ${getReviewCountLabel(count)}`;
+            }
+
+            if (summaryBox) {
+                summaryBox.style.display = count > 0 ? 'inline-flex' : 'none';
+            }
+            if (summaryEmpty) {
+                summaryEmpty.style.display = count > 0 ? 'none' : 'block';
+            }
+            if (filterRow) {
+                filterRow.style.display = count > 0 ? 'flex' : 'none';
+            }
+        }
+
+        function renderDoctorReviewsList(reviews) {
+            const list = document.getElementById('reviews-list');
+            if (!list) return;
+
+            if (!Array.isArray(reviews) || reviews.length === 0) {
+                list.innerHTML = '<p style="text-align:center; color:#94a3b8; padding:3rem;">Brak opinii do wyświetlenia.</p>';
+                return;
+            }
+
+            let html = '';
+            let lastDateKey = null;
+
+            reviews.forEach(review => {
+                const meta = getReviewDateMeta(review.created_at);
+                const rating = Number(review.rating) || 0;
+                const reviewId = Number(review.id) || 0;
+                const patientName = escHtml(review.patient_display_name || 'Pacjent');
+                const comment = review.comment ? escHtml(review.comment) : '';
+
+                if (lastDateKey !== meta.dateKey) {
+                    if (lastDateKey !== null) {
+                        html += `<div class="review-day-gap" data-date="${escHtml(meta.dateKey)}" style="height:12px; background:#f8fafc; border-top:1px solid #f1f5f9; border-bottom:1px solid #f1f5f9;"></div>`;
+                    }
+
+                    const headerLabel = meta.relativeLabel
+                        ? `<span style="font-weight:800; color:#0f172a;">${escHtml(meta.relativeLabel)}</span><span style="margin-left:0.45rem;">${escHtml(meta.displayDate)}</span>`
+                        : escHtml(meta.displayDate);
+
+                    html += `<div class="review-day-separator" data-date="${escHtml(meta.dateKey)}" style="padding:0.72rem 1.5rem; background:#f8fafc; color:#334155; font-size:0.78rem; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; border-top:1px solid #e2e8f0; border-bottom:1px solid #e2e8f0;">${headerLabel}</div>`;
+                    lastDateKey = meta.dateKey;
+                }
+
+                html += `<div class="review-item" data-rating="${rating}" data-date="${escHtml(meta.dateKey)}" style="padding:1.25rem 1.5rem; border-bottom:1px solid #f1f5f9;">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:0.5rem;">
+                        <div>
+                            <span style="font-weight:700; color:#0f172a;">${patientName}</span>
+                            <span style="color:#94a3b8; font-size:0.8rem; margin-left:0.75rem;">${escHtml(meta.displayDate)}</span>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:0.75rem;">
+                            <div class="review-stars-display">${renderStarsStatic(rating)}</div>
+                            <button onclick="openReportModal(${reviewId})" style="background:none; border:none; color:#94a3b8; font-size:0.85rem; cursor:pointer; padding:0; transition:0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#94a3b8'" title="Zgłoś opinię"><i class="fa-solid fa-flag"></i></button>
+                        </div>
+                    </div>
+                    ${comment ? `<p style="margin:0.6rem 0 0; color:#475569; font-size:0.95rem; line-height:1.6;">${comment}</p>` : ''}
+                </div>`;
+            });
+
+            list.innerHTML = html;
+        }
+
+        function refreshDoctorReviews(preserveFilter = true) {
+            if (isRefreshingDoctorReviews) {
+                return;
+            }
+
+            if (!doctorProfileId) {
+                return;
+            }
+
+            isRefreshingDoctorReviews = true;
+            fetch('/api-get-my-reviews', { headers: { 'Accept': 'application/json' } })
+                .then(r => r.ok ? r.json() : null)
+                .then(data => {
+                    if (!data || data.error) {
+                        return;
+                    }
+
+                    const reviews = Array.isArray(data.reviews) ? data.reviews : [];
+                    const summary = data.summary || { avg_rating: 0, review_count: reviews.length };
+
+                    renderReviewSummary(summary, reviews.length);
+                    renderDoctorReviewsList(reviews);
+
+                    const nextFilter = preserveFilter ? currentReviewFilter : 0;
+                    filterReviewsByStars(nextFilter);
+                })
+                .catch(err => console.error('Błąd odświeżania opinii lekarza:', err))
+                .finally(() => {
+                    isRefreshingDoctorReviews = false;
+                });
+        }
+
+        renderReviewSummary(initialReviewSummary, initialReviewCount);
 
         function toggleDoctorMobileMenu() {
             document.getElementById('doctorMobileMenu').classList.toggle('active');
@@ -1003,6 +1179,7 @@
             if (target) {
                 target.style.display = 'block';
                 if (tabName === 'dostepnosc') loadScheduleWeek();
+                if (tabName === 'opinie') refreshDoctorReviews(true);
             }
         }
 
@@ -1074,6 +1251,8 @@
 
         // FILTR GWIAZDEK W OPINIACH
         function filterReviewsByStars(rating) {
+            currentReviewFilter = rating;
+
             document.querySelectorAll('.review-star-filter').forEach(btn => {
                 btn.style.background = 'white';
                 btn.style.color = '#374151';

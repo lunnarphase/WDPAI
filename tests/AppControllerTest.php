@@ -60,16 +60,19 @@ class AppControllerTest extends TestCase
 {
     private AppControllerTestProxy $controller;
     private array $serverBackup;
+    private array $postBackup;
 
     protected function setUp(): void
     {
         $this->serverBackup = $_SERVER;
+        $this->postBackup = $_POST;
 
         $_SERVER = [
             'HTTP_HOST' => 'localhost',
             'REQUEST_METHOD' => 'GET',
             'REQUEST_URI' => '/dashboard',
         ];
+        $_POST = [];
 
         $this->controller = new AppControllerTestProxy();
     }
@@ -77,6 +80,7 @@ class AppControllerTest extends TestCase
     protected function tearDown(): void
     {
         $_SERVER = $this->serverBackup;
+        $_POST = $this->postBackup;
     }
 
     public function testValidateStrongPasswordAcceptsValidPassword(): void
@@ -197,10 +201,32 @@ class AppControllerTest extends TestCase
         $this->assertFalse($this->controller->forbiddenTriggered);
     }
 
+    public function testVerifyCsrfAcceptsValidHeaderToken(): void
+    {
+        $_SESSION['csrf_token'] = 'known_token';
+        $_SERVER['HTTP_X_CSRF_TOKEN'] = 'known_token';
+        unset($_POST['csrf_token']);
+
+        $this->controller->verifyCsrfPublic();
+
+        $this->assertFalse($this->controller->forbiddenTriggered);
+    }
+
     public function testVerifyCsrfRejectsInvalidToken(): void
     {
         $_SESSION['csrf_token'] = 'expected';
         $_POST['csrf_token'] = 'wrong';
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('forbidden');
+
+        $this->controller->verifyCsrfPublic();
+    }
+
+    public function testVerifyCsrfRejectsWhenTokenMissing(): void
+    {
+        $_SESSION['csrf_token'] = 'expected';
+        unset($_POST['csrf_token'], $_SERVER['HTTP_X_CSRF_TOKEN']);
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('forbidden');

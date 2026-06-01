@@ -66,10 +66,23 @@ class AppController {
 
     protected function verifyCsrf(): void
     {
-        $token = $_POST['csrf_token'] ?? '';
+        $token = $_POST['csrf_token'] ?? ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? '');
         if (empty($token) || !hash_equals($_SESSION['csrf_token'] ?? '', $token)) {
             $this->forbidden();
         }
+    }
+
+    private function injectSecurityBootstrap(string $html): string
+    {
+        if (stripos($html, '</head>') === false || stripos($html, 'name="csrf-token"') !== false) {
+            return $html;
+        }
+
+        $token = htmlspecialchars($this->generateCsrfToken(), ENT_QUOTES, 'UTF-8');
+        $bootstrap = "\n<meta name=\"csrf-token\" content=\"{$token}\">\n"
+            . "<script src=\"/public/scripts/security.js\" defer></script>\n";
+
+        return preg_replace('/<\/head>/i', $bootstrap . '</head>', $html, 1) ?? $html;
     }
  
     protected function render(string $template = null, array $variables = [])
@@ -84,6 +97,7 @@ class AppController {
             ob_start();
             include $templatePath;
             $output = ob_get_clean();
+            $output = $this->injectSecurityBootstrap($output);
         } else {
             http_response_code(404);
             ob_start();

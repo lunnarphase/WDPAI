@@ -22,20 +22,20 @@ DROP TABLE IF EXISTS roles CASCADE;
 -- Tabele słownikowe (3NF)
 CREATE TABLE roles (
     id SERIAL PRIMARY KEY,
-    name VARCHAR(20) NOT NULL
+    name VARCHAR(20) NOT NULL UNIQUE
 );
 
 CREATE TABLE specializations (
     id SERIAL PRIMARY KEY,
-    name VARCHAR(100) NOT NULL
+    name VARCHAR(100) NOT NULL UNIQUE
 );
 
 -- Główna tabela użytkowników
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
-    email VARCHAR(255) UNIQUE NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL CHECK (position('@' in email) > 1),
     password VARCHAR(255) NOT NULL,
-    username VARCHAR(100) NOT NULL,
+    username VARCHAR(100) NOT NULL CHECK (char_length(trim(username)) >= 3),
     id_role INTEGER NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
     is_blocked BOOLEAN NOT NULL DEFAULT FALSE
 );
@@ -45,7 +45,7 @@ CREATE TABLE login_attempts (
     id SERIAL PRIMARY KEY,
     email VARCHAR(255) NOT NULL,
     ip_address VARCHAR(45),
-    attempted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    attempted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     success BOOLEAN NOT NULL DEFAULT FALSE
 );
 CREATE INDEX idx_login_attempts_email ON login_attempts(email);
@@ -55,8 +55,8 @@ CREATE TABLE blocked_ips (
     ip_address VARCHAR(45) PRIMARY KEY,
     blocked_until TIMESTAMP,
     reason TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX idx_blocked_ips_blocked_until ON blocked_ips(blocked_until);
 
@@ -64,7 +64,7 @@ CREATE INDEX idx_blocked_ips_blocked_until ON blocked_ips(blocked_until);
 CREATE TABLE patients (
     id SERIAL PRIMARY KEY,
     id_user INTEGER UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    pesel CHAR(11) UNIQUE NOT NULL,
+    pesel CHAR(11) UNIQUE NOT NULL CHECK (pesel ~ '^[0-9]{11}$'),
     phone VARCHAR(20)
 );
 
@@ -72,8 +72,8 @@ CREATE TABLE doctors (
     id SERIAL PRIMARY KEY,
     id_user INTEGER UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     bio TEXT,
-    visit_price DECIMAL(10,2),
-    visit_duration INTEGER DEFAULT 30
+    visit_price DECIMAL(10,2) CHECK (visit_price IS NULL OR visit_price >= 0),
+    visit_duration INTEGER DEFAULT 30 CHECK (visit_duration BETWEEN 10 AND 240)
 );
 
 -- Relacja N:M (Lekarze i ich specjalizacje)
@@ -87,10 +87,10 @@ CREATE TABLE notifications (
     id SERIAL PRIMARY KEY,
     id_user INTEGER REFERENCES users(id) ON DELETE CASCADE,
     message TEXT NOT NULL,
-    is_read BOOLEAN DEFAULT FALSE,
-    type VARCHAR(50) DEFAULT 'general',
+    is_read BOOLEAN NOT NULL DEFAULT FALSE,
+    type VARCHAR(50) NOT NULL DEFAULT 'general' CHECK (char_length(trim(type)) > 0),
     related_id INTEGER,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX idx_notifications_user_created_at ON notifications(id_user, created_at DESC);
 CREATE INDEX idx_notifications_user_type_created_at ON notifications(id_user, type, created_at DESC);
@@ -103,12 +103,15 @@ CREATE TABLE appointments (
     id_doctor INTEGER REFERENCES doctors(id) ON DELETE CASCADE,
     appointment_date DATE NOT NULL,
     appointment_time TIME NOT NULL,
-    status VARCHAR(50) DEFAULT 'confirmed',
+    status VARCHAR(50) NOT NULL DEFAULT 'confirmed' CHECK (status IN ('confirmed', 'completed', 'cancelled', 'noshow')),
     recommendations TEXT,
     cancel_reason TEXT,
     cancel_comment TEXT,
-    review_submitted BOOLEAN DEFAULT FALSE
+    review_submitted BOOLEAN NOT NULL DEFAULT FALSE
 );
+CREATE UNIQUE INDEX uq_appointments_active_slot
+ON appointments (id_doctor, appointment_date, appointment_time)
+WHERE status <> 'cancelled';
 
 -- Dostępność lekarza (zakresy godzinowe na konkretny dzień)
 CREATE TABLE doctor_availability (
@@ -116,16 +119,18 @@ CREATE TABLE doctor_availability (
     id_doctor INTEGER NOT NULL REFERENCES doctors(id) ON DELETE CASCADE,
     date DATE NOT NULL,
     start_time TIME NOT NULL,
-    end_time TIME NOT NULL
+    end_time TIME NOT NULL,
+    CHECK (start_time < end_time)
 );
 
 -- Szablony tygodniowe lekarza
 CREATE TABLE doctor_schedule_templates (
     id SERIAL PRIMARY KEY,
     id_doctor INTEGER NOT NULL REFERENCES doctors(id) ON DELETE CASCADE,
-    name VARCHAR(100) NOT NULL,
+    name VARCHAR(100) NOT NULL CHECK (char_length(trim(name)) > 0),
     start_time TIME NOT NULL,
-    end_time TIME NOT NULL
+    end_time TIME NOT NULL,
+    CHECK (start_time < end_time)
 );
 
 -- Opinie pacjentów (jedna opinia na wizytę)
@@ -136,7 +141,7 @@ CREATE TABLE reviews (
     id_patient INTEGER NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
     rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
     comment TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Zgłoszenia opinii do moderacji
@@ -146,9 +151,9 @@ CREATE TABLE review_reports (
     id_reporter INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     category VARCHAR(100) NOT NULL,
     reason TEXT NOT NULL,
-    status VARCHAR(20) DEFAULT 'pending',
+    status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'dismissed', 'resolved')),
     admin_response TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 BEGIN;

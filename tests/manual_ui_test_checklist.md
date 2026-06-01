@@ -117,6 +117,7 @@ x| D-09 | doctor | Zmien status wizyty bez appointment_id | Blad kontrolowany, b
 x| D-10 | doctor | Edytuj profil lekarza (bio/cena/czas) | Zmiany zapisane |
 x| D-11 | doctor | Wyszukaj terminy i dostepne daty przez UI | Widoczne tylko dostepne sloty |
 x| D-12 | doctor | Po D-08 zweryfikuj po stronie patient notyfikacje | Powiadomienie pojawia sie poprawnie |
+| D-13 | doctor | Gdy pojawi sie nowa notyfikacja new_review, kliknij "Moje opinie" bez odswiezania calej strony | Nowa opinia widoczna od razu w tabeli opinii |
 
 ## M. Scenariusze admina (UI)
 | ID | Rola | Kroki | Oczekiwany rezultat |
@@ -176,6 +177,14 @@ x| S-05 | patient | Sprobuj wywolac endpoint admin block/unblock | 403/401 |
 | S-08 | dowolna | Sprawdz, czy po logout endpointy nadal sa chronione | Brak dostepu |
 | S-09 | dowolna | Sprawdz Console podczas krytycznych akcji (save/delete) | Brak uncaught exception |
 | S-10 | dowolna | Sprawdz Network: brak lawiny requestow po 2-3 min | Polling w kontrolowanych interwalach |
+
+## S2. Dodatkowe testy po wdrozeniu CSRF i hardeningu
+| ID | Rola | Kroki | Oczekiwany rezultat |
+|---|---|---|---|
+| S2-01 | patient | DevTools -> skopiuj request POST do /api-update-profile i wyslij ponownie bez naglowka X-CSRF-Token | Odpowiedz 403, brak zmiany danych |
+| S2-02 | doctor | DevTools -> skopiuj request POST do /api-save-week-availability i usun X-CSRF-Token | Odpowiedz 403, grafik bez zmian |
+| S2-03 | admin | DevTools -> skopiuj request POST do /admin-block-user i usun X-CSRF-Token | Odpowiedz 403, konto usera bez zmian |
+| S2-04 | patient (2 karty) | W tej samej sekundzie potwierdz ten sam slot wizyty w 2 kartach | Jedna rezerwacja sukces, druga kontrolowany blad o zajetym terminie |
 
 ## Kryterium zaliczenia testow manualnych
 - Must pass: wszystkie testy z "Pakiet krytyczny na odbior"

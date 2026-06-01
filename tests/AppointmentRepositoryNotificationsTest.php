@@ -69,6 +69,16 @@ class SqliteNotificationsDatabase extends Database
             )
         ');
 
+        $db->exec('
+            CREATE TABLE doctor_availability (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id_doctor INTEGER NOT NULL,
+                date TEXT NOT NULL,
+                start_time TEXT NOT NULL,
+                end_time TEXT NOT NULL
+            )
+        ');
+
         $db->exec("INSERT INTO patients (id, id_user, pesel) VALUES (1, 1, '01234567890'), (2, 2, '10987654321')");
         $db->exec("INSERT INTO doctors (id, id_user, bio) VALUES (1, 100, 'Cardio'), (2, 101, 'Ortho')");
     }
@@ -244,6 +254,73 @@ class AppointmentRepositoryNotificationsTest extends TestCase
         $this->assertSame('2026-01-25', $range[1]['appointment_date']);
     }
 
+    public function testCreateAppointmentReturnsReadableMessageWhenSlotAlreadyTaken(): void
+    {
+        $tz = new DateTimeZone('Europe/Warsaw');
+        $future = new DateTimeImmutable('tomorrow 10:00', $tz);
+        $date = $future->format('Y-m-d');
+        $time = '10:00';
+
+        $this->insertAvailability(1, $date, '08:00', '20:00');
+        $this->insertAppointment(2, 1, $date, $time, 'confirmed');
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('ktoś inny właśnie zarezerwował');
+
+        $this->repository->createAppointment(1, 1, $date, $time);
+    }
+
+    public function testCreateAppointmentRejectsPastTimeSlot(): void
+    {
+        $tz = new DateTimeZone('Europe/Warsaw');
+        $past = new DateTimeImmutable('yesterday 08:00', $tz);
+        $date = $past->format('Y-m-d');
+        $time = '08:00';
+
+        $this->insertAvailability(1, $date, '07:00', '10:00');
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('termin już minął');
+
+        $this->repository->createAppointment(1, 1, $date, $time);
+    }
+
+    public function testGetAvailableSlotsForDateFiltersOutPastSlotsForToday(): void
+    {
+        $tz = new DateTimeZone('Europe/Warsaw');
+        $today = (new DateTimeImmutable('now', $tz))->format('Y-m-d');
+        $now = new DateTimeImmutable('now', $tz);
+
+        $this->insertAvailability(1, $today, '00:00', '23:59');
+
+        $slots = $this->repository->getAvailableSlotsForDate(1, $today);
+
+        foreach ($slots as $slot) {
+            $slotDateTime = DateTimeImmutable::createFromFormat('Y-m-d H:i', $today . ' ' . $slot, $tz);
+            $this->assertNotFalse($slotDateTime);
+            $this->assertTrue(
+                $slotDateTime > $now,
+                sprintf('Slot %s should not be returned because it is in the past.', $slot)
+            );
+        }
+    }
+
+    public function testGetAvailableDatesInRangeSkipsTodayWhenOnlyPastSlotsExist(): void
+    {
+        $tz = new DateTimeZone('Europe/Warsaw');
+        $now = new DateTimeImmutable('now', $tz);
+        $today = $now->format('Y-m-d');
+        $tomorrow = $now->modify('+1 day')->format('Y-m-d');
+
+        $this->insertAvailability(1, $today, '00:00', '00:30');
+        $this->insertAvailability(1, $tomorrow, '08:00', '09:00');
+
+        $available = $this->repository->getAvailableDatesInRange(1, $today, $tomorrow);
+
+        $this->assertContains($tomorrow, $available);
+        $this->assertNotContains($today, $available);
+    }
+
     private function insertNotification(
         int $userId,
         string $message,
@@ -281,5 +358,14 @@ class AppointmentRepositoryNotificationsTest extends TestCase
         $stmt->execute([$patientId, $doctorId, $date, $time, $status]);
 
         return (int)$this->pdo->lastInsertId();
+    }
+
+    private function insertAvailability(int $doctorId, string $date, string $startTime, string $endTime): void
+    {
+        $stmt = $this->pdo->prepare('
+            INSERT INTO doctor_availability (id_doctor, date, start_time, end_time)
+            VALUES (?, ?, ?, ?)
+        ');
+        $stmt->execute([$doctorId, $date, $startTime, $endTime]);
     }
 }

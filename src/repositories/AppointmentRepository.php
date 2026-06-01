@@ -4,11 +4,70 @@ require_once 'Repository.php';
 
 class AppointmentRepository extends Repository {
 
+    private function getBusinessTimezone(): DateTimeZone
+    {
+        return new DateTimeZone('Europe/Warsaw');
+    }
+
+    private function buildSlotDateTime(string $date, string $time): ?DateTimeImmutable
+    {
+        $normalizedDate = trim($date);
+        $normalizedTime = trim($time);
+
+        if (preg_match('/^\d{2}:\d{2}:\d{2}$/', $normalizedTime) === 1) {
+            $normalizedTime = substr($normalizedTime, 0, 5);
+        }
+
+        $slot = DateTimeImmutable::createFromFormat(
+            'Y-m-d H:i',
+            $normalizedDate . ' ' . $normalizedTime,
+            $this->getBusinessTimezone()
+        );
+
+        $errors = DateTimeImmutable::getLastErrors();
+        $hasErrors = is_array($errors)
+            && ((int)($errors['warning_count'] ?? 0) > 0 || (int)($errors['error_count'] ?? 0) > 0);
+
+        if ($slot === false || $hasErrors) {
+            return null;
+        }
+
+        return $slot;
+    }
+
+    private function assertBookableSlot(string $date, string $time): array
+    {
+        $slot = $this->buildSlotDateTime($date, $time);
+        if ($slot === null) {
+            throw new RuntimeException('Przepraszamy, ale wybrany termin nie jest już dostępny. Proszę wybrać inny termin.');
+        }
+
+        $now = new DateTimeImmutable('now', $this->getBusinessTimezone());
+        if ($slot <= $now) {
+            throw new RuntimeException('Przepraszamy, ale wybrany termin już minął. Wybierz późniejszą godzinę.');
+        }
+
+        return [
+            'date' => $slot->format('Y-m-d'),
+            'time' => $slot->format('H:i'),
+        ];
+    }
+
+    private function isSlotInFuture(string $date, string $time, DateTimeImmutable $now): bool
+    {
+        $slot = $this->buildSlotDateTime($date, $time);
+        return $slot !== null && $slot > $now;
+    }
+
     public function createAppointment(int $userId, int $doctorId, string $date, string $time) {
         $db = $this->database->connect();
+
+        $normalized = $this->assertBookableSlot($date, $time);
+        $date = $normalized['date'];
+        $time = $normalized['time'];
         
         try {
-            $db->beginTransaction();
+            $this->beginTransactionWithIsolation($db, 'SERIALIZABLE');
 
             $stmt = $db->prepare('SELECT id FROM patients WHERE id_user = ?');
             $stmt->execute([$userId]);
@@ -23,13 +82,13 @@ class AppointmentRepository extends Repository {
             $checkStmt = $db->prepare('SELECT id FROM appointments WHERE id_doctor = ? AND appointment_date = ? AND appointment_time = ? AND status != \'cancelled\'');
             $checkStmt->execute([$doctorId, $date, $time]);
             if ($checkStmt->fetch()) {
-                throw new Exception("Przykro nam, ale ten termin został przed chwilą zarezerwowany przez inną osobę.");
+                throw new RuntimeException('Przepraszamy, ale ktoś inny właśnie zarezerwował ten termin.');
             }
 
             $availStmt = $db->prepare('SELECT COUNT(*) FROM doctor_availability WHERE id_doctor = ? AND date = ? AND start_time <= ? AND end_time > ?');
             $availStmt->execute([$doctorId, $date, $time . ':00', $time . ':00']);
             if ((int)$availStmt->fetchColumn() === 0) {
-                throw new Exception("Wybrany termin nie jest już dostępny. Proszę wybrać inny termin.");
+                throw new RuntimeException('Przepraszamy, ale wybrany termin nie jest już dostępny. Proszę wybrać inny termin.');
             }
 
             $stmt = $db->prepare('
@@ -40,8 +99,21 @@ class AppointmentRepository extends Repository {
 
             $db->commit();
             return true;
+        } catch (PDOException $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+
+            // Race condition safety: DB-level unique slot guard may reject concurrent inserts.
+            if (($e->errorInfo[0] ?? null) === '23505') {
+                throw new RuntimeException('Przepraszamy, ale ktoś inny właśnie zarezerwował ten termin.');
+            }
+
+            throw $e;
         } catch (Exception $e) {
-            $db->rollBack();
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
             throw $e;
         }
     }
@@ -219,7 +291,7 @@ class AppointmentRepository extends Repository {
         $db = $this->database->connect();
         
         try {
-            $db->beginTransaction();
+            $this->beginTransactionWithIsolation($db, 'READ COMMITTED');
 
             $stmt = $db->prepare('
                 UPDATE appointments 
@@ -335,7 +407,7 @@ class AppointmentRepository extends Repository {
     public function getDoctorAvailabilityForWeek(int $doctorId, string $weekStart, string $weekEnd): array {
         $db = $this->database->connect();
         $stmt = $db->prepare("
-            SELECT date::text AS date, start_time::text AS start_time, end_time::text AS end_time
+            SELECT CAST(date AS TEXT) AS date, CAST(start_time AS TEXT) AS start_time, CAST(end_time AS TEXT) AS end_time
             FROM doctor_availability
             WHERE id_doctor = ? AND date >= ? AND date <= ?
             ORDER BY date, start_time
@@ -346,7 +418,7 @@ class AppointmentRepository extends Repository {
 
     public function saveWeekAvailability(int $doctorId, string $weekStart, string $weekEnd, array $dayRanges): void {
         $db = $this->database->connect();
-        $db->beginTransaction();
+        $this->beginTransactionWithIsolation($db, 'REPEATABLE READ');
         try {
             $db->prepare("DELETE FROM doctor_availability WHERE id_doctor = ? AND date >= ? AND date <= ?")
                ->execute([$doctorId, $weekStart, $weekEnd]);
@@ -364,7 +436,7 @@ class AppointmentRepository extends Repository {
     public function getAvailableSlotsForDate(int $doctorId, string $date): array {
         $db = $this->database->connect();
         $stmt = $db->prepare("
-            SELECT start_time::text AS start_time, end_time::text AS end_time
+            SELECT CAST(start_time AS TEXT) AS start_time, CAST(end_time AS TEXT) AS end_time
             FROM doctor_availability
             WHERE id_doctor = ? AND date = ?
             ORDER BY start_time
@@ -385,20 +457,28 @@ class AppointmentRepository extends Repository {
         sort($slots);
 
         $stmt = $db->prepare("
-            SELECT appointment_time::text AS t
+            SELECT CAST(appointment_time AS TEXT) AS t
             FROM appointments
             WHERE id_doctor = ? AND appointment_date = ? AND status != 'cancelled'
         ");
         $stmt->execute([$doctorId, $date]);
         $booked = array_map(fn($v) => substr($v, 0, 5), $stmt->fetchAll(PDO::FETCH_COLUMN));
 
-        return array_values(array_filter($slots, fn($s) => !in_array($s, $booked)));
+        $now = new DateTimeImmutable('now', $this->getBusinessTimezone());
+
+        return array_values(array_filter($slots, function ($slot) use ($booked, $date, $now) {
+            if (in_array($slot, $booked, true)) {
+                return false;
+            }
+
+            return $this->isSlotInFuture($date, $slot, $now);
+        }));
     }
 
     public function getAvailableDatesInRange(int $doctorId, string $startDate, string $endDate): array {
         $db = $this->database->connect();
         $stmt = $db->prepare("
-            SELECT date::text AS date, start_time::text AS start_time, end_time::text AS end_time
+            SELECT CAST(date AS TEXT) AS date, CAST(start_time AS TEXT) AS start_time, CAST(end_time AS TEXT) AS end_time
             FROM doctor_availability
             WHERE id_doctor = ? AND date >= ? AND date <= ?
             ORDER BY date, start_time
@@ -408,7 +488,7 @@ class AppointmentRepository extends Repository {
         if (empty($allRanges)) return [];
 
         $stmt = $db->prepare("
-            SELECT appointment_date::text AS date, appointment_time::text AS time
+            SELECT CAST(appointment_date AS TEXT) AS date, CAST(appointment_time AS TEXT) AS time
             FROM appointments
             WHERE id_doctor = ? AND appointment_date >= ? AND appointment_date <= ? AND status != 'cancelled'
         ");
@@ -425,6 +505,7 @@ class AppointmentRepository extends Repository {
             $byDate[$r['date']][] = $r;
         }
 
+        $now = new DateTimeImmutable('now', $this->getBusinessTimezone());
         $available = [];
         foreach ($byDate as $date => $ranges) {
             $taken = $bookedMap[$date] ?? [];
@@ -432,7 +513,12 @@ class AppointmentRepository extends Repository {
                 $start = strtotime($r['start_time']);
                 $end   = strtotime($r['end_time']);
                 for ($t = $start; $t + 1800 <= $end; $t += 1800) {
-                    if (!in_array(date('H:i', $t), $taken)) {
+                    $slot = date('H:i', $t);
+                    if (!$this->isSlotInFuture($date, $slot, $now)) {
+                        continue;
+                    }
+
+                    if (!in_array($slot, $taken, true)) {
                         $available[] = $date;
                         break 2;
                     }
@@ -447,7 +533,7 @@ class AppointmentRepository extends Repository {
     public function getScheduleTemplates(int $doctorId): array {
         $db = $this->database->connect();
         $stmt = $db->prepare("
-            SELECT id, name, start_time::text AS start_time, end_time::text AS end_time
+            SELECT id, name, CAST(start_time AS TEXT) AS start_time, CAST(end_time AS TEXT) AS end_time
             FROM doctor_schedule_templates
             WHERE id_doctor = ?
             ORDER BY name

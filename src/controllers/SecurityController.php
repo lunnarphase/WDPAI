@@ -17,21 +17,62 @@ class SecurityController extends AppController {
 
     private function getClientIpAddress(): string
     {
+        $remoteAddr = trim((string)($_SERVER['REMOTE_ADDR'] ?? ''));
         $forwarded = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '';
-        if (!empty($forwarded)) {
-            $parts = explode(',', $forwarded);
-            $candidate = trim($parts[0]);
-            if (filter_var($candidate, FILTER_VALIDATE_IP)) {
-                return $candidate;
+
+        if (
+            !empty($forwarded)
+            && filter_var($remoteAddr, FILTER_VALIDATE_IP)
+            && $this->isTrustedProxy($remoteAddr)
+        ) {
+            $parts = array_map('trim', explode(',', $forwarded));
+            foreach ($parts as $candidate) {
+                if (filter_var($candidate, FILTER_VALIDATE_IP)) {
+                    return $candidate;
+                }
             }
         }
 
-        $remoteAddr = $_SERVER['REMOTE_ADDR'] ?? '';
         if (filter_var($remoteAddr, FILTER_VALIDATE_IP)) {
             return $remoteAddr;
         }
 
         return 'unknown';
+    }
+
+    private function isTrustedProxy(string $ipAddress): bool
+    {
+        if ($ipAddress === '127.0.0.1' || $ipAddress === '::1') {
+            return true;
+        }
+
+        if (!filter_var($ipAddress, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+            return false;
+        }
+
+        return $this->isIpv4InCidr($ipAddress, '10.0.0.0/8')
+            || $this->isIpv4InCidr($ipAddress, '172.16.0.0/12')
+            || $this->isIpv4InCidr($ipAddress, '192.168.0.0/16');
+    }
+
+    private function isIpv4InCidr(string $ipAddress, string $cidr): bool
+    {
+        [$subnet, $maskBits] = explode('/', $cidr);
+        $maskBits = (int)$maskBits;
+
+        if ($maskBits < 0 || $maskBits > 32) {
+            return false;
+        }
+
+        $ipLong = ip2long($ipAddress);
+        $subnetLong = ip2long($subnet);
+        if ($ipLong === false || $subnetLong === false) {
+            return false;
+        }
+
+        $mask = $maskBits === 0 ? 0 : (-1 << (32 - $maskBits));
+
+        return ($ipLong & $mask) === ($subnetLong & $mask);
     }
 
     private function formatRemainingLockTime(int $seconds): string

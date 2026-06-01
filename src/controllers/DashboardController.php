@@ -124,6 +124,8 @@ class DashboardController extends AppController {
             $this->jsonResponse(['error' => 'Niedozwolona metoda.'], 405);
         }
 
+        $this->verifyCsrf();
+
         $this->appointmentRepo->markNotificationsAsRead($_SESSION['user_id']);
         $this->jsonResponse(['status' => 'ok']);
     }
@@ -163,6 +165,8 @@ class DashboardController extends AppController {
             $this->jsonResponse(['error' => 'Niedozwolona metoda.'], 405);
         }
 
+        $this->verifyCsrf();
+
         try {
             $deletedCount = $this->appointmentRepo->clearNotifications((int)$_SESSION['user_id']);
             $this->jsonResponse([
@@ -181,6 +185,8 @@ class DashboardController extends AppController {
         if (!$this->isPost()) {
             $this->jsonResponse(['success' => false, 'error' => 'Niedozwolona metoda.'], 405);
         }
+
+        $this->verifyCsrf();
 
         $input = json_decode(file_get_contents('php://input'), true);
         $notifId = (int)($input['id'] ?? 0);
@@ -224,6 +230,8 @@ class DashboardController extends AppController {
             $this->jsonResponse(['success' => false, 'message' => 'Niedozwolona metoda.'], 405);
         }
 
+        $this->verifyCsrf();
+
         $input = json_decode(file_get_contents('php://input'), true);
         if (!is_array($input)) {
             $this->jsonResponse(['success' => false, 'message' => 'Błędne dane wejściowe.'], 400);
@@ -255,6 +263,8 @@ class DashboardController extends AppController {
         if (!$this->isPost()) {
             $this->jsonResponse(['success' => false, 'message' => 'Niedozwolona metoda.'], 405);
         }
+
+        $this->verifyCsrf();
         
         $input = json_decode(file_get_contents('php://input'), true);
         if (!$input) {

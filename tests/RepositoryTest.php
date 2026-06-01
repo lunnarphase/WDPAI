@@ -9,6 +9,14 @@ class FakeDatabase extends Database {
     }
 }
 
+class RepositoryTransactionProxy extends Repository
+{
+    public function beginWithIsolationPublic(PDO $db, string $isolationLevel): void
+    {
+        $this->beginTransactionWithIsolation($db, $isolationLevel);
+    }
+}
+
 class RepositoryTest extends TestCase
 {
     public function testRepositoryInstantiationWorks()
@@ -17,5 +25,17 @@ class RepositoryTest extends TestCase
         $repo = new Repository($mockDb);
 
         $this->assertInstanceOf(Repository::class, $repo);
+    }
+
+    public function testBeginTransactionWithIsolationFallsBackOnSqlite(): void
+    {
+        $db = new PDO('sqlite::memory:');
+        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+        $repo = new RepositoryTransactionProxy($this->createMock(Database::class));
+        $repo->beginWithIsolationPublic($db, 'SERIALIZABLE');
+
+        $this->assertTrue($db->inTransaction());
+        $db->rollBack();
     }
 }

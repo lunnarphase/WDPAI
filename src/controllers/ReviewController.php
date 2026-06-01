@@ -19,6 +19,8 @@ class ReviewController extends AppController {
             $this->jsonResponse(['error' => 'Niedozwolona metoda.'], 405);
         }
 
+        $this->verifyCsrf();
+
         $input = json_decode(file_get_contents('php://input'), true);
         $appointmentId = (int)($input['appointment_id'] ?? 0);
         $rating = (int)($input['rating'] ?? 0);
@@ -52,6 +54,8 @@ class ReviewController extends AppController {
         if (!$this->isPost()) {
             $this->jsonResponse(['error' => 'Niedozwolona metoda.'], 405);
         }
+
+        $this->verifyCsrf();
 
         $input = json_decode(file_get_contents('php://input'), true);
         $reviewId = (int)($input['review_id'] ?? 0);

@@ -71,6 +71,7 @@
         <form id="bookingForm" action="/confirm-appointment" method="POST">
             <input type="hidden" name="doctor_id" id="doctor_id" value="<?= htmlspecialchars($doctorId) ?>">
             <input type="hidden" name="return_to" value="<?= htmlspecialchars($returnTo ?? '/dashboard') ?>">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token ?? '') ?>">
             <input type="hidden" name="appointment_date" id="selected_date">
             <input type="hidden" name="appointment_time" id="selected_time">
 

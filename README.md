@@ -124,6 +124,10 @@ erDiagram
 
 - Hard block (`users.is_blocked`) to osobny mechanizm administracyjny (manualny, do odwolania).
 
+- Ochrona CSRF obejmuje mutujace endpointy form i JSON przez token (`csrf_token` dla formularzy oraz `X-CSRF-Token` dla fetch), bez zmiany UX.
+
+- Odczyt IP z `X-Forwarded-For` jest akceptowany tylko dla zaufanych proxy (sieci prywatne/loopback), co ogranicza spoofing naglowka.
+
 ## 5. Wymagane schematy
 
 ### 5.1 Mechanizm blokowania kont i IP (bledne logowanie)
@@ -224,6 +228,7 @@ flowchart TD
   - **Funkcje**: `notify_patient_review_request`, `check_doctor_availability_func`.
   - **Triggery**: `trg_review_request`, `check_doctor_availability_trigger`.
 - Transakcje sa stosowane m.in. przy tworzeniu wizyty i operacjach administracyjnych.
+- Dla integralnosci slotow wizyt zastosowano DB-level partial unique index: `uq_appointments_active_slot` (blokada podwojnej rezerwacji aktywnego terminu).
 
 ## 7. Testy automatyczne i pokrycie kodu
 
@@ -238,6 +243,7 @@ flowchart TD
   - `tests/UserModelTest.php`
   - `tests/RepositoryTest.php`
 - Ostatni wynik: **58 testow, 141 asercji, OK**.
+- Ostatni wynik: **61 testow, 145 asercji, OK**.
 - Zakres:
   - polityka hasla i detekcja JSON/request context,
 - logika notyfikacji i operacje na wizytach w `AppointmentRepository`,
@@ -250,7 +256,7 @@ flowchart TD
 - Skrypty:
   - `tests/integration_test.ps1`
   - `tests/integration_test.sh`
-- Ostatni wynik: **8/8 PASS**.
+- Ostatni wynik: **13/13 PASS**.
 - Pokryte scenariusze:
   - publiczne trasy (`/login`, 404),
   - ochrona endpointow API bez sesji (401),
@@ -323,3 +329,32 @@ docker-compose exec php sh -lc "wget -q -O /tmp/phpunit.phar https://phar.phpuni
 ```bash
 bash ./tests/integration_test.sh
 ```
+
+## 9. Scenariusz Testowy (krok po kroku)
+
+1. Uruchom aplikacje i otworz `https://localhost:8443`.
+2. Zaloguj sie kolejno jako patient, doctor, admin i potwierdz przekierowania do odpowiednich dashboardow.
+3. Patient: wyszukaj lekarza, zarezerwuj slot, anuluj wizyte, zaktualizuj profil i haslo.
+4. Doctor: ustaw dostepnosc tygodniowa, zmien status wizyty na `completed`, dodaj zalecenia.
+5. Patient: wystaw opinie do zakonczonej wizyty i zglos opinie (report).
+6. Admin: obsluz report (`dismiss` / `resolve`), wykonaj CRUD usera i test blokady/odblokowania konta.
+7. Weryfikuj statusy 401/403/404 na trasach nieautoryzowanych i nieistniejacych.
+8. Potwierdz dzialanie obiektow DB: trigger `trg_review_request`, widoki i funkcje.
+
+## 10. Checklista wdrozenia
+
+- [x] MVC OOP bez frameworka
+- [x] Docker + PostgreSQL + HTTPS
+- [x] Role i autoryzacja (patient/doctor/admin)
+- [x] CRUD i logika biznesowa wizyt
+- [x] Powiadomienia + moderacja opinii
+- [x] Ochrona SQLi/XSS/CSRF/Sesji
+- [x] Logowanie prob logowania i lockout
+- [x] Testy jednostkowe + integracyjne
+- [x] Strony bledow 400/401/403/404/500
+
+## 11. Materialy Do Uzupelnienia Przed Oddaniem
+
+- Dodaj screeny aplikacji web i mobile do `docs/assets/` oraz podlinkuj je w README.
+- Dodaj diagram ERD w formacie PNG/SVG do `docs/assets/` oraz link do pliku zrodlowego (np. draw.io).
+- Zweryfikuj, ze finalny commit zawiera aktualne artefakty raportowe (test report + screenshoty).
