@@ -176,11 +176,7 @@ class AdminController extends AppController {
                 $this->badRequest();
             }
 
-            $status = $this->userRepo->addUserAdmin($email, $password, $username, $role, $pesel);
-
-            if (!$status) {
-                // Should optimally return error view
-            }
+            $this->userRepo->addUserAdmin($email, $password, $username, $role, $pesel);
         }
         
         header("Location: " . $this->getBaseUrl() . "/admin-dashboard"); 
@@ -391,10 +387,7 @@ class AdminController extends AppController {
     }
 
     /**
-     * Zwraca szczegoly ataku potrzebne do modalu "Szczegoly ataku" w panelu
-     * Bezpieczenstwa. Dwa warianty wywolania:
-     *   - ?ip=X.X.X.X  -> lista kont, ktore byly atakowane z tego IP
-     *   - ?email=foo@bar -> lista IP, ktore atakowaly to konto
+     * Zwraca szczegoly ataku dla IP albo konta.
      */
     public function apiAdminAttackDetails() {
         $this->requireAdmin();
@@ -463,7 +456,6 @@ class AdminController extends AppController {
             $this->jsonResponse(['success' => false, 'error' => 'Nieprawidłowe ID użytkownika.'], 400);
         }
 
-        // Nie można zablokować samego siebie
         if ($userId === (int)$_SESSION['user_id']) {
             $this->jsonResponse(['success' => false, 'error' => 'Nie możesz zablokować własnego konta.'], 409);
         }
@@ -494,15 +486,8 @@ class AdminController extends AppController {
         }
 
         try {
-            // KOLEJNOSC JEST KRYTYCZNA:
-            // 1) Najpierw odblokowujemy IP (metoda czyta login_attempts, zeby znalezc IP
-            //    z ktorych szly nieudane proby na to konto).
-            // 2) Potem usuwamy powiadomienia global_ip_attack dla tych IP oraz
-            //    account_global_attack dla tego emaila (zeby alerty nie wisialy w panelu).
-            // 3) Dopiero teraz czyscimy historie login_attempts - jakbysmy zrobili to
-            //    przed punktem 1, to query w unblockIpsForUser nie znalazloby zadnego IP.
-            //    Czyszczenie wyzeruje tez stan isAccountGloballyLocked i is_temporarily_locked.
-            // 4) Na koniec sciagamy flage is_blocked z konta (twarda flaga w users).
+            // unblockIpsForUser musi byc wykonane przed clearAttemptsForUserId
+            // aby zachowac dane z login_attempts potrzebne do znalezienia IP.
             $unblockedIps = $this->loginAttemptsRepo->unblockIpsForUser($userId);
 
             $userEmail = $this->userRepo->getEmailById($userId);

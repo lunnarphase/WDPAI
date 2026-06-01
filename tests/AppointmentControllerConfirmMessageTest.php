@@ -8,12 +8,10 @@ class AppointmentControllerConfirmProxy extends AppointmentController
 {
     protected function requireLogin()
     {
-        // Skip auth checks for isolated unit testing of confirm() flow.
     }
 
     protected function verifyCsrf(): void
     {
-        // Skip CSRF checks for isolated unit testing of confirm() flow.
     }
 
     protected function render(string $template = null, array $variables = [])

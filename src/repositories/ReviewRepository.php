@@ -4,13 +4,6 @@ require_once 'Repository.php';
 
 class ReviewRepository extends Repository {
 
-    public function hasReview(int $appointmentId): bool {
-        $db = $this->database->connect();
-        $stmt = $db->prepare('SELECT id FROM reviews WHERE id_appointment = ?');
-        $stmt->execute([$appointmentId]);
-        return (bool)$stmt->fetch();
-    }
-
     public function isReviewSubmitted(int $appointmentId): bool {
         $db = $this->database->connect();
         $stmt = $db->prepare('SELECT review_submitted FROM appointments WHERE id = ?');

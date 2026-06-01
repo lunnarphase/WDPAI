@@ -75,40 +75,6 @@ class LoginAttemptsRepository extends Repository {
     }
 
     /**
-     * Sprawdza, czy konto powinno zostać tymczasowo zablokowane.
-     *
-     * UWAGA: ta metoda nie uwzglednia IP - wpada gdy z DOWOLNEGO miejsca
-     * przyszly nieudane proby. Pozwala wiec atakujacemu z 1 IP zablokowac
-     * dowolne konto (account-lockout DoS). Trzymana tylko dla wstecznej
-     * zgodnosci - w sciezce logowania uzywamy `isTemporarilyLockedForIpAccount`
-     * i `isAccountGloballyLocked`.
-     */
-    public function isTemporarilyLocked(string $email, int $maxFailures = 3, int $windowMinutes = 15): bool
-    {
-        $db = $this->database->connect();
-        $stmt = $db->prepare(" 
-            SELECT COUNT(*)
-            FROM login_attempts
-            WHERE email = :email
-              AND success = FALSE
-              AND attempted_at > COALESCE(
-                    (SELECT MAX(attempted_at)
-                     FROM login_attempts
-                     WHERE email = :email AND success = TRUE),
-                    '1970-01-01'::timestamp
-              )
-              AND attempted_at >= (NOW() - (:window || ' minutes')::interval)
-        ");
-
-        $stmt->bindParam(':email', $email, PDO::PARAM_STR);
-        $window = (string)$windowMinutes;
-        $stmt->bindParam(':window', $window, PDO::PARAM_STR);
-        $stmt->execute();
-
-        return ((int)$stmt->fetchColumn()) >= $maxFailures;
-    }
-
-    /**
      * Czy para (email, IP) ma za duzo nieudanych prob w oknie czasowym?
      *
      * To jest "miekka" blokada IP-aware: atakujacy z X.X.X.X po 3 nieudanych
@@ -489,28 +455,45 @@ class LoginAttemptsRepository extends Repository {
     }
 
     /**
+     * Debug helper: zdejmuje wszystkie aktywne blokady i czyści nieudane próby.
+     * Używaj tylko lokalnie podczas testów manualnych.
+     */
+    public function clearAllLocksForDebug(): array
+    {
+        $db = $this->database->connect();
+        $this->ensureBlockedIpsTableExists($db);
+
+        try {
+            $this->beginTransactionWithIsolation($db, 'READ COMMITTED');
+
+            $deletedBlockedIps = (int)$db->exec('DELETE FROM blocked_ips');
+            $clearedHardBlockedUsers = (int)$db->exec('UPDATE users SET is_blocked = FALSE WHERE is_blocked = TRUE');
+            $deletedFailedAttempts = (int)$db->exec('DELETE FROM login_attempts WHERE success = FALSE');
+
+            $db->commit();
+
+            return [
+                'deleted_blocked_ips' => $deletedBlockedIps,
+                'cleared_hard_blocked_users' => $clearedHardBlockedUsers,
+                'deleted_failed_attempts' => $deletedFailedAttempts,
+            ];
+        } catch (Exception $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $e;
+        }
+    }
+
+    /**
      * Zdejmuje aktywne blokady IP powiazane z kontem uzytkownika.
-     *
-     * Logika: gdy admin recznie odblokowuje konto, blokada IP zostala zalozona
-     * z powodu serii nieudanych prob - jesli admin uznaje, ze atak ustal i konto
-     * powinno znow dzialac, to nie chcemy zmuszac go do osobnego odblokowywania
-     * tych samych IP dla pozostalych kont. Bierzemy wiec wszystkie aktywne blokady
-     * IP, z ktorych byly nieudane proby na to konto, i usuwamy je.
-     *
-     * UWAGA: ta metoda korzysta z tabeli login_attempts - wywoluj ja PRZED
-     * clearAttemptsForUserId, inaczej zapytanie nie znajdzie zadnych IP do
-     * odblokowania (rekordy zostana usuniete).
-     *
-     * Zwraca liste zdjetych adresow IP (mozesz ich uzyc np. do usuniecia
-     * powiadomien `global_ip_attack` powiazanych z tymi IP).
+     * Metode wywoluj przed clearAttemptsForUserId().
      */
     public function unblockIpsForUser(int $userId): array
     {
         $db = $this->database->connect();
         $this->ensureBlockedIpsTableExists($db);
 
-        // 1) Wez liste IP do zdjecia (z login_attempts dla tego usera, zaweone do tych,
-        //    ktore faktycznie maja aktywny wpis w blocked_ips).
         $select = $db->prepare("
             SELECT DISTINCT bi.ip_address
             FROM blocked_ips bi
@@ -531,8 +514,6 @@ class LoginAttemptsRepository extends Repository {
             return [];
         }
 
-        // 2) Skasuj wpisy w blocked_ips. Uzywamy IN (?, ?, ...) zamiast subquery,
-        //    bo mamy juz konkretna liste i chcemy miec pewnosc co skasujemy.
         $placeholders = implode(',', array_fill(0, count($ips), '?'));
         $delete = $db->prepare("DELETE FROM blocked_ips WHERE ip_address IN ({$placeholders})");
         $delete->execute($ips);
@@ -541,11 +522,7 @@ class LoginAttemptsRepository extends Repository {
     }
 
     /**
-     * Usuwa powiadomienia admina typu global_ip_attack dotyczace podanych adresow IP.
-     * Wywoluj po faktycznym zdjeciu blokady IP, zeby alert nie wisial w panelu admina
-     * z odliczaniem czasu, ktorego juz nie ma.
-     *
-     * Zwraca liczbe usunietych powiadomien.
+     * Usuwa powiadomienia admina typu global_ip_attack dla podanych adresow IP.
      */
     public function deleteGlobalIpAttackNotificationsForIps(array $ipAddresses): int
     {
@@ -559,8 +536,6 @@ class LoginAttemptsRepository extends Repository {
 
         $db = $this->database->connect();
 
-        // Powiadomienia globalnego ataku maja w message linie "...IP: {adres}\n...".
-        // Idziemy po jednym IP, zliczamy usuniete.
         $stmt = $db->prepare(" 
             DELETE FROM notifications
             WHERE type = 'global_ip_attack'

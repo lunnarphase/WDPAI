@@ -75,6 +75,20 @@ class SecurityController extends AppController {
         return ($ipLong & $mask) === ($subnetLong & $mask);
     }
 
+    private function isLocalDebugResetEnabled(): bool
+    {
+        $host = strtolower((string)($_SERVER['HTTP_HOST'] ?? ''));
+        $hostWithoutPort = explode(':', $host)[0];
+        $remoteAddr = trim((string)($_SERVER['REMOTE_ADDR'] ?? ''));
+
+        $isLocalHost = in_array($hostWithoutPort, ['localhost', '127.0.0.1', '::1'], true);
+        $isLocalNetworkSource = $remoteAddr === '127.0.0.1'
+            || $remoteAddr === '::1'
+            || ($remoteAddr !== '' && $this->isTrustedProxy($remoteAddr));
+
+        return $isLocalHost && $isLocalNetworkSource;
+    }
+
     private function formatRemainingLockTime(int $seconds): string
     {
         if ($seconds < 0) {
@@ -110,13 +124,11 @@ class SecurityController extends AppController {
             return $this->render('login', ['csrf_token' => $this->generateCsrfToken()]);
         }
 
-        // Weryfikacja CSRF
         $this->verifyCsrf();
 
         $email    = trim($_POST['email'] ?? '');
         $password = $_POST['password'] ?? '';
 
-        // Walidacja długości wejścia
         if (strlen($email) > 255 || strlen($password) > 1024) {
             return $this->render('login', [
                 'messages'   => ['Nieprawidłowy email lub hasło.'],
@@ -124,7 +136,6 @@ class SecurityController extends AppController {
             ]);
         }
 
-        // Walidacja formatu email
         if (empty($email) || empty($password) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             return $this->render('login', [
                 'messages'   => ['Nieprawidłowy email lub hasło.'],
@@ -138,8 +149,6 @@ class SecurityController extends AppController {
         if ($ip !== 'unknown' && $this->loginAttemptsRepository->isIpBlocked($ip)) {
             error_log("Blocked IP login attempt: {$ip} for email: {$email}");
 
-            // Celowo nie ujawniamy pozostalego czasu blokady - to pozwoliloby zautomatyzowac
-            // atak w rownych interwalach. Informacja o czasie jest dostepna wylacznie dla admina.
             return $this->render('login', [
                 'messages'   => [
                     'Logowanie z tego adresu IP jest tymczasowo zablokowane.',
@@ -149,10 +158,6 @@ class SecurityController extends AppController {
             ]);
         }
 
-        // Globalny lockout konta - atak rozproszony (>=2 IP, lacznie >=4 nieudanych).
-        // Tu blokujemy KAZDEMU dostep do konta, bo widac, ze sprawa nie ogranicza
-        // sie do jednego napastnika. Sprawdzamy PRZED soft lockoutem per IP-konto,
-        // bo jest ostrzejszy.
         if ($this->loginAttemptsRepository->isAccountGloballyLocked($email, 4, 2, 15)) {
             error_log("Account-wide lockout (distributed attack) for email: {$email} from IP: {$ip}");
             return $this->render('login', [
@@ -164,10 +169,6 @@ class SecurityController extends AppController {
             ]);
         }
 
-        // Soft lockout per (IP, konto) - 3 nieudane proby z tego IP na to konto.
-        // Prawowity wlasciciel z innego IP nadal moze sie logowac. Zapobiega
-        // klasycznemu account-lockout DoS, ktory atakujacy z jednego IP moglby
-        // zrobic dowolnemu uzytkownikowi.
         if ($ip !== 'unknown' && $this->loginAttemptsRepository->isTemporarilyLockedForIpAccount($email, $ip, 3, 15)) {
             error_log("Per-IP soft lockout for email: {$email} from IP: {$ip}");
             return $this->render('login', [
@@ -176,12 +177,10 @@ class SecurityController extends AppController {
             ]);
         }
 
-        // Weryfikacja hasła (constant-time, nawet jeśli user nie istnieje)
         $passwordCorrect = false;
         if ($user) {
             $passwordCorrect = password_verify($password, $user->getPassword());
         } else {
-            // Dummy verify, zapobiega timing attack
             password_verify($password, '$2y$10$dummyhashfordummyverificationonly');
         }
 
@@ -194,17 +193,11 @@ class SecurityController extends AppController {
             if ($failures >= 2) {
                 $messages[] = 'Uwaga: Wykryto wiele nieudanych prób logowania. Po przekroczeniu limitu konto może zostać zablokowane przez administratora.';
 
-                // Powiadamiaj adminów dokladnie raz - przy pierwszej probie, ktora wpada
-                // w lockout (3), oraz potem co kazde kolejne 3 nieudane proby (6, 9, 12, ...).
                 if ($user && $failures >= 3 && $failures % 3 === 0) {
                     $this->loginAttemptsRepository->notifyAdmins($email, $failures);
                 }
             }
 
-            // Wykrywanie ataku rozproszonego NA KONTO (>=2 IP, lacznie >=4 nieudanych)
-            // - to jest moment, w ktorym blokada konta wlasnie wchodzi w zycie. Wysylamy
-            // pojedyncze powiadomienie krytyczne dla adminow (kazda kolejna proba juz
-            // ich nie spamuje, bo isAccountGloballyLocked odetnie reqest wczesniej).
             if ($user) {
                 $accountAttack = $this->loginAttemptsRepository->getAccountAttackDetails($email, 15);
                 $crossedThreshold = $accountAttack['total_failures'] === 4
@@ -240,7 +233,6 @@ class SecurityController extends AppController {
                             isset($ipBlockInfo['remaining_seconds']) ? (int)$ipBlockInfo['remaining_seconds'] : null
                         );
 
-                        // Bez ujawniania pozostalego czasu (ochrona przed automatyzacja ataku).
                         $messages[] = 'Ze wzgledow bezpieczenstwa logowanie z Twojego adresu IP zostalo zablokowane.';
                         error_log("Global attack detected and blocked for IP: {$ip}");
                     }
@@ -255,7 +247,6 @@ class SecurityController extends AppController {
             ]);
         }
 
-        // Konto zablokowane (sprawdzamy dopiero po weryfikacji hasła)
         if ($user->getIsBlocked()) {
             $this->loginAttemptsRepository->recordAttempt($email, $ip, false);
             error_log("Blocked account login attempt for email: {$email} from IP: {$ip}");
@@ -265,7 +256,6 @@ class SecurityController extends AppController {
             ]);
         }
 
-        // Logowanie udane
         $this->loginAttemptsRepository->recordAttempt($email, $ip, true);
 
         if (isset($_POST['remember'])) {
@@ -287,7 +277,7 @@ class SecurityController extends AppController {
         }
 
         session_regenerate_id(true);
-        unset($_SESSION['csrf_token']); // Nowy token po nowej sesji
+        unset($_SESSION['csrf_token']);
 
         $_SESSION['user_id']      = $user->getId();
         $_SESSION['user_email']   = $user->getEmail();
@@ -328,6 +318,29 @@ class SecurityController extends AppController {
         exit();
     }
 
+    public function debugUnblockAll(): void
+    {
+        if (!$this->isPost()) {
+            $this->jsonResponse(['error' => 'Niedozwolona metoda.'], 405);
+        }
+
+        if (!$this->isLocalDebugResetEnabled()) {
+            // Celowo zwracamy 404, aby nie eksponowac endpointu poza localhost.
+            $this->jsonResponse(['error' => 'Nie znaleziono zasobu.'], 404);
+        }
+
+        $this->verifyCsrf();
+
+        try {
+            $result = $this->loginAttemptsRepository->clearAllLocksForDebug();
+            error_log('Debug unlock-all executed from login screen.');
+            $this->jsonResponse(['success' => true, 'result' => $result]);
+        } catch (Exception $e) {
+            error_log('Debug unlock-all failed: ' . $e->getMessage());
+            $this->jsonResponse(['error' => 'Nie udało się zdjąć blokad debug.'], 500);
+        }
+    }
+
     public function register() {
         $this->requireHttps();
 
@@ -341,7 +354,6 @@ class SecurityController extends AppController {
             return $this->render('register', ['csrf_token' => $this->generateCsrfToken()]);
         }
 
-        // Weryfikacja CSRF
         $this->verifyCsrf();
 
         $email             = trim($_POST['email'] ?? '');
@@ -351,7 +363,6 @@ class SecurityController extends AppController {
         $surname           = trim($_POST['surname'] ?? '');
         $pesel             = trim($_POST['pesel'] ?? '');
 
-        // Walidacja długości wejścia
         if (strlen($email) > 255 || strlen($name) > 100 || strlen($surname) > 100 || strlen($password) > 1024) {
             return $this->render('register', [
                 'messages'   => ['Dane wejściowe są zbyt długie.'],
@@ -359,7 +370,6 @@ class SecurityController extends AppController {
             ]);
         }
 
-        // Walidacja formatu email
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             return $this->render('register', [
                 'messages'   => ['Podaj poprawny adres email.'],
@@ -367,7 +377,6 @@ class SecurityController extends AppController {
             ]);
         }
 
-        // Walidacja złożoności hasła
         $passwordError = $this->validateStrongPassword($password);
         if ($passwordError !== null) {
             return $this->render('register', [
@@ -383,7 +392,6 @@ class SecurityController extends AppController {
             ]);
         }
 
-        // Proaktywne sprawdzenie, czy email istnieje (neutralny komunikat)
         if ($this->userRepository->emailExists($email)) {
             return $this->render('register', [
                 'messages'   => ['Jeśli w systemie istnieje konto z tym adresem, wysłaliśmy instrukcje na email.'],

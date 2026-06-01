@@ -186,7 +186,6 @@ class DoctorController extends AppController {
         $ranges = $body['ranges'] ?? [];
         $today = date('Y-m-d');
         $skippedPastDays = 0;
-        // Sanitise input
         $clean = [];
         foreach ($ranges as $r) {
             $date  = preg_replace('/[^0-9\-]/', '', $r['date'] ?? '');
@@ -195,20 +194,14 @@ class DoctorController extends AppController {
             if (!$date || !$start || !$end || $start >= $end) {
                 continue;
             }
-            // Nie pozwalamy zapisywać dostępności na daty z przeszłości - pacjent i tak ich
-            // nie zobaczy, a śmieci w bazie tylko mylą lekarza i utrudniają debug.
             if ($date < $today) {
                 $skippedPastDays++;
                 continue;
             }
             $clean[] = ['date' => $date, 'start_time' => $start, 'end_time' => $end];
         }
-        // Ogranicz operację DELETE w zapisie do zakresu od dziś, żeby przeszłe wpisy (jeśli już
-        // istnieją w bazie z wcześniejszych zapisów) zostały nietknięte. To zachowuje historię
-        // i zapobiega ponownemu wykasowaniu jej przez kolejne zapisy tygodnia.
         $effectiveStart = max($body['week_start'], $today);
         if ($effectiveStart > $body['week_end']) {
-            // Cały zapisywany tydzień jest w przeszłości - nie ma czego zapisywać ani kasować.
             $this->jsonResponse([
                 'success' => true,
                 'skipped_past_days' => $skippedPastDays,
@@ -290,29 +283,6 @@ class DoctorController extends AppController {
             return $this->getDoctorIdByUserId($_SESSION['user_id']);
         } catch (Exception $e) {
             return null;
-        }
-    }
-
-    public function doctorAvailability() {
-        $this->requireLogin();
-
-        $contentType = isset($_SERVER["CONTENT_TYPE"]) ? trim($_SERVER["CONTENT_TYPE"]) : '';
-
-        if ($contentType === "application/json") {
-            $content = trim(file_get_contents("php://input"));
-            $decoded = json_decode($content, true);
-
-            $doctorId = (int)($decoded['doctor_id'] ?? 0);
-            $startDate = $decoded['start_date'] ?? '';
-            $endDate = $decoded['end_date'] ?? '';
-
-            if(!$doctorId || empty($startDate) || empty($endDate)) {
-                $this->jsonResponse([]);
-            }
-
-            $booked = $this->appointmentRepo->getAppointmentsInRange($doctorId, $startDate, $endDate);
-
-            $this->jsonResponse($booked);
         }
     }
 }

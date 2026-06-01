@@ -2,6 +2,24 @@
 
 Aplikacja webowa do obslugi wizyt medycznych (pacjent, lekarz, admin) zbudowana bez frameworka, w architekturze MVC (PHP OOP + PostgreSQL + HTML/CSS/JS + Docker).
 
+## Podglad aplikacji
+
+### Widok web
+
+<p align="center">
+  <a href="docs/assets/web-login.png"><img src="docs/assets/web-login.png" alt="Login web" width="32%"></a>
+  <a href="docs/assets/web-dashboard-patient.png"><img src="docs/assets/web-dashboard-patient.png" alt="Dashboard pacjenta web" width="32%"></a>
+  <a href="docs/assets/web-doctor-dashboard.png"><img src="docs/assets/web-doctor-dashboard.png" alt="Dashboard lekarza web" width="32%"></a>
+</p>
+
+### Widok mobile
+
+<p align="center">
+  <a href="docs/assets/mobile-dashboard-patient.png"><img src="docs/assets/mobile-dashboard-patient.png" alt="Dashboard pacjenta mobile" width="32%"></a>
+  <a href="docs/assets/mobile-dashboard-doctor.png"><img src="docs/assets/mobile-dashboard-doctor.png" alt="Dashboard lekarza mobile" width="32%"></a>
+  <a href="docs/assets/mobile-dashboard-admin.png"><img src="docs/assets/mobile-dashboard-admin.png" alt="Dashboard admina mobile" width="32%"></a>
+</p>
+
 ## 1. Najwazniejsze informacje
 
 - **Technologie**: PHP 8.3, PostgreSQL, JavaScript (Fetch API), HTML5, CSS3, Docker Compose, Nginx.
@@ -234,114 +252,118 @@ flowchart TD
 
 ### 7.1 Testy jednostkowe (PHPUnit)
 
-- Pliki:
+- Pliki testowe objete suite (`tests/*Test.php`):
   - `tests/AppControllerTest.php`
-  - `tests/AppointmentRepositoryNotificationsTest.php`
-  - `tests/UsersRepositoryTest.php`
+  - `tests/AppointmentControllerConfirmMessageTest.php`
   - `tests/AppointmentControllerSanitizeReturnToTest.php`
+  - `tests/AppointmentRepositoryNotificationsTest.php`
+  - `tests/EndpointAuthorizationTest.php`
+  - `tests/RepositoryTest.php`
   - `tests/SecurityControllerHelpersTest.php`
   - `tests/UserModelTest.php`
-  - `tests/RepositoryTest.php`
-- Ostatni wynik: **58 testow, 141 asercji, OK**.
-- Ostatni wynik: **61 testow, 145 asercji, OK**.
+  - `tests/UsersRepositoryTest.php`
+- Ostatnia lokalna weryfikacja (2026-06-01): **70 testow, 176 asercji, OK**.
 - Zakres:
-  - polityka hasla i detekcja JSON/request context,
-- logika notyfikacji i operacje na wizytach w `AppointmentRepository`,
-- operacje admin/profile w `UsersRepository`,
-- sanitizacja redirectow (`return_to`) i helpery security,
-- podstawowa instancjacja warstwy repo + model `User`.
+  - polityka hasla, CSRF/helpers i detekcja kontekstu requestu,
+  - logika notyfikacji i operacje wizyt w `AppointmentRepository`,
+  - operacje admin/profile w `UsersRepository`,
+  - sanitizacja redirectow (`return_to`) oraz autoryzacja endpointow,
+  - podstawowa warstwa repo + model `User`.
 
 ### 7.2 Testy integracyjne (smoke)
 
 - Skrypty:
   - `tests/integration_test.ps1`
   - `tests/integration_test.sh`
-- Ostatni wynik: **13/13 PASS**.
+- Ostatnia lokalna weryfikacja (2026-06-01): **17/17 PASS**.
 - Pokryte scenariusze:
   - publiczne trasy (`/login`, 404),
   - ochrona endpointow API bez sesji (401),
-  - zgodnosc odpowiedzi JSON dla API.
+  - zgodnosc odpowiedzi HTTP/JSON dla kluczowych endpointow.
 
-### 7.2.1 Raport automatyczny (material do screena)
+### 7.3 Raporty i artefakty
 
 ![Raport testow automatycznych](docs/assets/test-report-2026-05-31.svg)
 
-- Szczegolowy raport: [docs/reports/test-report-2026-05-31.md](docs/reports/test-report-2026-05-31.md)
-- Log PHPUnit + coverage: [tests/reports/phpunit_coverage_scoped_2026-05-31_152602.txt](tests/reports/phpunit_coverage_scoped_2026-05-31_152602.txt)
-- Clover XML coverage: [tests/reports/coverage_scoped_2026-05-31_152602.xml](tests/reports/coverage_scoped_2026-05-31_152602.xml)
-- HTML coverage: [tests/reports/coverage_scoped_html_2026-05-31_152602/index.html](tests/reports/coverage_scoped_html_2026-05-31_152602/index.html)
-- Log integracji: [tests/reports/integration_2026-05-31_151433.txt](tests/reports/integration_2026-05-31_151433.txt)
+- Raport aktualny: [docs/reports/test-report-2026-06-01.md](docs/reports/test-report-2026-06-01.md)
+- Raport archiwalny: [docs/reports/test-report-2026-05-31.md](docs/reports/test-report-2026-05-31.md)
+- Log PHPUnit + coverage (archiwum): [tests/reports/phpunit_coverage_scoped_2026-05-31_152602.txt](tests/reports/phpunit_coverage_scoped_2026-05-31_152602.txt)
+- Clover XML coverage (archiwum): [tests/reports/coverage_scoped_2026-05-31_152602.xml](tests/reports/coverage_scoped_2026-05-31_152602.xml)
+- HTML coverage (archiwum): [tests/reports/coverage_scoped_html_2026-05-31_152602/index.html](tests/reports/coverage_scoped_html_2026-05-31_152602/index.html)
+- Log integracji (archiwum): [tests/reports/integration_2026-05-31_151433.txt](tests/reports/integration_2026-05-31_151433.txt)
 
-### 7.3 Pokrycie kodu (Xdebug)
+### 7.4 Pokrycie kodu (Xdebug, ostatni pelny raport)
 
-- **Coverage scope (moduly backend objete unit testami):**
+- Coverage scope (moduly backend objete raportem):
   - `AppController`
   - `AppointmentRepository`
   - `Repository`
   - `User`
   - `UsersRepository`
-- **Wynik coverage:**
+- Wynik coverage:
   - Classes: **40.00%** (2/5)
   - Methods: **58.82%** (40/68)
   - Lines: **44.95%** (218/485)
 
 Wniosek praktyczny:
-- Wzrost testow automatycznych i metryk coverage jest znaczacy wzgledem poprzedniego stanu.
-- Dalszy wzrost wymaga dopisania testow dla pozostalych kontrolerow i scenariuszy end-to-end.
+- Pokrycie jest liczone na zawezonym scope backendu; dalszy wzrost wymaga testow kolejnych kontrolerow i scenariuszy end-to-end.
 
 ## 8. Instrukcja uruchomienia
 
 ### 8.1 Wymagania
 - Docker + Docker Compose.
-- Porty wolne: `8080`, `8443`, `5433`, `5050`.
+- Wolne porty: `8080`, `8443`, `5433`, `5050`.
 
 ### 8.2 Start aplikacji
 
 1. Sklonuj repozytorium.
-2. Ustaw zmienne (opcjonalnie przez `.env`):
-   - wzorzec jest w `.env.example`.
-3. Uruchom:
+2. (Opcjonalnie) skopiuj konfiguracje z `.env.example`.
+3. Uruchom kontenery:
 
 ```bash
-docker-compose up -d --build
+docker compose up -d --build
 ```
 
 4. Otworz:
 - aplikacja: `https://localhost:8443`
 - pgAdmin: `http://localhost:5050`
 
-### 8.3 Testy
+5. (Opcjonalnie) odtworz dane demo:
 
-### PHPUnit
+Windows PowerShell:
 
-```bash
-docker-compose exec php sh -lc "wget -q -O /tmp/phpunit.phar https://phar.phpunit.de/phpunit-11.phar; php /tmp/phpunit.phar --configuration /app/phpunit.xml"
+```powershell
+Get-Content ./docker/db/presentation_seed.sql | docker compose exec -T db psql -U docker -d db
 ```
 
-### Integracja (Windows PowerShell)
+Linux/macOS:
+
+```bash
+docker compose exec -T db psql -U docker -d db < ./docker/db/presentation_seed.sql
+```
+
+### 8.3 Testy
+
+PHPUnit:
+
+```bash
+docker compose exec php sh -lc "wget -q -O /tmp/phpunit.phar https://phar.phpunit.de/phpunit-11.phar; php /tmp/phpunit.phar --configuration /app/phpunit.xml"
+```
+
+Integracja (Windows PowerShell):
 
 ```powershell
 ./tests/integration_test.ps1
 ```
 
-### Integracja (Linux/macOS)
+Integracja (Linux/macOS):
 
 ```bash
 bash ./tests/integration_test.sh
 ```
 
-## 9. Scenariusz Testowy (krok po kroku)
 
-1. Uruchom aplikacje i otworz `https://localhost:8443`.
-2. Zaloguj sie kolejno jako patient, doctor, admin i potwierdz przekierowania do odpowiednich dashboardow.
-3. Patient: wyszukaj lekarza, zarezerwuj slot, anuluj wizyte, zaktualizuj profil i haslo.
-4. Doctor: ustaw dostepnosc tygodniowa, zmien status wizyty na `completed`, dodaj zalecenia.
-5. Patient: wystaw opinie do zakonczonej wizyty i zglos opinie (report).
-6. Admin: obsluz report (`dismiss` / `resolve`), wykonaj CRUD usera i test blokady/odblokowania konta.
-7. Weryfikuj statusy 401/403/404 na trasach nieautoryzowanych i nieistniejacych.
-8. Potwierdz dzialanie obiektow DB: trigger `trg_review_request`, widoki i funkcje.
-
-## 10. Checklista wdrozenia
+## 9. Checklista wdrozenia
 
 - [x] MVC OOP bez frameworka
 - [x] Docker + PostgreSQL + HTTPS
@@ -352,9 +374,3 @@ bash ./tests/integration_test.sh
 - [x] Logowanie prob logowania i lockout
 - [x] Testy jednostkowe + integracyjne
 - [x] Strony bledow 400/401/403/404/500
-
-## 11. Materialy Do Uzupelnienia Przed Oddaniem
-
-- Dodaj screeny aplikacji web i mobile do `docs/assets/` oraz podlinkuj je w README.
-- Dodaj diagram ERD w formacie PNG/SVG do `docs/assets/` oraz link do pliku zrodlowego (np. draw.io).
-- Zweryfikuj, ze finalny commit zawiera aktualne artefakty raportowe (test report + screenshoty).

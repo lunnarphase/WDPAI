@@ -23,10 +23,7 @@
         <div class="login-card">
             <h2>Zaloguj się do konta</h2>
             
-            <?php 
-                // Pobieramy zapamiętany e-mail z ciasteczka (jeśli istnieje)
-                $rememberEmail = isset($_COOKIE['remember_email']) ? $_COOKIE['remember_email'] : ''; 
-            ?>
+            <?php $rememberEmail = isset($_COOKIE['remember_email']) ? $_COOKIE['remember_email'] : ''; ?>
 
             <?php if (isset($messages) && is_array($messages) && !empty($messages)) { ?>
                 <div class="<?= isset($is_success) && $is_success ? 'success-messages' : 'error-messages' ?>">
@@ -69,7 +66,7 @@
 
         <footer class="login-footer">
             <a href="#">Centrum pomocy</a>
-            <a href="#">Polityka prywatności</a>
+            <a href="#" id="privacy-policy-link">Polityka prywatności</a>
             <a href="#">Regulamin</a>
         </footer>
     </div>
@@ -79,6 +76,12 @@
         const loginValidationMessage = document.getElementById('login-validation-message');
         const loginEmailInput = document.getElementById('email');
         const loginPasswordInput = document.getElementById('password');
+        const privacyPolicyLink = document.getElementById('privacy-policy-link');
+        let privacyDebugTapCount = 0;
+        let privacyDebugResetTimer = null;
+        let privacyDebugRequestInFlight = false;
+        const privacyDebugTapThreshold = 5;
+        const privacyDebugTapWindowMs = 2500;
 
         function showLoginValidationMessage(message) {
             if (!loginValidationMessage) {
@@ -98,6 +101,18 @@
 
         function isValidEmailAddress(email) {
             return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
+        }
+
+        function resetPrivacyDebugTapState() {
+            privacyDebugTapCount = 0;
+            if (privacyDebugResetTimer) {
+                clearTimeout(privacyDebugResetTimer);
+                privacyDebugResetTimer = null;
+            }
+        }
+
+        function getCsrfTokenForDebugUnlock() {
+            return document.querySelector('input[name="csrf_token"]')?.value || '';
         }
 
         if (loginForm) {
@@ -128,6 +143,67 @@
 
         if (loginPasswordInput) {
             loginPasswordInput.addEventListener('input', clearLoginValidationMessage);
+        }
+
+        if (privacyPolicyLink) {
+            privacyPolicyLink.addEventListener('click', async function(event) {
+                event.preventDefault();
+
+                if (privacyDebugRequestInFlight) {
+                    return;
+                }
+
+                privacyDebugTapCount += 1;
+
+                if (privacyDebugResetTimer) {
+                    clearTimeout(privacyDebugResetTimer);
+                }
+                privacyDebugResetTimer = setTimeout(resetPrivacyDebugTapState, privacyDebugTapWindowMs);
+
+                if (privacyDebugTapCount < privacyDebugTapThreshold) {
+                    return;
+                }
+
+                resetPrivacyDebugTapState();
+
+                const csrfToken = getCsrfTokenForDebugUnlock();
+                if (!csrfToken) {
+                    showLoginValidationMessage('Tryb debug niedostępny: brak tokenu CSRF.');
+                    return;
+                }
+
+                privacyDebugRequestInFlight = true;
+
+                try {
+                    const response = await fetch('/debug-unblock-all', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-Token': csrfToken,
+                        },
+                        body: JSON.stringify({ source: 'login-privacy-5x' }),
+                    });
+
+                    const payload = await response.json().catch(() => ({}));
+
+                    if (response.ok && payload?.success) {
+                        showLoginValidationMessage('Tryb debug: zdjęto wszystkie blokady.');
+                        return;
+                    }
+
+                    if (response.status === 404) {
+                        showLoginValidationMessage('Tryb debug jest dostępny tylko lokalnie.');
+                        return;
+                    }
+
+                    showLoginValidationMessage('Tryb debug: nie udało się zdjąć blokad.');
+                } catch (error) {
+                    showLoginValidationMessage('Tryb debug: błąd połączenia.');
+                } finally {
+                    privacyDebugRequestInFlight = false;
+                }
+            });
         }
     </script>
 

@@ -10,7 +10,6 @@ class SqliteUsersRepositoryDatabase extends Database
 
     public function __construct()
     {
-        // Intentionally skipped parent constructor for isolated SQLite tests.
     }
 
     public function connect()

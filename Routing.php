@@ -38,6 +38,10 @@ class Routing {
             "controller" => "SecurityController",
             "action" => "logout"
         ],
+        "debug-unblock-all" => [
+            "controller" => "SecurityController",
+            "action" => "debugUnblockAll"
+        ],
         "find-doctor" => [
             "controller" => "DoctorController",
             "action" => "findDoctor"

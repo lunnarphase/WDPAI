@@ -10,7 +10,6 @@ class SqliteNotificationsDatabase extends Database
 
     public function __construct()
     {
-        // Intentionally skipped parent constructor for isolated test DB.
     }
 
     public function connect()
